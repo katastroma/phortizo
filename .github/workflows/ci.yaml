@@ -10,9 +10,9 @@ on:
 
 jobs:
   version:
+    uses: katastroma/skeuotheke/.github/workflows/version.yaml@v0
     permissions:
       contents: write
-    uses: katastroma/skeuotheke/.github/workflows/version.yaml@v0
     with:
       GH_APP_ID: ${{ vars.SKEUOTHEKE_GH_APP_CLIENT_ID }}
     secrets:
