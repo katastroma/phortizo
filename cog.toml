@@ -1,0 +1,7 @@
+# [git_hooks]
+
+[git_hooks.commit-msg]
+script = """#!/bin/sh
+set -e
+cog verify --file $1
+"""
