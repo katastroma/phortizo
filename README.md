@@ -1,16 +1,26 @@
 # Phortizo
 
-Katastroma's retriever. Implements the
-[naukleros](https://github.com/katastroma/naukleros) gRPC service.
+Katastroma's git retriever. Standalone service implementing the
+[naukleros](https://github.com/katastroma/naukleros) interface.
 
-Given a repo URL, revision, path, and credentials, phortizo fetches the source
-content using git libraries.
+Phortizo receives git webhooks, manages gitops identities and repository
+credentials, matches source events against registered identities, and fetches
+source content. Imports [pharos](https://github.com/katastroma/pharos) for
+webhook verification and the downstream pipeline.
 
-## Ecosystem
+## Operations
 
-- **Phortizo** (this) — retriever, implements
-  [naukleros](https://github.com/katastroma/naukleros)
-- **[Orpheus](https://github.com/katastroma/orpheus)** — renderer, implements
-  [keleustēs](https://github.com/katastroma/keleustes)
-- **[Histia](https://github.com/katastroma/histia)** — provisioner, implements
-  [katartismos](https://github.com/katastroma/katartismos)
+- **Match** — given a source event, find the matching gitops identity. Returns
+  the identity if matched, empty if not.
+- **Fetch** — given a source identity, authenticate and fetch the source
+  content.
+
+## Resource Labeling
+
+All resources naukleros implementations create are labeled with the labels it
+receives.
+
+## GitHub
+
+Multiple Webhooks can be added to a single repository, allowing multiple tenants
+to send events for a single repo.
