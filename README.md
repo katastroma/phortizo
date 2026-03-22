@@ -5,7 +5,8 @@ Katastroma's git retriever. Standalone
 
 Phortizo receives git webhooks, manages gitops identities and repository
 credentials, matches source events against registered identities, and fetches
-source content.
+source content before forwarding it to the remaining platform pipeline pieces
+(orpheus, orderer, then katartismos implementations).
 
 ## Operations
 
