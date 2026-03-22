@@ -1,12 +1,11 @@
 # Phortizo
 
-Katastroma's git retriever. Standalone service implementing the
-[naukleros](https://github.com/katastroma/naukleros) interface.
+Katastroma's git retriever. Standalone
+[naukleros](https://github.com/katastroma/naukleros) implementation.
 
 Phortizo receives git webhooks, manages gitops identities and repository
 credentials, matches source events against registered identities, and fetches
-source content. Imports [pharos](https://github.com/katastroma/pharos) for
-webhook verification and the downstream pipeline.
+source content.
 
 ## Operations
 
