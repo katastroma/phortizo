@@ -12,7 +12,7 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/katastroma/phortizo/internal/auth"
+	"github.com/katastroma/phortizo/internal/auth/resolve"
 	gitclone "github.com/katastroma/phortizo/internal/git"
 	"github.com/katastroma/phortizo/internal/match"
 	"github.com/katastroma/phortizo/internal/source"
@@ -26,15 +26,17 @@ var tracer = otel.Tracer("pipeline")
 type Runner struct {
 	log         *slog.Logger
 	credentials vault.Withdrawer
-	exchanger   auth.TokenExchanger
+	exchanger   resolve.TokenExchanger
+	appFactory  resolve.ExchangerFactory
 }
 
 // NewRunner creates a pipeline runner.
-func NewRunner(log *slog.Logger, credentials vault.Withdrawer, exchanger auth.TokenExchanger) *Runner {
+func NewRunner(log *slog.Logger, credentials vault.Withdrawer, exchanger resolve.TokenExchanger, newExchanger resolve.ExchangerFactory) *Runner {
 	return &Runner{
 		log:         log,
 		credentials: credentials,
 		exchanger:   exchanger,
+		appFactory:  newExchanger,
 	}
 }
 
@@ -97,7 +99,7 @@ func (r *Runner) resolveAuth(ctx context.Context, cred *vault.Credential) (trans
 	ctx, span := tracer.Start(ctx, "pipeline.resolve_auth")
 	defer span.End()
 
-	method, err := auth.Resolve(ctx, cred, r.exchanger)
+	method, err := resolve.FromCredential(ctx, cred, r.exchanger, r.appFactory)
 	if err != nil {
 		span.RecordError(err)
 		return nil, fmt.Errorf("resolving auth: %w", err)

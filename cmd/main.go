@@ -19,13 +19,14 @@ import (
 
 	pb "github.com/katastroma/naukleros"
 
-	vaultmemory "github.com/katastroma/phortizo/internal/vault/memory"
+	"github.com/katastroma/phortizo/internal/auth/resolve"
 	"github.com/katastroma/phortizo/internal/github"
 	handlers "github.com/katastroma/phortizo/internal/handlers"
 	grpc_health "github.com/katastroma/phortizo/internal/health/grpc"
 	http_health "github.com/katastroma/phortizo/internal/health/http"
 	"github.com/katastroma/phortizo/internal/pipeline"
 	regmemory "github.com/katastroma/phortizo/internal/registration/memory"
+	vaultmemory "github.com/katastroma/phortizo/internal/vault/memory"
 )
 
 func main() {
@@ -64,13 +65,17 @@ func main() {
 		os.Exit(1)
 	}
 
-	gha := github.NewApp(clientID, []byte(privateKeyPEM))
-	ghc := github.NewClientFromAppInstallation(log, gha, installationID)
+	platformApp := github.NewApp(clientID, []byte(privateKeyPEM))
+	ghc := github.NewClientFromAppInstallation(log, platformApp, installationID)
 
 	// Pipeline
 	// TODO: store selection from environment config (k8s in prod, memory in dev)
 	credentials := vaultmemory.New()
-	runner := pipeline.NewRunner(log, credentials, gha)
+
+	githubAppFactory := func(clientID string, privateKeyPEM []byte) resolve.TokenExchanger {
+		return github.NewApp(clientID, privateKeyPEM)
+	}
+	runner := pipeline.NewRunner(log, credentials, platformApp, githubAppFactory)
 
 	// HTTP server
 	registrations := regmemory.New()
