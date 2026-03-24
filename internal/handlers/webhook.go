@@ -2,9 +2,14 @@
 package handler
 
 import (
+	"context"
 	"io"
 	"log/slog"
 	"net/http"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/katastroma/phortizo/internal/event"
 	"github.com/katastroma/phortizo/internal/match"
@@ -12,16 +17,18 @@ import (
 	"github.com/katastroma/phortizo/internal/verify"
 )
 
+var tracer = otel.Tracer("webhook")
+
 // Webhook receives GitHub push webhooks, verifies their signature, matches
 // watch targets, and dispatches matched targets for processing.
 type Webhook struct {
 	log     *slog.Logger
 	store   registration.Store
-	onMatch func(m match.Result)
+	onMatch func(ctx context.Context, m match.Result)
 }
 
 // NewWebhook creates a webhook handler.
-func NewWebhook(log *slog.Logger, store registration.Store, onMatch func(m match.Result)) *Webhook {
+func NewWebhook(log *slog.Logger, store registration.Store, onMatch func(ctx context.Context, m match.Result)) *Webhook {
 	return &Webhook{
 		log:     log,
 		store:   store,
@@ -71,8 +78,14 @@ func (h *Webhook) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	deliveryID := r.Header.Get("X-GitHub-Delivery")
+	ctx, span := tracer.Start(r.Context(), "webhook.dispatch", trace.WithAttributes(
+		attribute.String("github.delivery_id", deliveryID),
+	))
+	defer span.End()
+
 	for _, target := range matched {
-		h.onMatch(match.Result{
+		h.onMatch(ctx, match.Result{
 			Registration: reg,
 			Target:       target,
 			Event:        ev,

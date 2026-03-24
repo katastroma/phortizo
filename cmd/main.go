@@ -4,21 +4,20 @@ package main
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"net"
 	"net/http"
 	"os"
-	"os/signal"
 	"strconv"
 	"sync"
-	"syscall"
 	"time"
 
-	"google.golang.org/grpc"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 
-	"github.com/katastroma/keleusma/broker"
-	"github.com/katastroma/kytos/store"
+	"git.sonicoriginal.software/grpc-foundation/logging"
+	foundationotel "git.sonicoriginal.software/grpc-foundation/otel"
+	"git.sonicoriginal.software/grpc-foundation/server"
+
+	pb "github.com/katastroma/naukleros"
 
 	"github.com/katastroma/phortizo/internal/credential"
 	"github.com/katastroma/phortizo/internal/github"
@@ -31,8 +30,22 @@ import (
 
 func main() {
 	mainCtx := context.Background()
-	log := slog.Default()
+	log := logging.New("phortizo")
 
+	// OTel tracing, metrics, logging
+	version := os.Getenv("SERVICE_VERSION")
+	if version == "" {
+		version = "dev"
+	}
+
+	providers, err := foundationotel.Init(mainCtx, "phortizo", version)
+	if err != nil {
+		log.Error("otel init failed", "error", err)
+		os.Exit(1)
+	}
+	defer providers.Shutdown(mainCtx)
+
+	// GitHub App
 	clientID := os.Getenv("GITHUB_APP_CLIENT_ID")
 	if clientID == "" {
 		log.Error("GITHUB_APP_CLIENT_ID is required")
@@ -54,20 +67,15 @@ func main() {
 	gha := github.NewApp(clientID, []byte(privateKeyPEM))
 	ghc := github.NewClientFromAppInstallation(log, gha, installationID)
 
-	// Pipeline dependencies — injected at runtime.
-	// TODO: select concrete implementations from environment config.
-	var (
-		storage     store.Store
-		publisher   broker.Publisher
-		credentials credential.Store
-	)
+	// Pipeline
+	// TODO: credential store from environment config (k8s in prod, memory in dev)
+	var credentials credential.Store
+	runner := pipeline.NewRunner(log, credentials, gha)
 
-	runner := pipeline.NewRunner(log, credentials, gha, storage, publisher)
-
+	// HTTP server
 	registrationStore := registration.NewMemoryStore()
 	webhookHandler := handlers.NewWebhook(log, registrationStore, runner.HandleMatch)
 
-	// HTTP server
 	mux := http.NewServeMux()
 	mux.Handle("GET /healthz", http_health.New(log, ghc))
 	mux.Handle("POST /webhook/{id}", webhookHandler)
@@ -83,15 +91,11 @@ func main() {
 	}
 
 	// gRPC server
-	grpcPort := os.Getenv("GRPC_PORT")
-	if grpcPort == "" {
-		grpcPort = "9090"
-	}
-
-	grpcServer := grpc.NewServer()
+	grpcServer := server.New(log)
 	healthpb.RegisterHealthServer(grpcServer, grpc_health.New(log, ghc))
+	pb.RegisterRetrieverServiceServer(grpcServer, handlers.NewRetriever(log))
 
-	sigNotifyContext, stop := signal.NotifyContext(mainCtx, syscall.SIGINT, syscall.SIGTERM)
+	sigNotifyContext, stop := context.WithCancel(mainCtx)
 	defer stop()
 
 	var wg sync.WaitGroup
@@ -105,47 +109,28 @@ func main() {
 	})
 
 	wg.Go(func() {
-		lis, err := net.Listen("tcp", fmt.Sprintf(":%s", grpcPort))
+		addr := server.Address()
+		lis, err := net.Listen("tcp", addr)
 		if err != nil {
 			log.Error("grpc listen error", "error", err)
 			stop()
 			return
 		}
-		log.Info("starting grpc server", "port", grpcPort)
+		log.Info("starting grpc server", "address", addr)
 		if err := grpcServer.Serve(lis); err != nil {
 			log.Error("grpc server error", "error", err)
 			stop()
 		}
 	})
 
-	<-sigNotifyContext.Done()
-
-	log.Info("shutting down")
+	server.HandleGracefulShutdown(sigNotifyContext, stop, log, grpcServer, providers, 10*time.Second)
 
 	shutdownCtx, shutdownCancel := context.WithTimeout(mainCtx, 10*time.Second)
 	defer shutdownCancel()
 
-	var shutdownWg sync.WaitGroup
+	if err := httpServer.Shutdown(shutdownCtx); err != nil {
+		log.Error("http shutdown error", "error", err)
+	}
 
-	shutdownWg.Go(func() {
-		stopped := make(chan struct{})
-		go func() {
-			grpcServer.GracefulStop()
-			close(stopped)
-		}()
-		select {
-		case <-stopped:
-		case <-shutdownCtx.Done():
-			grpcServer.Stop()
-		}
-	})
-
-	shutdownWg.Go(func() {
-		if err := httpServer.Shutdown(shutdownCtx); err != nil {
-			log.Error("http shutdown error", "error", err)
-		}
-	})
-
-	shutdownWg.Wait()
 	wg.Wait()
 }
