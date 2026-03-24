@@ -24,9 +24,13 @@ func TestSign_ProducesValidJWT(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	token, err := gojwt.ParseWithClaims(tokenString, &gojwt.RegisteredClaims{}, func(t *gojwt.Token) (interface{}, error) {
-		return &priv.PublicKey, nil
-	})
+	token, err := gojwt.ParseWithClaims(
+		tokenString,
+		&gojwt.RegisteredClaims{},
+		func(_ *gojwt.Token) (any, error) {
+			return &priv.PublicKey, nil
+		},
+	)
 	if err != nil {
 		t.Fatalf("parsing token: %v", err)
 	}

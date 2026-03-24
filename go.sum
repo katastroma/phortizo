@@ -66,6 +66,8 @@ github.com/grpc-ecosystem/grpc-gateway/v2 v2.27.3 h1:NmZ1PKzSTQbuGHw9DGPFomqkkLW
 github.com/grpc-ecosystem/grpc-gateway/v2 v2.27.3/go.mod h1:zQrxl1YP88HQlA6i9c63DSVPFklWpGX4OWAc9bFuaH4=
 github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99 h1:BQSFePA1RWJOlocH6Fxy8MmwDt+yVQYULKfN0RoTN8A=
 github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99/go.mod h1:1lJo3i6rXxKeerYnT8Nvf0QmHCRC1n8sfWVwXF2Frvo=
+github.com/katastroma/keleustes v0.4.0 h1:iBbroH0eGSY1JRHFtwqaHya++Lx5vIAT7G411gzt+GM=
+github.com/katastroma/keleustes v0.4.0/go.mod h1:DjGpxvWQ80+2/Xzwqc//IEsyrwTvCk9RN+a0S6C/e2A=
 github.com/katastroma/naukleros v0.3.0 h1:sL1UCTXtEjOhUbIUe5XNQxHVJK4xnKw/FTGbhkQKzP4=
 github.com/katastroma/naukleros v0.3.0/go.mod h1:QiUNQks3UmAcxcwYIHzbrJ6JT/TltlEuT0KZr0wO5Rk=
 github.com/kevinburke/ssh_config v1.2.0 h1:x584FjTGwHzMwvHx18PXxbBVzfnxogHaAReU4gf13a4=

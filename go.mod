@@ -8,6 +8,7 @@ require (
 	github.com/go-git/go-git/v5 v5.17.0
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/google/go-github/v84 v84.0.0
+	github.com/katastroma/keleustes v0.4.0
 	github.com/katastroma/naukleros v0.3.0
 	go.opentelemetry.io/otel v1.39.0
 	go.opentelemetry.io/otel/trace v1.39.0

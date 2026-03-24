@@ -11,10 +11,14 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 
+	pb "github.com/katastroma/keleustes"
 	"github.com/katastroma/phortizo/internal/auth/resolve"
 	gitclone "github.com/katastroma/phortizo/internal/git"
 	"github.com/katastroma/phortizo/internal/match"
+	"github.com/katastroma/phortizo/internal/render"
 	"github.com/katastroma/phortizo/internal/source"
 	"github.com/katastroma/phortizo/internal/vault"
 )
@@ -28,15 +32,17 @@ type Runner struct {
 	credentials vault.Withdrawer
 	exchanger   resolve.TokenExchanger
 	appFactory  resolve.ExchangerFactory
+	renderers   map[source.RendererType]string
 }
 
 // NewRunner creates a pipeline runner.
-func NewRunner(log *slog.Logger, credentials vault.Withdrawer, exchanger resolve.TokenExchanger, newExchanger resolve.ExchangerFactory) *Runner {
+func NewRunner(log *slog.Logger, credentials vault.Withdrawer, exchanger resolve.TokenExchanger, newExchanger resolve.ExchangerFactory, renderers map[source.RendererType]string) *Runner {
 	return &Runner{
 		log:         log,
 		credentials: credentials,
 		exchanger:   exchanger,
 		appFactory:  newExchanger,
+		renderers:   renderers,
 	}
 }
 
@@ -75,12 +81,24 @@ func (r *Runner) HandleMatch(ctx context.Context, m match.Result) {
 
 	rendererType := r.inspect(ctx, fs, m.Target.Path)
 
-	r.log.InfoContext(ctx, "source ready",
+	address, ok := r.renderers[rendererType]
+	if !ok {
+		err := fmt.Errorf("no renderer configured for type %q", rendererType)
+		span.RecordError(err)
+		r.log.ErrorContext(ctx, "renderer lookup failed", "tenant", tenant, "renderer", string(rendererType), "error", err)
+		return
+	}
+
+	if err := r.stream(ctx, fs, m.Target.Path, address); err != nil {
+		span.RecordError(err)
+		r.log.ErrorContext(ctx, "streaming to renderer failed", "tenant", tenant, "renderer", string(rendererType), "error", err)
+		return
+	}
+
+	r.log.InfoContext(ctx, "source streamed to renderer",
 		"tenant", tenant,
 		"renderer", string(rendererType),
 	)
-
-	// TODO: stream source to renderer via keleustēs gRPC interface
 }
 
 func (r *Runner) resolveCredentials(ctx context.Context, ref string) (*vault.Credential, error) {
@@ -117,6 +135,25 @@ func (r *Runner) clone(ctx context.Context, repoURL, ref string, authMethod tran
 		return nil, fmt.Errorf("cloning: %w", err)
 	}
 	return fs, nil
+}
+
+func (r *Runner) stream(ctx context.Context, fs billy.Filesystem, path, address string) error {
+	ctx, span := tracer.Start(ctx, "pipeline.stream")
+	defer span.End()
+
+	conn, err := grpc.NewClient(address, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		span.RecordError(err)
+		return fmt.Errorf("connecting to renderer at %s: %w", address, err)
+	}
+	defer conn.Close()
+
+	client := pb.NewRendererServiceClient(conn)
+	if err := render.Stream(ctx, client, fs, path); err != nil {
+		span.RecordError(err)
+		return fmt.Errorf("streaming to renderer: %w", err)
+	}
+	return nil
 }
 
 func (r *Runner) inspect(ctx context.Context, fs billy.Filesystem, path string) source.RendererType {

@@ -26,6 +26,7 @@ import (
 	http_health "github.com/katastroma/phortizo/internal/health/http"
 	"github.com/katastroma/phortizo/internal/pipeline"
 	regmemory "github.com/katastroma/phortizo/internal/registration/memory"
+	"github.com/katastroma/phortizo/internal/source"
 	vaultmemory "github.com/katastroma/phortizo/internal/vault/memory"
 )
 
@@ -75,7 +76,14 @@ func main() {
 	githubAppFactory := func(clientID string, privateKeyPEM []byte) resolve.TokenExchanger {
 		return github.NewApp(clientID, privateKeyPEM)
 	}
-	runner := pipeline.NewRunner(log, credentials, platformApp, githubAppFactory)
+
+	renderers := map[source.RendererType]string{
+		source.Helm:      os.Getenv("RENDERER_HELM"),
+		source.Kustomize: os.Getenv("RENDERER_KUSTOMIZE"),
+		source.Raw:       os.Getenv("RENDERER_RAW"),
+	}
+
+	runner := pipeline.NewRunner(log, credentials, platformApp, githubAppFactory, renderers)
 
 	// HTTP server
 	registrations := regmemory.New()

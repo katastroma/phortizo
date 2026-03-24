@@ -23,7 +23,7 @@ func NewRetriever(log *slog.Logger) *Retriever {
 }
 
 // Retrieve handles manual source retrieval dispatch.
-func (r *Retriever) Retrieve(ctx context.Context, req *pb.RetrieveRequest) (*pb.RetrieveResponse, error) {
+func (r *Retriever) Retrieve(_ context.Context, _ *pb.RetrieveRequest) (*pb.RetrieveResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "Retrieve is not yet implemented")
 }
 
