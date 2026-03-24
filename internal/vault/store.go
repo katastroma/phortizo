@@ -1,5 +1,5 @@
 //revive:disable:package-comments
-package credential
+package vault
 
 import "context"
 
@@ -41,7 +41,7 @@ type Credential struct {
 	SSHKeyPEM []byte
 }
 
-// Store retrieves credentials for tenants.
-type Store interface {
-	Get(ctx context.Context, ref string) (*Credential, error)
+// Withdrawer retrieves credentials for tenants.
+type Withdrawer interface {
+	Withdraw(ctx context.Context, ref string) (*Credential, error)
 }

@@ -23,12 +23,12 @@ var tracer = otel.Tracer("webhook")
 // watch targets, and dispatches matched targets for processing.
 type Webhook struct {
 	log     *slog.Logger
-	store   registration.Store
+	store   registration.Registrar
 	onMatch func(ctx context.Context, m match.Result)
 }
 
 // NewWebhook creates a webhook handler.
-func NewWebhook(log *slog.Logger, store registration.Store, onMatch func(ctx context.Context, m match.Result)) *Webhook {
+func NewWebhook(log *slog.Logger, store registration.Registrar, onMatch func(ctx context.Context, m match.Result)) *Webhook {
 	return &Webhook{
 		log:     log,
 		store:   store,

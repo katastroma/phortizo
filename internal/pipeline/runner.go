@@ -13,10 +13,10 @@ import (
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/katastroma/phortizo/internal/auth"
-	"github.com/katastroma/phortizo/internal/credential"
 	gitclone "github.com/katastroma/phortizo/internal/git"
 	"github.com/katastroma/phortizo/internal/match"
 	"github.com/katastroma/phortizo/internal/source"
+	"github.com/katastroma/phortizo/internal/vault"
 )
 
 var tracer = otel.Tracer("pipeline")
@@ -25,12 +25,12 @@ var tracer = otel.Tracer("pipeline")
 // credentials, clone, inspect, and stream to the renderer.
 type Runner struct {
 	log         *slog.Logger
-	credentials credential.Store
+	credentials vault.Withdrawer
 	exchanger   auth.TokenExchanger
 }
 
 // NewRunner creates a pipeline runner.
-func NewRunner(log *slog.Logger, credentials credential.Store, exchanger auth.TokenExchanger) *Runner {
+func NewRunner(log *slog.Logger, credentials vault.Withdrawer, exchanger auth.TokenExchanger) *Runner {
 	return &Runner{
 		log:         log,
 		credentials: credentials,
@@ -81,11 +81,11 @@ func (r *Runner) HandleMatch(ctx context.Context, m match.Result) {
 	// TODO: stream source to renderer via keleustēs gRPC interface
 }
 
-func (r *Runner) resolveCredentials(ctx context.Context, ref string) (*credential.Credential, error) {
+func (r *Runner) resolveCredentials(ctx context.Context, ref string) (*vault.Credential, error) {
 	ctx, span := tracer.Start(ctx, "pipeline.resolve_credentials")
 	defer span.End()
 
-	cred, err := r.credentials.Get(ctx, ref)
+	cred, err := r.credentials.Withdraw(ctx, ref)
 	if err != nil {
 		span.RecordError(err)
 		return nil, fmt.Errorf("resolving credentials: %w", err)
@@ -93,7 +93,7 @@ func (r *Runner) resolveCredentials(ctx context.Context, ref string) (*credentia
 	return cred, nil
 }
 
-func (r *Runner) resolveAuth(ctx context.Context, cred *credential.Credential) (transport.AuthMethod, error) {
+func (r *Runner) resolveAuth(ctx context.Context, cred *vault.Credential) (transport.AuthMethod, error) {
 	ctx, span := tracer.Start(ctx, "pipeline.resolve_auth")
 	defer span.End()
 

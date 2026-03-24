@@ -19,13 +19,13 @@ import (
 
 	pb "github.com/katastroma/naukleros"
 
-	"github.com/katastroma/phortizo/internal/credential"
+	vaultmemory "github.com/katastroma/phortizo/internal/vault/memory"
 	"github.com/katastroma/phortizo/internal/github"
 	handlers "github.com/katastroma/phortizo/internal/handlers"
 	grpc_health "github.com/katastroma/phortizo/internal/health/grpc"
 	http_health "github.com/katastroma/phortizo/internal/health/http"
 	"github.com/katastroma/phortizo/internal/pipeline"
-	"github.com/katastroma/phortizo/internal/registration"
+	regmemory "github.com/katastroma/phortizo/internal/registration/memory"
 )
 
 func main() {
@@ -68,13 +68,13 @@ func main() {
 	ghc := github.NewClientFromAppInstallation(log, gha, installationID)
 
 	// Pipeline
-	// TODO: credential store from environment config (k8s in prod, memory in dev)
-	var credentials credential.Store
+	// TODO: store selection from environment config (k8s in prod, memory in dev)
+	credentials := vaultmemory.New()
 	runner := pipeline.NewRunner(log, credentials, gha)
 
 	// HTTP server
-	registrationStore := registration.NewMemoryStore()
-	webhookHandler := handlers.NewWebhook(log, registrationStore, runner.HandleMatch)
+	registrations := regmemory.New()
+	webhookHandler := handlers.NewWebhook(log, registrations, runner.HandleMatch)
 
 	mux := http.NewServeMux()
 	mux.Handle("GET /healthz", http_health.New(log, ghc))
