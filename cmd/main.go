@@ -17,6 +17,7 @@ import (
 	foundationotel "git.sonicoriginal.software/grpc-foundation/otel"
 	"git.sonicoriginal.software/grpc-foundation/server"
 
+	"github.com/grafana/tempo/pkg/tempopb"
 	pb "github.com/katastroma/naukleros"
 
 	"google.golang.org/grpc"
@@ -118,7 +119,9 @@ func main() {
 			os.Exit(1)
 		}
 		defer tempoConn.Close()
-		traceQuerier = tempoQuerier.New(tempoConn)
+
+		qc := tempopb.NewQuerierClient(tempoConn)
+		traceQuerier = tempoQuerier.New(qc)
 	}
 
 	pb.RegisterRetrieverServiceServer(

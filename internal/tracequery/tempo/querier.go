@@ -8,7 +8,6 @@ import (
 
 	"github.com/grafana/tempo/pkg/tempopb"
 	commonv1 "github.com/grafana/tempo/pkg/tempopb/common/v1"
-	"google.golang.org/grpc"
 
 	"github.com/katastroma/phortizo/internal/tracequery"
 )
@@ -20,9 +19,9 @@ type Querier struct {
 	client tempopb.QuerierClient
 }
 
-// New creates a Tempo trace querier from a gRPC connection.
-func New(conn *grpc.ClientConn) *Querier {
-	return &Querier{client: tempopb.NewQuerierClient(conn)}
+// New creates a Tempo trace querier.
+func New(client tempopb.QuerierClient) *Querier {
+	return &Querier{client: client}
 }
 
 // SpanAttributes retrieves attributes from the named span within the given
