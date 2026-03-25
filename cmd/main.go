@@ -24,15 +24,16 @@ import (
 
 	"github.com/katastroma/phortizo/internal/auth/resolve"
 	"github.com/katastroma/phortizo/internal/github"
-	handlers "github.com/katastroma/phortizo/internal/handlers"
 	grpc_health "github.com/katastroma/phortizo/internal/health/grpc"
 	http_health "github.com/katastroma/phortizo/internal/health/http"
 	"github.com/katastroma/phortizo/internal/pipeline"
 	regmemory "github.com/katastroma/phortizo/internal/registration/memory"
+	"github.com/katastroma/phortizo/internal/retriever"
 	"github.com/katastroma/phortizo/internal/source"
 	"github.com/katastroma/phortizo/internal/tracequery"
 	tempoQuerier "github.com/katastroma/phortizo/internal/tracequery/tempo"
 	vaultmemory "github.com/katastroma/phortizo/internal/vault/memory"
+	"github.com/katastroma/phortizo/internal/webhook"
 )
 
 func main() {
@@ -91,7 +92,7 @@ func main() {
 	runner := pipeline.NewRunner(log, credentials, platformApp, githubAppFactory, renderers)
 
 	// HTTP server
-	webhookHandler := handlers.NewWebhook(log, registrations, runner.HandleMatch)
+	webhookHandler := webhook.New(log, registrations, runner.HandleMatch)
 
 	mux := http.NewServeMux()
 	mux.Handle("GET /healthz", http_health.New(log, ghc))
@@ -127,7 +128,7 @@ func main() {
 
 	pb.RegisterRetrieverServiceServer(
 		grpcServer,
-		handlers.NewRetriever(log, traceQuerier, registrations, runner.HandleMatch),
+		retriever.New(log, traceQuerier, registrations, runner.HandleMatch),
 	)
 
 	sigNotifyContext, stop := context.WithCancel(mainCtx)

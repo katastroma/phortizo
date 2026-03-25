@@ -1,4 +1,5 @@
-package handler
+//revive:disable:package-comments
+package retriever
 
 import (
 	"log/slog"
@@ -10,7 +11,7 @@ import (
 )
 
 func TestRetrieve_Unimplemented(t *testing.T) {
-	handler := NewRetriever(slog.Default(), nil, nil, nil)
+	handler := New(slog.Default(), nil, nil, nil)
 
 	_, err := handler.Retrieve(t.Context(), &pb.RetrieveRequest{})
 	if err == nil {

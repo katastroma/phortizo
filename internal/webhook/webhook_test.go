@@ -1,4 +1,4 @@
-package handler
+package webhook
 
 import (
 	"bytes"
@@ -9,10 +9,11 @@ import (
 	"testing"
 
 	regmemory "github.com/katastroma/phortizo/internal/registration/memory"
+	int_testing "github.com/katastroma/phortizo/internal/testing"
 )
 
 func TestServeHTTP_MissingID(t *testing.T) {
-	handler := NewWebhook(slog.Default(), regmemory.New(), nil)
+	handler := New(slog.Default(), regmemory.New(), nil)
 
 	req := httptest.NewRequest(http.MethodPost, "/webhook/", nil)
 	rec := httptest.NewRecorder()
@@ -25,7 +26,7 @@ func TestServeHTTP_MissingID(t *testing.T) {
 }
 
 func TestServeHTTP_RegistrationNotFound(t *testing.T) {
-	handler := NewWebhook(slog.Default(), regmemory.New(), nil)
+	handler := New(slog.Default(), regmemory.New(), nil)
 
 	req := httptest.NewRequest(http.MethodPost, "/webhook/{id}", nil)
 	req.SetPathValue("registration_id", "missing")
@@ -40,8 +41,8 @@ func TestServeHTTP_RegistrationNotFound(t *testing.T) {
 
 func TestServeHTTP_SignatureFailure(t *testing.T) {
 	store := regmemory.New()
-	store.Add(testRegistration())
-	handler := NewWebhook(slog.Default(), store, nil)
+	store.Add(int_testing.TestRegistration())
+	handler := New(slog.Default(), store, nil)
 
 	body := validPayload()
 	req := httptest.NewRequest(http.MethodPost, "/webhook/{id}", bytes.NewReader(body))
@@ -58,8 +59,8 @@ func TestServeHTTP_SignatureFailure(t *testing.T) {
 
 func TestServeHTTP_InvalidPayload(t *testing.T) {
 	store := regmemory.New()
-	store.Add(testRegistration())
-	handler := NewWebhook(slog.Default(), store, nil)
+	store.Add(int_testing.TestRegistration())
+	handler := New(slog.Default(), store, nil)
 
 	body := []byte("not json")
 	req := httptest.NewRequest(http.MethodPost, "/webhook/{id}", bytes.NewReader(body))
@@ -76,8 +77,8 @@ func TestServeHTTP_InvalidPayload(t *testing.T) {
 
 func TestServeHTTP_NoMatch(t *testing.T) {
 	store := regmemory.New()
-	store.Add(testRegistration())
-	handler := NewWebhook(slog.Default(), store, nil)
+	store.Add(int_testing.TestRegistration())
+	handler := New(slog.Default(), store, nil)
 
 	body := []byte(`{
 		"ref": "refs/heads/develop",
@@ -98,9 +99,9 @@ func TestServeHTTP_NoMatch(t *testing.T) {
 
 func TestServeHTTP_Match(t *testing.T) {
 	store := regmemory.New()
-	store.Add(testRegistration())
-	capture := &captureMatch{}
-	handler := NewWebhook(slog.Default(), store, capture.handle)
+	store.Add(int_testing.TestRegistration())
+	capture := &int_testing.CaptureMatch{}
+	handler := New(slog.Default(), store, capture.Handle)
 
 	body := validPayload()
 	req := httptest.NewRequest(http.MethodPost, "/webhook/{id}", bytes.NewReader(body))
@@ -115,20 +116,19 @@ func TestServeHTTP_Match(t *testing.T) {
 		t.Errorf("status = %d, want %d", rec.Code, http.StatusAccepted)
 	}
 
-	capture.mu.Lock()
-	defer capture.mu.Unlock()
-	if len(capture.results) != 1 {
-		t.Fatalf("expected 1 match, got %d", len(capture.results))
+	results := capture.Results()
+	if len(results) != 1 {
+		t.Fatalf("expected 1 match, got %d", len(results))
 	}
-	if capture.results[0].Registration.TenantID != "acme" {
-		t.Errorf("tenant = %q, want %q", capture.results[0].Registration.TenantID, "acme")
+	if results[0].Registration.TenantID != "acme" {
+		t.Errorf("tenant = %q, want %q", results[0].Registration.TenantID, "acme")
 	}
 }
 
 func TestServeHTTP_BodyReadError(t *testing.T) {
 	store := regmemory.New()
-	store.Add(testRegistration())
-	handler := NewWebhook(slog.Default(), store, nil)
+	store.Add(int_testing.TestRegistration())
+	handler := New(slog.Default(), store, nil)
 
 	req := httptest.NewRequest(http.MethodPost, "/webhook/{id}", &errorReader{})
 	req.SetPathValue("registration_id", "reg-1")

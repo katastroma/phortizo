@@ -1,5 +1,5 @@
 //revive:disable:package-comments
-package handler
+package retriever
 
 import (
 	"context"
@@ -24,8 +24,8 @@ type Retriever struct {
 	onMatch   func(ctx context.Context, m match.Result)
 }
 
-// NewRetriever creates a RetrieverService handler.
-func NewRetriever(
+// New creates a RetrieverService handler.
+func New(
 	log *slog.Logger,
 	traces tracequery.Querier,
 	registrar registration.Registrar,

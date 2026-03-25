@@ -1,5 +1,5 @@
 //revive:disable:package-comments
-package handler
+package webhook
 
 import (
 	"context"
@@ -27,8 +27,8 @@ type Webhook struct {
 	onMatch   func(ctx context.Context, m match.Result)
 }
 
-// NewWebhook creates a webhook handler.
-func NewWebhook(
+// New creates a webhook handler.
+func New(
 	log *slog.Logger,
 	registrar registration.Registrar,
 	onMatch func(ctx context.Context, m match.Result),
