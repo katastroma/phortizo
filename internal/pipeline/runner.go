@@ -16,7 +16,7 @@ import (
 
 	pb "github.com/katastroma/keleustes"
 	"github.com/katastroma/phortizo/internal/auth/resolve"
-	gitclone "github.com/katastroma/phortizo/internal/git"
+	"github.com/katastroma/phortizo/internal/git"
 	"github.com/katastroma/phortizo/internal/match"
 	"github.com/katastroma/phortizo/internal/render"
 	"github.com/katastroma/phortizo/internal/source"
@@ -35,13 +35,13 @@ type Runner struct {
 	renderers   map[source.RendererType]string
 }
 
-// NewRunner creates a pipeline runner.
-func NewRunner(log *slog.Logger, credentials vault.Withdrawer, exchanger resolve.TokenExchanger, newExchanger resolve.ExchangerFactory, renderers map[source.RendererType]string) *Runner {
+// New creates a pipeline runner.
+func New(log *slog.Logger, credentials vault.Withdrawer, exchanger resolve.TokenExchanger, factory resolve.ExchangerFactory, renderers map[source.RendererType]string) *Runner {
 	return &Runner{
 		log:         log,
 		credentials: credentials,
 		exchanger:   exchanger,
-		appFactory:  newExchanger,
+		appFactory:  factory,
 		renderers:   renderers,
 	}
 }
@@ -129,7 +129,7 @@ func (r *Runner) clone(ctx context.Context, repoURL, ref string, authMethod tran
 	ctx, span := tracer.Start(ctx, "pipeline.clone")
 	defer span.End()
 
-	fs, err := gitclone.Clone(ctx, repoURL, ref, authMethod)
+	fs, err := git.Clone(ctx, repoURL, ref, authMethod)
 	if err != nil {
 		span.RecordError(err)
 		return nil, fmt.Errorf("cloning: %w", err)

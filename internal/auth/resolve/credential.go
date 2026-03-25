@@ -18,10 +18,17 @@ type TokenExchanger interface {
 }
 
 // ExchangerFactory creates a TokenExchanger from GitHub App credentials.
-type ExchangerFactory func(clientID string, privateKeyPEM []byte) TokenExchanger
+type ExchangerFactory interface {
+	Create(clientID string, privateKeyPEM []byte) TokenExchanger
+}
 
 // FromCredential converts a vault credential into a git transport AuthMethod.
-func FromCredential(ctx context.Context, cred *vault.Credential, platformApp TokenExchanger, newExchanger ExchangerFactory) (transport.AuthMethod, error) {
+func FromCredential(
+	ctx context.Context,
+	cred *vault.Credential,
+	platformApp TokenExchanger,
+	factory ExchangerFactory,
+) (transport.AuthMethod, error) {
 	switch cred.Type {
 	case vault.AppInstallation:
 		token, _, err := platformApp.InstallationToken(ctx, cred.InstallationID)
@@ -31,7 +38,7 @@ func FromCredential(ctx context.Context, cred *vault.Credential, platformApp Tok
 		return auth.FromBasicAuth(auth.TokenUserName, token), nil
 
 	case vault.TenantApp:
-		exchanger := newExchanger(cred.ClientID, cred.PrivateKeyPEM)
+		exchanger := factory.Create(cred.ClientID, cred.PrivateKeyPEM)
 		token, _, err := exchanger.InstallationToken(ctx, cred.InstallationID)
 		if err != nil {
 			return nil, fmt.Errorf("exchanging tenant app token: %w", err)

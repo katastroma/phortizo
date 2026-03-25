@@ -101,7 +101,7 @@ func TestServeHTTP_Match(t *testing.T) {
 	store := regmemory.New()
 	store.Add(int_testing.TestRegistration())
 	capture := &int_testing.CaptureMatch{}
-	handler := New(slog.Default(), store, capture.Handle)
+	handler := New(slog.Default(), store, capture)
 
 	body := validPayload()
 	req := httptest.NewRequest(http.MethodPost, "/webhook/{id}", bytes.NewReader(body))

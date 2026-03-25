@@ -2,7 +2,6 @@
 package webhook
 
 import (
-	"context"
 	"io"
 	"log/slog"
 	"net/http"
@@ -13,6 +12,7 @@ import (
 
 	"github.com/katastroma/phortizo/internal/event"
 	"github.com/katastroma/phortizo/internal/match"
+	"github.com/katastroma/phortizo/internal/pipeline"
 	"github.com/katastroma/phortizo/internal/registration"
 	"github.com/katastroma/phortizo/internal/verify"
 )
@@ -24,23 +24,23 @@ var tracer = otel.Tracer("webhook")
 type Webhook struct {
 	log       *slog.Logger
 	registrar registration.Registrar
-	onMatch   func(ctx context.Context, m match.Result)
+	runner    pipeline.Handler
 }
 
 // New creates a webhook handler.
 func New(
 	log *slog.Logger,
 	registrar registration.Registrar,
-	onMatch func(ctx context.Context, m match.Result),
+	runner pipeline.Handler,
 ) *Webhook {
 	return &Webhook{
 		log:       log,
 		registrar: registrar,
-		onMatch:   onMatch,
+		runner:    runner,
 	}
 }
 
-// ServeHTTP handles POST /webhook/{id}.
+// ServeHTTP handles POST /webhook/{registration_id}.
 func (h *Webhook) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	registrationID := r.PathValue("registration_id")
 	if registrationID == "" {
@@ -89,7 +89,7 @@ func (h *Webhook) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer span.End()
 
 	for _, target := range matched {
-		h.onMatch(ctx, match.Result{
+		h.runner.HandleMatch(ctx, match.Result{
 			Registration: reg,
 			Target:       target,
 			Event:        ev,

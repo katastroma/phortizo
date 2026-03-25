@@ -11,6 +11,7 @@ import (
 
 	pb "github.com/katastroma/naukleros"
 	"github.com/katastroma/phortizo/internal/match"
+	"github.com/katastroma/phortizo/internal/pipeline"
 	"github.com/katastroma/phortizo/internal/registration"
 	"github.com/katastroma/phortizo/internal/tracequery"
 )
@@ -21,7 +22,7 @@ type Retriever struct {
 	log       *slog.Logger
 	traces    tracequery.Querier
 	registrar registration.Registrar
-	onMatch   func(ctx context.Context, m match.Result)
+	runner    pipeline.Handler
 }
 
 // New creates a RetrieverService handler.
@@ -29,13 +30,13 @@ func New(
 	log *slog.Logger,
 	traces tracequery.Querier,
 	registrar registration.Registrar,
-	onMatch func(ctx context.Context, m match.Result),
+	runner pipeline.Handler,
 ) *Retriever {
 	return &Retriever{
 		log:       log,
 		traces:    traces,
 		registrar: registrar,
-		onMatch:   onMatch,
+		runner:    runner,
 	}
 }
 
@@ -59,7 +60,7 @@ func (r *Retriever) Replay(ctx context.Context, req *pb.ReplayRequest) (*pb.Repl
 		return nil, status.Errorf(codes.Internal, "reconstructing run: %v", err)
 	}
 
-	r.onMatch(ctx, result)
+	r.runner.HandleMatch(ctx, result)
 
 	return &pb.ReplayResponse{}, nil
 }

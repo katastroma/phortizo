@@ -22,7 +22,6 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
-	"github.com/katastroma/phortizo/internal/auth/resolve"
 	"github.com/katastroma/phortizo/internal/github"
 	grpc_health "github.com/katastroma/phortizo/internal/health/grpc"
 	http_health "github.com/katastroma/phortizo/internal/health/http"
@@ -79,20 +78,16 @@ func main() {
 	credentials := vaultmemory.New()
 	registrations := regmemory.New()
 
-	githubAppFactory := func(clientID string, privateKeyPEM []byte) resolve.TokenExchanger {
-		return github.NewApp(clientID, privateKeyPEM)
-	}
-
 	renderers := map[source.RendererType]string{
 		source.Helm:      os.Getenv("RENDERER_HELM"),
 		source.Kustomize: os.Getenv("RENDERER_KUSTOMIZE"),
 		source.Raw:       os.Getenv("RENDERER_RAW"),
 	}
 
-	runner := pipeline.NewRunner(log, credentials, platformApp, githubAppFactory, renderers)
+	runner := pipeline.New(log, credentials, platformApp, &github.AppFactory{}, renderers)
 
 	// HTTP server
-	webhookHandler := webhook.New(log, registrations, runner.HandleMatch)
+	webhookHandler := webhook.New(log, registrations, runner)
 
 	mux := http.NewServeMux()
 	mux.Handle("GET /healthz", http_health.New(log, ghc))
@@ -128,7 +123,7 @@ func main() {
 
 	pb.RegisterRetrieverServiceServer(
 		grpcServer,
-		retriever.New(log, traceQuerier, registrations, runner.HandleMatch),
+		retriever.New(log, traceQuerier, registrations, runner),
 	)
 
 	sigNotifyContext, stop := context.WithCancel(mainCtx)

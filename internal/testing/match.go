@@ -14,8 +14,8 @@ type CaptureMatch struct {
 	results []match.Result
 }
 
-// Handle records a match result.
-func (c *CaptureMatch) Handle(_ context.Context, m match.Result) {
+// HandleMatch records a match result.
+func (c *CaptureMatch) HandleMatch(_ context.Context, m match.Result) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.results = append(c.results, m)

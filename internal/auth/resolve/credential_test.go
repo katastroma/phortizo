@@ -54,7 +54,7 @@ func TestFromCredential_TenantApp(t *testing.T) {
 		InstallationID: 123,
 	}
 
-	method, err := FromCredential(t.Context(), cred, nil, stubFactory("tenant-token", nil))
+	method, err := FromCredential(t.Context(), cred, nil, &stubFactory{token: "tenant-token"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -71,7 +71,7 @@ func TestFromCredential_TenantApp_ExchangeError(t *testing.T) {
 		InstallationID: 123,
 	}
 
-	if _, err := FromCredential(t.Context(), cred, nil, stubFactory("", errExchange)); err == nil {
+	if _, err := FromCredential(t.Context(), cred, nil, &stubFactory{err: errExchange}); err == nil {
 		t.Fatal("expected error for failed tenant app exchange")
 	}
 }

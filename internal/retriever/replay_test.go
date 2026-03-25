@@ -23,7 +23,7 @@ func TestReplay(t *testing.T) {
 	store := regmemory.New()
 	store.Add(testRegistration())
 	capture := &int_testing.CaptureMatch{}
-	handler := New(slog.Default(), querier, store, capture.Handle)
+	handler := New(slog.Default(), querier, store, capture)
 
 	resp, err := handler.Replay(t.Context(), &pb.ReplayRequest{RunId: "trace-123"})
 	if err != nil {

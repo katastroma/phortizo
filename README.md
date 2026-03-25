@@ -11,7 +11,7 @@ Implements the [naukleros](https://github.com/katastroma/naukleros)
 
 ## Pipeline
 
-1. Receive webhook at `POST /webhook/{id}`
+1. Receive webhook at `POST /webhook/{registration_id}`
 2. Look up registration by ID
 3. Verify `X-Hub-Signature-256` against stored secret
 4. Parse push event and match against watch targets
@@ -51,11 +51,11 @@ Implements the [naukleros](https://github.com/katastroma/naukleros)
 
 ### Optional
 
-| Variable          | Default | Description                                               |
-| ----------------- | ------- | --------------------------------------------------------- |
-| `SERVICE_VERSION` | `dev`   | Service version reported to the OTel resource. Set by CI. |
-| `PORT`            | `8080`  | HTTP server port. Serves `/healthz` and `/webhook/{id}`.  |
-| `TEMPO_ADDRESS`   |         | gRPC address of Tempo. Enables replay via trace queries.  |
+| Variable          | Default | Description                                                           |
+| ----------------- | ------- | --------------------------------------------------------------------- |
+| `SERVICE_VERSION` | `dev`   | Service version reported to the OTel resource. Set by CI.             |
+| `PORT`            | `8080`  | HTTP server port. Serves `/healthz` and `/webhook/{registration_id}`. |
+| `TEMPO_ADDRESS`   |         | gRPC address of Tempo. Enables replay via trace queries.              |
 
 ### OTel (from grpc-foundation)
 
@@ -80,16 +80,15 @@ Implements the [naukleros](https://github.com/katastroma/naukleros)
 
 ## Span Conventions
 
-The pipeline root span carries these attributes for observability and replay:
+The `pipeline.run` span carries these attributes for observability and replay:
 
-| Attribute               | Description                               |
-| ----------------------- | ----------------------------------------- |
-| `tenant`                | Tenant identity.                          |
-| `registration_id`       | Webhook registration ID.                  |
-| `credential_ref`        | Reference to the tenant's credentials.    |
-| `watch_target.repo_url` | Repository clone URL.                     |
-| `watch_target.ref`      | Git ref (e.g., `refs/heads/main`).        |
-| `watch_target.path`     | Path within the repository being watched. |
+| Attribute               | Description                                                          |
+| ----------------------- | -------------------------------------------------------------------- |
+| `registration_id`       | Webhook registration ID. Used by replay to look up the registration. |
+| `tenant`                | Tenant identity.                                                     |
+| `watch_target.repo_url` | Repository clone URL.                                                |
+| `watch_target.ref`      | Git ref (e.g., `refs/heads/main`).                                   |
+| `watch_target.path`     | Path within the repository being watched.                            |
 
 The `webhook.dispatch` span carries:
 
