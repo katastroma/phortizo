@@ -4,24 +4,20 @@ package memory
 import (
 	"testing"
 
-	"github.com/katastroma/phortizo/internal/vault"
+	"github.com/katastroma/phortizo/internal/auth"
+	ghtoken "github.com/katastroma/phortizo/internal/auth/gh_token"
 )
 
 func TestVault_Add(t *testing.T) {
-	v := &Vault{credentials: make(map[string]*vault.Credential)}
+	ctx := t.Context()
+	v := &Vault{credentials: make(map[string]auth.Credential)}
 
-	cred := &vault.Credential{
-		Type:  vault.Token,
-		Token: "ghp_abc123",
-	}
+	secret := "ghp_abc123"
+	cred := ghtoken.New(secret)
 
-	v.Add("ref-1", cred)
-
-	got, ok := v.credentials["ref-1"]
-	if !ok {
-		t.Fatal("credential not found in map after Add")
-	}
-	if got.Token != "ghp_abc123" {
-		t.Errorf("token = %q, want %q", got.Token, "ghp_abc123")
+	key := "ref-1"
+	v.Add(key, cred)
+	if val := v.credentials[key].Token(ctx); val != secret {
+		t.Fatalf("expect %v, got %v", secret, val)
 	}
 }

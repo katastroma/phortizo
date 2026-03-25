@@ -5,36 +5,24 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
-
-	"github.com/katastroma/phortizo/internal/health"
 )
 
 // Handler serves HTTP health checks.
 type Handler struct {
-	log     *slog.Logger
-	checker health.Checker
+	log *slog.Logger
 }
 
 // New returns a health check handler.
-func New(log *slog.Logger, checker health.Checker) *Handler {
-	return &Handler{log: log, checker: checker}
+func New(log *slog.Logger) *Handler {
+	return &Handler{log: log}
 }
 
-type healthStatus struct {
-	GitHub string `json:"github"`
-}
+type healthStatus struct{}
 
 // ServeHTTP reports service health including GitHub API connectivity.
-func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	s := healthStatus{GitHub: "ok"}
+func (h *Handler) ServeHTTP(w http.ResponseWriter, _ *http.Request) {
+	s := healthStatus{}
 	httpStatus := http.StatusOK
-
-	ctx := r.Context()
-	if err := h.checker.Check(ctx); err != nil {
-		h.log.Error("failed to check upstream health", "error", err)
-		s.GitHub = err.Error()
-		httpStatus = http.StatusServiceUnavailable
-	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(httpStatus)

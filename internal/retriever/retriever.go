@@ -55,12 +55,16 @@ func (r *Retriever) Replay(ctx context.Context, req *pb.ReplayRequest) (*pb.Repl
 		return nil, status.Errorf(codes.Internal, "querying trace: %v", err)
 	}
 
-	result, err := r.resultFromTrace(ctx, attrs)
+	match, err := r.resultFromTrace(ctx, attrs)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "reconstructing run: %v", err)
 	}
 
-	r.runner.HandleMatch(ctx, result)
+	// TODO Replay prevention: query OTel collector for in-flight runs matching
+	// this watch target. Skip if a newer run supersedes. Track replay count
+	// via span attributes — if over MAX_REPLAY_ATTEMPTS (env var, needs
+	// documenting in README), report permanent failure.
+	r.runner.HandleMatch(ctx, match)
 
 	return &pb.ReplayResponse{}, nil
 }

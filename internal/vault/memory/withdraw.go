@@ -5,11 +5,11 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/katastroma/phortizo/internal/vault"
+	"github.com/katastroma/phortizo/internal/auth"
 )
 
 // Withdraw returns the credential for the given ref.
-func (s *Vault) Withdraw(_ context.Context, ref string) (*vault.Credential, error) {
+func (s *Vault) Withdraw(_ context.Context, ref string) (auth.Credential, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 

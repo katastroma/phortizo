@@ -23,7 +23,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
-	"github.com/katastroma/phortizo/internal/github"
+	gh_apps "github.com/katastroma/phortizo/internal/github/apps"
 	grpc_health "github.com/katastroma/phortizo/internal/health/grpc"
 	http_health "github.com/katastroma/phortizo/internal/health/http"
 	"github.com/katastroma/phortizo/internal/pipeline"
@@ -72,12 +72,25 @@ func main() {
 		os.Exit(1)
 	}
 
-	platformApp := github.NewApp(clientID, []byte(privateKeyPEM))
-	ghc := github.NewClientFromAppInstallation(log, platformApp, installationID)
+	gha, err := gh_apps.FromAppParameters(clientID, []byte(privateKeyPEM))
+	if err != nil {
+		log.Error("Could not create platform GitHub App")
+		os.Exit(1)
+	}
+
+	// TODO Wire up GitHub client auth bootstrapping:
+	// 1. Create ghCred from gha + installationID + gh_api.Service
+	// 2. Wrap ghCred in AuthTransport
+	// 3. Create gh.Client with that transport
+	// 4. Create gh_service from that client
+	// 5. Solve JWT refresh for the service used by the credential
+	// 6. Pass the authenticated service to health checks
+	_ = gha
+	_ = installationID
 
 	// Stores — memory by default, k8s when STORE_BACKEND=k8s
-	credentials := vaultmemory.New()
-	registrations := regmemory.New()
+	credVault := vaultmemory.New()
+	registrar := regmemory.New()
 
 	renderers := map[source.RendererType]string{
 		source.Helm:      os.Getenv("RENDERER_HELM"),
@@ -85,13 +98,14 @@ func main() {
 		source.Raw:       os.Getenv("RENDERER_RAW"),
 	}
 
-	runner := pipeline.New(log, credentials, platformApp, &github.AppFactory{}, renderers)
+	runner := pipeline.New(log, credVault, renderers)
 
 	// HTTP server
-	webhookHandler := webhook.New(log, registrations, runner)
+	webhookHandler := webhook.New(log, registrar, runner)
 
 	mux := http.NewServeMux()
-	mux.Handle("GET /healthz", http_health.New(log, ghc))
+	// TODO Pass authenticated ghService to health check once client auth is wired
+	mux.Handle("GET /healthz", http_health.New(log))
 	mux.Handle("POST /webhook/{registration_id}", webhookHandler)
 
 	httpPort := os.Getenv("PORT")
@@ -99,14 +113,14 @@ func main() {
 		httpPort = "8080"
 	}
 
-	httpServer := &http.Server{
-		Addr:    fmt.Sprintf(":%s", httpPort),
-		Handler: mux,
-	}
+	httpServer := &http.Server{Addr: fmt.Sprintf(":%s", httpPort), Handler: mux}
 
 	// gRPC server
 	grpcServer := server.New(log)
-	healthpb.RegisterHealthServer(grpcServer, grpc_health.New(log, ghc))
+
+	healthServer := grpc_health.New(log)
+	healthpb.RegisterHealthServer(grpcServer, healthServer)
+
 	// Trace querier — connects to Tempo for replay support
 	var traceQuerier tracequery.Querier
 	if tempoAddr := os.Getenv("TEMPO_ADDRESS"); tempoAddr != "" {
@@ -124,10 +138,8 @@ func main() {
 		traceQuerier = tempoQuerier.New(qc)
 	}
 
-	pb.RegisterRetrieverServiceServer(
-		grpcServer,
-		retriever.New(log, traceQuerier, registrations, runner),
-	)
+	retriverServer := retriever.New(log, traceQuerier, registrar, runner)
+	pb.RegisterRetrieverServiceServer(grpcServer, retriverServer)
 
 	sigNotifyContext, stop := context.WithCancel(mainCtx)
 	defer stop()
