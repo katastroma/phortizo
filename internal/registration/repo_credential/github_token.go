@@ -1,2 +1,2 @@
 //revive:disable:package-comments
-package secret
+package credential

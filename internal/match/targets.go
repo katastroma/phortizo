@@ -8,10 +8,10 @@ import (
 	"github.com/katastroma/phortizo/internal/registration"
 )
 
-// Targets returns the watch targets that match the given push event. A target
+// Find returns the watch targets that match the given push event. A target
 // matches when its repo URL and ref equal the event's, and at least one
 // changed path has the target's path as a prefix.
-func Targets(targets []registration.WatchTarget, ev event.Push) []registration.WatchTarget {
+func Find(targets []registration.WatchTarget, ev event.Push) []registration.WatchTarget {
 	var matched []registration.WatchTarget
 	for _, t := range targets {
 		if t.RepoURL != ev.RepoURL || t.Ref != ev.Ref {

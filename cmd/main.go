@@ -27,12 +27,10 @@ import (
 	grpc_health "github.com/katastroma/phortizo/internal/health/grpc"
 	http_health "github.com/katastroma/phortizo/internal/health/http"
 	"github.com/katastroma/phortizo/internal/pipeline"
-	regmemory "github.com/katastroma/phortizo/internal/registration/memory"
 	"github.com/katastroma/phortizo/internal/retriever"
 	"github.com/katastroma/phortizo/internal/source"
 	"github.com/katastroma/phortizo/internal/tracequery"
 	tempoQuerier "github.com/katastroma/phortizo/internal/tracequery/tempo"
-	vaultmemory "github.com/katastroma/phortizo/internal/vault/memory"
 	"github.com/katastroma/phortizo/internal/webhook"
 )
 
@@ -88,20 +86,25 @@ func main() {
 	_ = gha
 	_ = installationID
 
-	// Stores — memory by default, k8s when STORE_BACKEND=k8s
-	credVault := vaultmemory.New()
-	registrar := regmemory.New()
-
 	renderers := map[source.RendererType]string{
 		source.Helm:      os.Getenv("RENDERER_HELM"),
 		source.Kustomize: os.Getenv("RENDERER_KUSTOMIZE"),
 		source.Raw:       os.Getenv("RENDERER_RAW"),
 	}
 
-	runner := pipeline.New(log, credVault, renderers)
+	// TODO Create client connection to k8s for managing
+	// - platform GitHub app credentials (client ID, private key, installation ID)
+	// - tenant webhook secret
+	// - tenant repo credentials
+	//   - basic auth
+	//   - SSH key
+	//   - GitHub token
+	// - tenant watch targets
+
+	runner := pipeline.New(log, renderers)
 
 	// HTTP server
-	webhookHandler := webhook.New(log, registrar, runner)
+	webhookHandler := webhook.New(log, runner)
 
 	mux := http.NewServeMux()
 	// TODO Pass authenticated ghService to health check once client auth is wired
@@ -138,7 +141,7 @@ func main() {
 		traceQuerier = tempoQuerier.New(qc)
 	}
 
-	retriverServer := retriever.New(log, traceQuerier, registrar, runner)
+	retriverServer := retriever.New(log, traceQuerier, runner)
 	pb.RegisterRetrieverServiceServer(grpcServer, retriverServer)
 
 	sigNotifyContext, stop := context.WithCancel(mainCtx)

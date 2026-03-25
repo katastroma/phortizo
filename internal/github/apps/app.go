@@ -12,18 +12,17 @@ import (
 // private key and provides methods to create clients using auth methods
 // for any installation of this App.
 type App struct {
-	ClientID string
-
-	mu  sync.Mutex
-	Key *rsa.PrivateKey
+	mu         sync.Mutex
+	clientID   string
+	privateKey *rsa.PrivateKey
 }
 
 // FromAppParameters creates a platform GitHub App using app parameters
 func FromAppParameters(clientID string, privateKeyPEM []byte) (*App, error) {
-	key, err := key.ParsePrivateKey(privateKeyPEM)
+	privateKey, err := key.ParsePrivateKey(privateKeyPEM)
 	if err != nil {
 		return nil, err
 	}
 
-	return &App{ClientID: clientID, Key: key}, nil
+	return &App{clientID: clientID, privateKey: privateKey}, nil
 }

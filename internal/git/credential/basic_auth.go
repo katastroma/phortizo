@@ -1,5 +1,5 @@
 //revive:disable:package-comments
-package basicauth
+package credential
 
 // TODO Implement auth.Credential for basic auth (username + password).
 // Authenticate returns githttp.BasicAuth.

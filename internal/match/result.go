@@ -9,7 +9,6 @@ import (
 // Result carries a matched watch target alongside the registration and event
 // that produced the match.
 type Result struct {
-	Registration *registration.Record
-	Target       registration.WatchTarget
-	Event        event.Push
+	Target registration.WatchTarget
+	Event  event.Push
 }

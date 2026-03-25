@@ -1,5 +1,5 @@
 //revive:disable:package-comments
-package testing
+package tests
 
 import (
 	"context"

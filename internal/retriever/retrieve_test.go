@@ -11,7 +11,7 @@ import (
 )
 
 func TestRetrieve_Unimplemented(t *testing.T) {
-	handler := New(slog.Default(), nil, nil, nil)
+	handler := New(slog.Default(), nil, nil)
 
 	_, err := handler.Retrieve(t.Context(), &pb.RetrieveRequest{})
 	if err == nil {

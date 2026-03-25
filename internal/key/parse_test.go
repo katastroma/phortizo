@@ -4,11 +4,11 @@ import (
 	"encoding/pem"
 	"testing"
 
-	int_testing "github.com/katastroma/phortizo/internal/testing"
+	"github.com/katastroma/phortizo/internal/tests"
 )
 
 func TestParsePrivateKey_Valid(t *testing.T) {
-	pemBytes := int_testing.GenerateRSAPEM(t)
+	pemBytes := tests.GenerateRSAPEM(t)
 
 	key, err := ParsePrivateKey(pemBytes)
 	if err != nil {

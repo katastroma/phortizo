@@ -12,7 +12,6 @@ import (
 
 	"github.com/katastroma/phortizo/internal/event"
 	"github.com/katastroma/phortizo/internal/match"
-	"github.com/katastroma/phortizo/internal/pipeline"
 	"github.com/katastroma/phortizo/internal/registration"
 	"github.com/katastroma/phortizo/internal/verify"
 )
@@ -22,21 +21,18 @@ var tracer = otel.Tracer("webhook")
 // Webhook receives GitHub push webhooks, verifies their signature, matches
 // watch targets, and dispatches matched targets for processing.
 type Webhook struct {
-	log       *slog.Logger
-	registrar registration.Registrar
-	runner    pipeline.Handler
+	log    *slog.Logger
+	runner match.Handler
 }
 
 // New creates a webhook handler.
 func New(
 	log *slog.Logger,
-	registrar registration.Registrar,
-	runner pipeline.Handler,
+	runner match.Handler,
 ) *Webhook {
 	return &Webhook{
-		log:       log,
-		registrar: registrar,
-		runner:    runner,
+		log:    log,
+		runner: runner,
 	}
 }
 
@@ -48,12 +44,14 @@ func (h *Webhook) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	reg, err := h.registrar.GetByID(r.Context(), registrationID)
-	if err != nil {
-		h.log.ErrorContext(r.Context(), "registration lookup failed", "id", registrationID, "error", err)
-		http.Error(w, "not found", http.StatusNotFound)
-		return
-	}
+	// TODO Get tenant config from k8s
+	var tenantID string
+
+	// TODO Get tenant watch config(s) from k8s
+	var watchTargets []registration.WatchTarget
+
+	// TODO Get tenant secret from k8s
+	var secret []byte
 
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
@@ -63,7 +61,7 @@ func (h *Webhook) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sig := r.Header.Get("X-Hub-Signature-256")
-	if err = verify.Signature(body, reg.Secret, sig); err != nil {
+	if err = verify.Signature(body, secret, sig); err != nil {
 		h.log.WarnContext(r.Context(), "signature verification failed", "id", registrationID, "error", err)
 		http.Error(w, "signature verification failed", http.StatusUnauthorized)
 		return
@@ -76,7 +74,7 @@ func (h *Webhook) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	matched := match.Targets(reg.WatchTargets, ev)
+	matched := match.Find(watchTargets, ev)
 	if len(matched) == 0 {
 		w.WriteHeader(http.StatusOK)
 		return
@@ -89,10 +87,9 @@ func (h *Webhook) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer span.End()
 
 	for _, target := range matched {
-		h.runner.HandleMatch(ctx, match.Result{
-			Registration: reg,
-			Target:       target,
-			Event:        ev,
+		h.runner.HandleMatch(ctx, tenantID, match.Result{
+			Target: target,
+			Event:  ev,
 		})
 	}
 

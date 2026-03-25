@@ -1,5 +1,5 @@
 //revive:disable:package-comments
-package sshkey
+package credential
 
 // TODO Implement auth.Credential for SSH key auth.
 // Authenticate returns gitssh.PublicKeys.
