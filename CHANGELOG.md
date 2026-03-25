@@ -2,6 +2,18 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## 0.2.0 - 2026-03-25
+#### Features
+- implement retriever and replayer - (0b0b27e) - Nathan Blair
+#### Tests
+- more test wiring - (c49fb60) - Nathan Blair
+- improve tests - (304f0c1) - Nathan Blair
+- add some initial tests - (61dbc24) - Nathan Blair
+#### Miscellaneous Chores
+- wire up streaming - (36686b4) - Nathan Blair
+
+- - -
+
 ## 0.1.0 - 2026-03-24
 #### Features
 - initial release - (64ed1cc) - Nathan Blair
