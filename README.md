@@ -1,51 +1,98 @@
 # Phortizo
 
-Katastroma's GitHub API for [katastroma](https://github.com/katastroma).
+GitHub source handler for [katastroma](https://github.com/katastroma).
 
-- Receives GitHub webhooks, verifies their signatures, matches source events
-  against registered watch targets, and fetches source content.
-- Manages watch targets and credentials on behalf of tenants.
+Receives GitHub webhooks, verifies HMAC signatures, matches push events against
+registered watch targets, clones the source, detects the renderer type, and
+streams the source to the appropriate renderer.
 
-## Operations
+Implements the [naukleros](https://github.com/katastroma/naukleros)
+`RetrieverService` for replay support.
 
-- **Register** — full lifecycle management of watch targets, credentials, and
-  webhook secrets.
-  - Tenants create, update, query, and remove these resources through the API.
-- **Verify** — validates incoming webhook HMAC signatures against stored
-  secrets. Verification identifies the tenant.
-- **Match** — given a source event, find the matching watch target. Returns the
-  watch target if matched, empty if not.
-- **Fetch** — given a watch target, authenticate and fetch the source content.
-- **Publish** — emits an event notifying source is ready for rendering.
+## Pipeline
 
-## Watch Target
-
-A watch target represents a tracked location within a GitHub repository — a
-repository URL, a ref, and a path. The API matches incoming push events against
-registered watch targets to determine if a pipeline run is needed.
+1. Receive webhook at `POST /webhook/{id}`
+2. Look up registration by ID
+3. Verify `X-Hub-Signature-256` against stored secret
+4. Parse push event and match against watch targets
+5. Resolve tenant credentials
+6. Clone repository (shallow, in-memory)
+7. Detect renderer type (Helm, Kustomize, or raw YAML)
+8. Stream source to the renderer via
+   [keleustēs](https://github.com/katastroma/keleustes) gRPC
 
 ## Credentials
 
-Credentials are how the API authenticates to fetch from a repository.
+- **Platform App installation** — tenants install the platform GitHub App and
+  provide their installation ID
+- **Tenant GitHub App** — tenant provides their own App credentials (client ID,
+  private key, installation ID)
+- **Token** — GitHub personal or fine-grained token
+- **Basic auth** — username and password
+- **SSH** — SSH private key
 
-- **Platform App installation** (preferred) — tenants install the phortizo
-  GitHub App in their org and provide only their installation ID. No
-  tenant-side secrets to store.
-- **Tenant GitHub App** — the tenant provides their own GitHub App credentials
-  (client ID, private key, and installation ID).
-- **Token** — any valid GitHub token.
-- **Basic auth** — username and password.
-- **SSH** — SSH key for git transport.
+## Environment Variables
 
-## Webhook Secret
+### Required
 
-A webhook secret is a shared secret between the API and GitHub. The API
-generates it, the tenant configures it on their GitHub repository webhook, and
-GitHub signs each webhook payload with it. The API verifies the HMAC signature
-on incoming payloads to authenticate the event and identify which tenant it
-belongs to.
+| Variable                     | Description                                          |
+| ---------------------------- | ---------------------------------------------------- |
+| `GITHUB_APP_CLIENT_ID`       | Platform GitHub App client ID.                       |
+| `GITHUB_APP_INSTALLATION_ID` | Platform GitHub App installation ID.                 |
+| `GITHUB_APP_PRIVATE_KEY`     | PEM-encoded private key for the platform GitHub App. |
 
-## Multiple Tenants
+### Renderers
 
-Multiple webhooks can be added to a single repository, allowing multiple tenants
-to send events for a single repo.
+| Variable             | Description                                             |
+| -------------------- | ------------------------------------------------------- |
+| `RENDERER_HELM`      | Service address of the Helm renderer (e.g., `orpheus`). |
+| `RENDERER_KUSTOMIZE` | Service address of the Kustomize renderer.              |
+| `RENDERER_RAW`       | Service address of the raw YAML renderer.               |
+
+### Optional
+
+| Variable          | Default | Description                                               |
+| ----------------- | ------- | --------------------------------------------------------- |
+| `SERVICE_VERSION` | `dev`   | Service version reported to the OTel resource. Set by CI. |
+| `PORT`            | `8080`  | HTTP server port. Serves `/healthz` and `/webhook/{id}`.  |
+| `TEMPO_ADDRESS`   |         | gRPC address of Tempo. Enables replay via trace queries.  |
+
+### OTel (from grpc-foundation)
+
+| Variable                      | Default          | Description                                 |
+| ----------------------------- | ---------------- | ------------------------------------------- |
+| `OTEL_TRACES_EXPORTER`        | `none`           | Trace exporter: `otlp` or `none`.           |
+| `OTEL_METRICS_EXPORTER`       | `none`           | Metrics exporter: `otlp` or `none`.         |
+| `OTEL_LOGS_EXPORTER`          | `none`           | Log exporter: `otlp`, `console`, or `none`. |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | `localhost:4317` | OTLP collector endpoint.                    |
+
+### gRPC Server (from grpc-foundation)
+
+| Variable              | Default  | Description                                                   |
+| --------------------- | -------- | ------------------------------------------------------------- |
+| `GRPC_SERVER_ADDRESS` | `:50051` | gRPC server listen address. Health and RetrieverService here. |
+
+### Logging (from grpc-foundation)
+
+| Variable     | Default      | Description                                         |
+| ------------ | ------------ | --------------------------------------------------- |
+| `LOG_FORMAT` | `structured` | Log output format: `json`, `text`, or `structured`. |
+
+## Span Conventions
+
+The pipeline root span carries these attributes for observability and replay:
+
+| Attribute               | Description                               |
+| ----------------------- | ----------------------------------------- |
+| `tenant`                | Tenant identity.                          |
+| `registration_id`       | Webhook registration ID.                  |
+| `credential_ref`        | Reference to the tenant's credentials.    |
+| `watch_target.repo_url` | Repository clone URL.                     |
+| `watch_target.ref`      | Git ref (e.g., `refs/heads/main`).        |
+| `watch_target.path`     | Path within the repository being watched. |
+
+The `webhook.dispatch` span carries:
+
+| Attribute            | Description                   |
+| -------------------- | ----------------------------- |
+| `github.delivery_id` | GitHub webhook delivery GUID. |

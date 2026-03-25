@@ -16,7 +16,7 @@ import (
 type errorFile struct{ billy.File }
 
 func (f *errorFile) Read(_ []byte) (int, error) { return 0, fmt.Errorf("disk error") }
-func (f *errorFile) Close() error                { return nil }
+func (f *errorFile) Close() error               { return nil }
 
 // errorFS wraps a real filesystem but returns an errorFile on Open.
 type errorFS struct{ billy.Filesystem }
@@ -53,8 +53,8 @@ func (c *mockClient) Render(_ context.Context, _ ...grpc.CallOption) (pb.Rendere
 }
 
 type mockStream struct {
-	sent       []*pb.RenderRequest
-	sendErr    error
+	sent         []*pb.RenderRequest
+	sendErr      error
 	closeSendErr error
 	grpc.ClientStream
 }
@@ -76,7 +76,7 @@ func (s *mockStream) Recv() (*pb.RenderResponse, error) {
 }
 
 func (s *mockStream) Header() (metadata.MD, error) { return nil, nil }
-func (s *mockStream) Trailer() metadata.MD          { return nil }
-func (s *mockStream) Context() context.Context       { return context.Background() }
-func (s *mockStream) SendMsg(_ any) error            { return nil }
-func (s *mockStream) RecvMsg(_ any) error            { return io.EOF }
+func (s *mockStream) Trailer() metadata.MD         { return nil }
+func (s *mockStream) Context() context.Context     { return context.Background() }
+func (s *mockStream) SendMsg(_ any) error          { return nil }
+func (s *mockStream) RecvMsg(_ any) error          { return io.EOF }

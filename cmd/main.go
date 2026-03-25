@@ -19,6 +19,9 @@ import (
 
 	pb "github.com/katastroma/naukleros"
 
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+
 	"github.com/katastroma/phortizo/internal/auth/resolve"
 	"github.com/katastroma/phortizo/internal/github"
 	handlers "github.com/katastroma/phortizo/internal/handlers"
@@ -27,6 +30,8 @@ import (
 	"github.com/katastroma/phortizo/internal/pipeline"
 	regmemory "github.com/katastroma/phortizo/internal/registration/memory"
 	"github.com/katastroma/phortizo/internal/source"
+	"github.com/katastroma/phortizo/internal/tracequery"
+	tempoQuerier "github.com/katastroma/phortizo/internal/tracequery/tempo"
 	vaultmemory "github.com/katastroma/phortizo/internal/vault/memory"
 )
 
@@ -69,9 +74,9 @@ func main() {
 	platformApp := github.NewApp(clientID, []byte(privateKeyPEM))
 	ghc := github.NewClientFromAppInstallation(log, platformApp, installationID)
 
-	// Pipeline
-	// TODO: store selection from environment config (k8s in prod, memory in dev)
+	// Stores — memory by default, k8s when STORE_BACKEND=k8s
 	credentials := vaultmemory.New()
+	registrations := regmemory.New()
 
 	githubAppFactory := func(clientID string, privateKeyPEM []byte) resolve.TokenExchanger {
 		return github.NewApp(clientID, privateKeyPEM)
@@ -86,12 +91,11 @@ func main() {
 	runner := pipeline.NewRunner(log, credentials, platformApp, githubAppFactory, renderers)
 
 	// HTTP server
-	registrations := regmemory.New()
 	webhookHandler := handlers.NewWebhook(log, registrations, runner.HandleMatch)
 
 	mux := http.NewServeMux()
 	mux.Handle("GET /healthz", http_health.New(log, ghc))
-	mux.Handle("POST /webhook/{id}", webhookHandler)
+	mux.Handle("POST /webhook/{registration_id}", webhookHandler)
 
 	httpPort := os.Getenv("PORT")
 	if httpPort == "" {
@@ -106,7 +110,25 @@ func main() {
 	// gRPC server
 	grpcServer := server.New(log)
 	healthpb.RegisterHealthServer(grpcServer, grpc_health.New(log, ghc))
-	pb.RegisterRetrieverServiceServer(grpcServer, handlers.NewRetriever(log))
+	// Trace querier — connects to Tempo for replay support
+	var traceQuerier tracequery.Querier
+	if tempoAddr := os.Getenv("TEMPO_ADDRESS"); tempoAddr != "" {
+		tempoConn, err := grpc.NewClient(
+			tempoAddr,
+			grpc.WithTransportCredentials(insecure.NewCredentials()),
+		)
+		if err != nil {
+			log.Error("connecting to tempo", "address", tempoAddr, "error", err)
+			os.Exit(1)
+		}
+		defer tempoConn.Close()
+		traceQuerier = tempoQuerier.New(tempoConn)
+	}
+
+	pb.RegisterRetrieverServiceServer(
+		grpcServer,
+		handlers.NewRetriever(log, traceQuerier, registrations, runner.HandleMatch),
+	)
 
 	sigNotifyContext, stop := context.WithCancel(mainCtx)
 	defer stop()

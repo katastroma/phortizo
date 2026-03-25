@@ -22,31 +22,35 @@ var tracer = otel.Tracer("webhook")
 // Webhook receives GitHub push webhooks, verifies their signature, matches
 // watch targets, and dispatches matched targets for processing.
 type Webhook struct {
-	log     *slog.Logger
-	store   registration.Registrar
-	onMatch func(ctx context.Context, m match.Result)
+	log       *slog.Logger
+	registrar registration.Registrar
+	onMatch   func(ctx context.Context, m match.Result)
 }
 
 // NewWebhook creates a webhook handler.
-func NewWebhook(log *slog.Logger, store registration.Registrar, onMatch func(ctx context.Context, m match.Result)) *Webhook {
+func NewWebhook(
+	log *slog.Logger,
+	registrar registration.Registrar,
+	onMatch func(ctx context.Context, m match.Result),
+) *Webhook {
 	return &Webhook{
-		log:     log,
-		store:   store,
-		onMatch: onMatch,
+		log:       log,
+		registrar: registrar,
+		onMatch:   onMatch,
 	}
 }
 
 // ServeHTTP handles POST /webhook/{id}.
 func (h *Webhook) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	id := r.PathValue("id")
-	if id == "" {
+	registrationID := r.PathValue("registration_id")
+	if registrationID == "" {
 		http.Error(w, "missing registration id", http.StatusBadRequest)
 		return
 	}
 
-	reg, err := h.store.GetByID(r.Context(), id)
+	reg, err := h.registrar.GetByID(r.Context(), registrationID)
 	if err != nil {
-		h.log.ErrorContext(r.Context(), "registration lookup failed", "id", id, "error", err)
+		h.log.ErrorContext(r.Context(), "registration lookup failed", "id", registrationID, "error", err)
 		http.Error(w, "not found", http.StatusNotFound)
 		return
 	}
@@ -60,7 +64,7 @@ func (h *Webhook) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	sig := r.Header.Get("X-Hub-Signature-256")
 	if err = verify.Signature(body, reg.Secret, sig); err != nil {
-		h.log.WarnContext(r.Context(), "signature verification failed", "id", id, "error", err)
+		h.log.WarnContext(r.Context(), "signature verification failed", "id", registrationID, "error", err)
 		http.Error(w, "signature verification failed", http.StatusUnauthorized)
 		return
 	}
