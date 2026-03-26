@@ -50,8 +50,17 @@ func (a *App) MarshalSecret() map[string][]byte {
 
 // ExchangeInstallationToken signs a JWT and exchanges it for an installation
 // token via the GitHub API.
-func (a *App) ExchangeInstallationToken(ctx context.Context, httpClient *http.Client, installationID int64) (string, error) {
-	signed, err := a.signJWT()
+func (a *App) ExchangeInstallationToken(
+	ctx context.Context,
+	httpClient *http.Client,
+	installationID int64,
+) (string, error) {
+	if a.privateKey == nil {
+		return "", fmt.Errorf("private key is nil")
+	}
+
+	now := time.Now()
+	signed, err := jwt.Sign(a.clientID, now.Add(-JWTClockDrift), now.Add(JWTMaxLifetime), a.privateKey)
 	if err != nil {
 		return "", fmt.Errorf("signing JWT: %w", err)
 	}
@@ -63,9 +72,4 @@ func (a *App) ExchangeInstallationToken(ctx context.Context, httpClient *http.Cl
 	}
 
 	return ghToken.GetToken(), nil
-}
-
-func (a *App) signJWT() (string, error) {
-	now := time.Now()
-	return jwt.Sign(a.clientID, now.Add(-JWTClockDrift), now.Add(JWTMaxLifetime), a.privateKey)
 }
