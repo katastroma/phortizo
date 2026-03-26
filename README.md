@@ -13,13 +13,16 @@ Implements the [naukleros](https://github.com/katastroma/naukleros)
 
 1. Receive webhook at `POST /webhook/{namespace}`
 2. Retrieve stored secret from tenant namespace
-3. Verify `X-Hub-Signature-256` against stored secret
+3. Validate payload and verify signature against stored secret
 4. Parse push event and match against watch targets
-5. Resolve tenant credentials
-6. Clone repository (shallow, in-memory)
-7. Detect renderer type (Helm, Kustomize, or raw YAML)
-8. Stream source to the renderer via
-   [keleustēs](https://github.com/katastroma/keleustes) gRPC
+5. Acquire [run ownership](https://katastroma.github.io/docs/event-driven#run-ownership)
+   lease on the watch target
+6. Resolve tenant credentials
+7. Clone repository (shallow, in-memory)
+8. Detect renderer type (Helm, Kustomize, or raw YAML)
+9. Verify run still holds the lease
+10. Stream source to the renderer via
+    [keleustēs](https://github.com/katastroma/keleustes) gRPC
 
 ## Credentials
 
@@ -38,7 +41,7 @@ Implements the [naukleros](https://github.com/katastroma/naukleros)
 | Variable                     | Description                                          |
 | ---------------------------- | ---------------------------------------------------- |
 | `GITHUB_APP_CLIENT_ID`       | Platform GitHub App client ID.                       |
-| `GITHUB_APP_INSTALLATION_ID` | Platform GitHub App installation ID.                 |
+| `GITHUB_APP_INSTALLATION_ID` | Platform GitHub App installation ID. Used for health checks only. |
 | `GITHUB_APP_PRIVATE_KEY`     | PEM-encoded private key for the platform GitHub App. |
 
 ### Renderers
