@@ -2,6 +2,23 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## 0.5.0 - 2026-03-26
+#### Features
+- phortizo ready for integration testing - (8d1d928) - Nathan Blair
+#### Bug Fixes
+- (**cd**) cog handles CD triggering - (7565cf3) - Nathan Blair
+#### Refactoring
+- (**structure**) rename some files - (5396a60) - Nathan Blair
+- use credential registration approach - (4e15364) - Nathan Blair
+- package name change - (a8ddc18) - Nathan Blair
+- fail wrapper for webhook handling - (d1bd954) - Nathan Blair
+- more restructuring and code cleanup - (308cbf9) - Nathan Blair
+- extract auth resolution - (25a89b2) - Nathan Blair
+- cleanup handleMatch for readability - (62c8d52) - Nathan Blair
+- cleanup Find for readability - (bbf30f9) - Nathan Blair
+
+- - -
+
 ## 0.4.0 - 2026-03-26
 #### Features
 - implement platform health checking again - (aa1932e) - Nathan Blair
