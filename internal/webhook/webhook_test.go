@@ -41,6 +41,15 @@ func validPayload() []byte {
 	}`)
 }
 
+func pushRequest(body []byte) *http.Request {
+	req := httptest.NewRequest(http.MethodPost, "/webhook/{namespace}", bytes.NewReader(body))
+	req.SetPathValue("namespace", testNamespace)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-GitHub-Event", "push")
+	req.Header.Set("X-Hub-Signature-256", sign(body, testSecret))
+	return req
+}
+
 func webhookSecret() *corev1.Secret {
 	return &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
@@ -111,9 +120,7 @@ func TestServeHTTP_WebhookSecretNotFound(t *testing.T) {
 	k8s := fake.NewSimpleClientset(watchTargetConfigMap())
 	handler := New(slog.Default(), nil, k8s)
 
-	body := validPayload()
-	req := httptest.NewRequest(http.MethodPost, "/webhook/{namespace}", bytes.NewReader(body))
-	req.SetPathValue("namespace", testNamespace)
+	req := pushRequest(validPayload())
 	rec := httptest.NewRecorder()
 
 	handler.ServeHTTP(rec, req)
@@ -123,28 +130,29 @@ func TestServeHTTP_WebhookSecretNotFound(t *testing.T) {
 	}
 }
 
-func TestServeHTTP_BodyReadError(t *testing.T) {
+func TestServeHTTP_ValidationFailure_BodyReadError(t *testing.T) {
 	k8s := fake.NewSimpleClientset(webhookSecret(), watchTargetConfigMap())
 	handler := New(slog.Default(), nil, k8s)
 
 	req := httptest.NewRequest(http.MethodPost, "/webhook/{namespace}", &errorReader{})
 	req.SetPathValue("namespace", testNamespace)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-GitHub-Event", "push")
+	req.Header.Set("X-Hub-Signature-256", "sha256=0000000000000000000000000000000000000000000000000000000000000000")
 	rec := httptest.NewRecorder()
 
 	handler.ServeHTTP(rec, req)
 
-	if rec.Code != http.StatusBadRequest {
-		t.Errorf("status = %d, want %d", rec.Code, http.StatusBadRequest)
+	if rec.Code != http.StatusUnauthorized {
+		t.Errorf("status = %d, want %d", rec.Code, http.StatusUnauthorized)
 	}
 }
 
-func TestServeHTTP_SignatureFailure(t *testing.T) {
+func TestServeHTTP_ValidationFailure_BadSignature(t *testing.T) {
 	k8s := fake.NewSimpleClientset(webhookSecret(), watchTargetConfigMap())
 	handler := New(slog.Default(), nil, k8s)
 
-	body := validPayload()
-	req := httptest.NewRequest(http.MethodPost, "/webhook/{namespace}", bytes.NewReader(body))
-	req.SetPathValue("namespace", testNamespace)
+	req := pushRequest(validPayload())
 	req.Header.Set("X-Hub-Signature-256", "sha256=0000000000000000000000000000000000000000000000000000000000000000")
 	rec := httptest.NewRecorder()
 
@@ -160,9 +168,7 @@ func TestServeHTTP_InvalidPayload(t *testing.T) {
 	handler := New(slog.Default(), nil, k8s)
 
 	body := []byte("not json")
-	req := httptest.NewRequest(http.MethodPost, "/webhook/{namespace}", bytes.NewReader(body))
-	req.SetPathValue("namespace", testNamespace)
-	req.Header.Set("X-Hub-Signature-256", sign(body, testSecret))
+	req := pushRequest(body)
 	rec := httptest.NewRecorder()
 
 	handler.ServeHTTP(rec, req)
@@ -181,9 +187,23 @@ func TestServeHTTP_NoMatch(t *testing.T) {
 		"repository": {"clone_url": "https://github.com/acme/app.git"},
 		"commits": [{"added": ["src/main.go"], "removed": [], "modified": []}]
 	}`)
-	req := httptest.NewRequest(http.MethodPost, "/webhook/{namespace}", bytes.NewReader(body))
-	req.SetPathValue("namespace", testNamespace)
-	req.Header.Set("X-Hub-Signature-256", sign(body, testSecret))
+	req := pushRequest(body)
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Errorf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+}
+
+func TestServeHTTP_NonPushEvent(t *testing.T) {
+	k8s := fake.NewSimpleClientset(webhookSecret(), watchTargetConfigMap())
+	handler := New(slog.Default(), nil, k8s)
+
+	body := []byte(`{"action": "opened"}`)
+	req := pushRequest(body)
+	req.Header.Set("X-GitHub-Event", "issues")
 	rec := httptest.NewRecorder()
 
 	handler.ServeHTTP(rec, req)
@@ -199,9 +219,7 @@ func TestServeHTTP_Match(t *testing.T) {
 	handler := New(slog.Default(), runner, k8s)
 
 	body := validPayload()
-	req := httptest.NewRequest(http.MethodPost, "/webhook/{namespace}", bytes.NewReader(body))
-	req.SetPathValue("namespace", testNamespace)
-	req.Header.Set("X-Hub-Signature-256", sign(body, testSecret))
+	req := pushRequest(body)
 	req.Header.Set("X-GitHub-Delivery", "delivery-123")
 	rec := httptest.NewRecorder()
 

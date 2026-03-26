@@ -3,28 +3,49 @@ package event
 import (
 	"sort"
 	"testing"
+
+	"github.com/google/go-github/v84/github"
 )
 
-func TestParsePush_ValidPayload(t *testing.T) {
-	body := []byte(`{
-		"ref": "refs/heads/main",
-		"repository": {"clone_url": "https://github.com/acme/app.git"},
-		"commits": [
-			{"added": ["deploy/values.yaml"], "removed": [], "modified": ["README.md"]},
-			{"added": [], "removed": ["old.txt"], "modified": ["deploy/values.yaml"]}
-		]
-	}`)
+const testCommitSHA = "abc123def456"
 
-	ev, err := ParsePush(body)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+func pushEvent(ref, cloneURL string, commits []*github.HeadCommit) *github.PushEvent {
+	return &github.PushEvent{
+		Ref:   github.Ptr(ref),
+		After: github.Ptr(testCommitSHA),
+		Repo: &github.PushEventRepository{
+			CloneURL: github.Ptr(cloneURL),
+		},
+		Commits: commits,
 	}
+}
+
+func commit(added, removed, modified []string) *github.HeadCommit {
+	return &github.HeadCommit{
+		Added:    added,
+		Removed:  removed,
+		Modified: modified,
+	}
+}
+
+func TestFromPushEvent_ValidPayload(t *testing.T) {
+	ev := FromPushEvent(pushEvent(
+		"refs/heads/main",
+		"https://github.com/acme/app.git",
+		[]*github.HeadCommit{
+			commit([]string{"deploy/values.yaml"}, nil, []string{"README.md"}),
+			commit(nil, []string{"old.txt"}, []string{"deploy/values.yaml"}),
+		},
+	))
 
 	if ev.Ref != "refs/heads/main" {
 		t.Errorf("ref = %q, want %q", ev.Ref, "refs/heads/main")
 	}
 	if ev.RepoURL != "https://github.com/acme/app.git" {
 		t.Errorf("repo_url = %q, want %q", ev.RepoURL, "https://github.com/acme/app.git")
+	}
+	if ev.CommitSHA != testCommitSHA {
+		t.Errorf("commit_sha = %q, want %q", ev.CommitSHA, testCommitSHA)
 	}
 
 	sort.Strings(ev.ChangedPaths)
@@ -39,43 +60,27 @@ func TestParsePush_ValidPayload(t *testing.T) {
 	}
 }
 
-func TestParsePush_DeduplicatesPaths(t *testing.T) {
-	body := []byte(`{
-		"ref": "refs/heads/main",
-		"repository": {"clone_url": "https://github.com/acme/app.git"},
-		"commits": [
-			{"added": ["file.txt"], "removed": [], "modified": ["file.txt"]},
-			{"added": ["file.txt"], "removed": [], "modified": []}
-		]
-	}`)
-
-	ev, err := ParsePush(body)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+func TestFromPushEvent_DeduplicatesPaths(t *testing.T) {
+	ev := FromPushEvent(pushEvent(
+		"refs/heads/main",
+		"https://github.com/acme/app.git",
+		[]*github.HeadCommit{
+			commit([]string{"file.txt"}, nil, []string{"file.txt"}),
+			commit([]string{"file.txt"}, nil, nil),
+		},
+	))
 
 	if len(ev.ChangedPaths) != 1 {
 		t.Errorf("expected 1 deduplicated path, got %d: %v", len(ev.ChangedPaths), ev.ChangedPaths)
 	}
 }
 
-func TestParsePush_InvalidJSON(t *testing.T) {
-	if _, err := ParsePush([]byte("not json")); err == nil {
-		t.Fatal("expected error for invalid JSON")
-	}
-}
-
-func TestParsePush_EmptyCommits(t *testing.T) {
-	body := []byte(`{
-		"ref": "refs/heads/main",
-		"repository": {"clone_url": "https://github.com/acme/app.git"},
-		"commits": []
-	}`)
-
-	ev, err := ParsePush(body)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+func TestFromPushEvent_EmptyCommits(t *testing.T) {
+	ev := FromPushEvent(pushEvent(
+		"refs/heads/main",
+		"https://github.com/acme/app.git",
+		nil,
+	))
 
 	if len(ev.ChangedPaths) != 0 {
 		t.Errorf("expected 0 paths, got %d", len(ev.ChangedPaths))

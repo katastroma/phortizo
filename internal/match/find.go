@@ -17,6 +17,7 @@ func Find(targets []registration.WatchTarget, ev event.Push) []registration.Watc
 		if t.RepoURL != ev.RepoURL || t.Ref != ev.Ref {
 			continue
 		}
+
 		for _, changed := range ev.ChangedPaths {
 			if strings.HasPrefix(changed, t.Path) {
 				matched = append(matched, t)

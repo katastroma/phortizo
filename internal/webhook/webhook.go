@@ -2,10 +2,10 @@
 package webhook
 
 import (
-	"io"
 	"log/slog"
 	"net/http"
 
+	"github.com/google/go-github/v84/github"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
@@ -15,7 +15,6 @@ import (
 	"github.com/katastroma/phortizo/internal/k8s/configmap"
 	"github.com/katastroma/phortizo/internal/k8s/secret"
 	"github.com/katastroma/phortizo/internal/match"
-	"github.com/katastroma/phortizo/internal/verify"
 )
 
 var tracer = otel.Tracer("webhook")
@@ -57,26 +56,28 @@ func (h *Webhook) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	body, err := io.ReadAll(r.Body)
+	payload, err := github.ValidatePayload(r, webhookSecret)
 	if err != nil {
-		h.log.ErrorContext(ctx, "failed to read request body", "error", err)
-		http.Error(w, "failed to read body", http.StatusBadRequest)
+		h.log.WarnContext(ctx, "payload validation failed", "id", namespace, "error", err)
+		http.Error(w, "payload validation failed", http.StatusUnauthorized)
 		return
 	}
 
-	sig := r.Header.Get("X-Hub-Signature-256")
-	if err = verify.Signature(body, webhookSecret, sig); err != nil {
-		h.log.WarnContext(ctx, "signature verification failed", "id", namespace, "error", err)
-		http.Error(w, "signature verification failed", http.StatusUnauthorized)
+	parsed, err := github.ParseWebHook(github.WebHookType(r), payload)
+	if err != nil {
+		h.log.ErrorContext(ctx, "failed to parse webhook", "error", err)
+		http.Error(w, "failed to parse webhook", http.StatusBadRequest)
 		return
 	}
 
-	ev, err := event.ParsePush(body)
-	if err != nil {
-		h.log.ErrorContext(ctx, "failed to parse push event", "error", err)
-		http.Error(w, "failed to parse event", http.StatusBadRequest)
+	pushEvent, ok := parsed.(*github.PushEvent)
+	if !ok {
+		h.log.WarnContext(ctx, "ignored non-push event", "type", github.WebHookType(r))
+		w.WriteHeader(http.StatusOK)
 		return
 	}
+
+	ev := event.FromPushEvent(pushEvent)
 
 	matched := match.Find(watchTargets, ev)
 	if len(matched) == 0 {
@@ -87,6 +88,7 @@ func (h *Webhook) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	deliveryID := r.Header.Get("X-GitHub-Delivery")
 	ctx, span := tracer.Start(ctx, "webhook.dispatch", trace.WithAttributes(
 		attribute.String("github.delivery_id", deliveryID),
+		attribute.String("github.head_commit", ev.CommitSHA),
 	))
 	defer span.End()
 
