@@ -12,7 +12,7 @@ import (
 
 func TestReplay(t *testing.T) {
 	querier := &stubQuerier{attrs: tracequery.Attributes{
-		"registration_id":       "reg-1",
+		"namespace":             "reg-1",
 		"tenant":                "acme",
 		"watch_target.repo_url": "https://github.com/acme/app.git",
 		"watch_target.ref":      "refs/heads/main",
@@ -51,8 +51,8 @@ func TestReplay_MissingAttributes(t *testing.T) {
 
 func TestReplay_MissingWatchTarget(t *testing.T) {
 	querier := &stubQuerier{attrs: tracequery.Attributes{
-		"registration_id": "reg-1",
-		"tenant":          "acme",
+		"namespace": "reg-1",
+		"tenant":    "acme",
 	}}
 	handler := New(slog.Default(), querier, nil)
 
@@ -63,7 +63,7 @@ func TestReplay_MissingWatchTarget(t *testing.T) {
 
 func TestReplay_RegistrationNotFound(t *testing.T) {
 	querier := &stubQuerier{attrs: tracequery.Attributes{
-		"registration_id":       "nonexistent",
+		"namespace":             "nonexistent",
 		"tenant":                "acme",
 		"watch_target.repo_url": "https://github.com/acme/app.git",
 		"watch_target.ref":      "refs/heads/main",

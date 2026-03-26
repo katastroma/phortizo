@@ -109,7 +109,7 @@ func main() {
 	mux := http.NewServeMux()
 	// TODO Pass authenticated ghService to health check once client auth is wired
 	mux.Handle("GET /healthz", http_health.New(log))
-	mux.Handle("POST /webhook/{registration_id}", webhookHandler)
+	mux.Handle("POST /webhook/{namespace}", webhookHandler)
 
 	httpPort := os.Getenv("PORT")
 	if httpPort == "" {

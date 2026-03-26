@@ -11,7 +11,7 @@ Implements the [naukleros](https://github.com/katastroma/naukleros)
 
 ## Pipeline
 
-1. Receive webhook at `POST /webhook/{registration_id}`
+1. Receive webhook at `POST /webhook/{namespace}`
 2. Look up registration by ID
 3. Verify `X-Hub-Signature-256` against stored secret
 4. Parse push event and match against watch targets
@@ -51,11 +51,11 @@ Implements the [naukleros](https://github.com/katastroma/naukleros)
 
 ### Optional
 
-| Variable          | Default | Description                                                           |
-| ----------------- | ------- | --------------------------------------------------------------------- |
-| `SERVICE_VERSION` | `dev`   | Service version reported to the OTel resource. Set by CI.             |
-| `PORT`            | `8080`  | HTTP server port. Serves `/healthz` and `/webhook/{registration_id}`. |
-| `TEMPO_ADDRESS`   |         | gRPC address of Tempo. Enables replay via trace queries.              |
+| Variable          | Default | Description                                                     |
+| ----------------- | ------- | --------------------------------------------------------------- |
+| `SERVICE_VERSION` | `dev`   | Service version reported to the OTel resource. Set by CI.       |
+| `PORT`            | `8080`  | HTTP server port. Serves `/healthz` and `/webhook/{namespace}`. |
+| `TEMPO_ADDRESS`   |         | gRPC address of Tempo. Enables replay via trace queries.        |
 
 ### OTel (from grpc-foundation)
 
@@ -84,7 +84,7 @@ The `pipeline.run` span carries these attributes for observability and replay:
 
 | Attribute               | Description                                                          |
 | ----------------------- | -------------------------------------------------------------------- |
-| `registration_id`       | Webhook registration ID. Used by replay to look up the registration. |
+| `namespace`             | Webhook registration ID. Used by replay to look up the registration. |
 | `tenant`                | Tenant identity.                                                     |
 | `watch_target.repo_url` | Repository clone URL.                                                |
 | `watch_target.ref`      | Git ref (e.g., `refs/heads/main`).                                   |

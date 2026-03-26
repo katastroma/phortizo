@@ -36,10 +36,10 @@ func New(
 	}
 }
 
-// ServeHTTP handles POST /webhook/{registration_id}.
+// ServeHTTP handles POST /webhook/{namespace}.
 func (h *Webhook) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	registrationID := r.PathValue("registration_id")
-	if registrationID == "" {
+	namespace := r.PathValue("namespace")
+	if namespace == "" {
 		http.Error(w, "missing registration id", http.StatusBadRequest)
 		return
 	}
@@ -62,7 +62,7 @@ func (h *Webhook) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	sig := r.Header.Get("X-Hub-Signature-256")
 	if err = verify.Signature(body, secret, sig); err != nil {
-		h.log.WarnContext(r.Context(), "signature verification failed", "id", registrationID, "error", err)
+		h.log.WarnContext(r.Context(), "signature verification failed", "id", namespace, "error", err)
 		http.Error(w, "signature verification failed", http.StatusUnauthorized)
 		return
 	}

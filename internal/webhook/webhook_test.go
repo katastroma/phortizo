@@ -43,7 +43,7 @@ func TestServeHTTP_RegistrationNotFound(t *testing.T) {
 	handler := New(slog.Default(), nil)
 
 	req := httptest.NewRequest(http.MethodPost, "/webhook/{id}", nil)
-	req.SetPathValue("registration_id", "missing")
+	req.SetPathValue("namespace", "missing")
 	rec := httptest.NewRecorder()
 
 	handler.ServeHTTP(rec, req)
@@ -58,7 +58,7 @@ func TestServeHTTP_SignatureFailure(t *testing.T) {
 
 	body := validPayload()
 	req := httptest.NewRequest(http.MethodPost, "/webhook/{id}", bytes.NewReader(body))
-	req.SetPathValue("registration_id", "reg-1")
+	req.SetPathValue("namespace", "reg-1")
 	req.Header.Set("X-Hub-Signature-256", "sha256=invalid")
 	rec := httptest.NewRecorder()
 
@@ -74,7 +74,7 @@ func TestServeHTTP_InvalidPayload(t *testing.T) {
 
 	body := []byte("not json")
 	req := httptest.NewRequest(http.MethodPost, "/webhook/{id}", bytes.NewReader(body))
-	req.SetPathValue("registration_id", "reg-1")
+	req.SetPathValue("namespace", "reg-1")
 	req.Header.Set("X-Hub-Signature-256", sign(body, []byte("test-secret")))
 	rec := httptest.NewRecorder()
 
@@ -94,7 +94,7 @@ func TestServeHTTP_NoMatch(t *testing.T) {
 		"commits": [{"added": ["src/main.go"], "removed": [], "modified": []}]
 	}`)
 	req := httptest.NewRequest(http.MethodPost, "/webhook/{id}", bytes.NewReader(body))
-	req.SetPathValue("registration_id", "reg-1")
+	req.SetPathValue("namespace", "reg-1")
 	req.Header.Set("X-Hub-Signature-256", sign(body, []byte("test-secret")))
 	rec := httptest.NewRecorder()
 
@@ -110,7 +110,7 @@ func TestServeHTTP_Match(t *testing.T) {
 
 	body := validPayload()
 	req := httptest.NewRequest(http.MethodPost, "/webhook/{id}", bytes.NewReader(body))
-	req.SetPathValue("registration_id", "reg-1")
+	req.SetPathValue("namespace", "reg-1")
 	req.Header.Set("X-Hub-Signature-256", sign(body, []byte("test-secret")))
 	req.Header.Set("X-GitHub-Delivery", "delivery-123")
 	rec := httptest.NewRecorder()
@@ -126,7 +126,7 @@ func TestServeHTTP_BodyReadError(t *testing.T) {
 	handler := New(slog.Default(), nil)
 
 	req := httptest.NewRequest(http.MethodPost, "/webhook/{id}", &errorReader{})
-	req.SetPathValue("registration_id", "reg-1")
+	req.SetPathValue("namespace", "reg-1")
 	rec := httptest.NewRecorder()
 
 	handler.ServeHTTP(rec, req)
