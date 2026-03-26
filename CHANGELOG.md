@@ -2,6 +2,46 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## 0.3.0 - 2026-03-26
+#### Features
+- initial release - (4dd5d2f) - Nathan Blair
+#### Documentation
+- update docs - (0bff9a0) - Nathan Blair
+#### Tests
+- fix webhook tests to use k8s interface - (fa02772) - Nathan Blair
+- add tests for apps package - (e03ef91) - Nathan Blair
+- cleanup - (bb2b962) - Nathan Blair
+- implement credential tests - (f112dc3) - Nathan Blair
+- add tests for tempo - (fff81c9) - Nathan Blair
+#### Refactoring
+- eliminate the useless and confusing Result type - (c287353) - Nathan Blair
+- further leveraging the github SDK - (0eec533) - Nathan Blair
+- leverage github SDK more for push event data - (3e99588) - Nathan Blair
+- consolidate streaming - (be50296) - Nathan Blair
+- read webhook secret from k8s - (2167c84) - Nathan Blair
+- discoverability cleanup - (a04a8ec) - Nathan Blair
+- this is looking much better but still WIP - (97ecf4f) - Nathan Blair
+- more WIP - (dc4cadd) - Nathan Blair
+- FUNDAMENTALLY BROKEN STILL - (3f55bf2) - Nathan Blair
+- ergonomics and semantics across codebase - (3108d5f) - Nathan Blair
+- break up the handlers package - (3da4a1d) - Nathan Blair
+#### Miscellaneous Chores
+- (**regression**) fix attribute names for watch targets - (47fc618) - Nathan Blair
+- implement retrieve - (b97c16a) - Nathan Blair
+- add GetWatchTarget - (bd222ed) - Nathan Blair
+- go mod update - (a6e90d9) - Nathan Blair
+- implement leasing - (07c24e3) - Nathan Blair
+- work on implementing replay - (3d5796e) - Nathan Blair
+- implement pipeline/match handler/runner tests - (75f22b7) - Nathan Blair
+- wire up retrieval of watch targets - (993e34d) - Nathan Blair
+- cleaning up more stale references - (f6e8fe9) - Nathan Blair
+- consolidate multiple names with what they actually are - (e3909ce) - Nathan Blair
+- more cleanup - (7558c8f) - Nathan Blair
+- support watchtarget configmap - (3357359) - Nathan Blair
+- webhook secret plumbing done - (ee4b9cd) - Nathan Blair
+
+- - -
+
 ## 0.2.0 - 2026-03-25
 #### Features
 - implement retriever and replayer - (0b0b27e) - Nathan Blair
