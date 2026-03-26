@@ -8,10 +8,14 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
+	grpclib "google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+
+	pb "github.com/katastroma/keleustes"
 
 	"github.com/katastroma/phortizo/internal/git"
-	"github.com/katastroma/phortizo/internal/grpc"
 	"github.com/katastroma/phortizo/internal/match"
+	"github.com/katastroma/phortizo/internal/render"
 	"github.com/katastroma/phortizo/internal/source"
 )
 
@@ -56,14 +60,31 @@ func (r *Runner) HandleMatch(ctx context.Context, namespace string, m match.Resu
 		return
 	}
 
-	err = grpc.StreamToRenderer(ctx, tracer, fs, m.Target.Path, rendererAddr)
+	connOpts := grpclib.WithTransportCredentials(insecure.NewCredentials())
+	conn, err := grpclib.NewClient(rendererAddr, connOpts)
 	if err != nil {
+		span.RecordError(err)
+		r.log.ErrorContext(
+			ctx,
+			"connecting to renderer failed",
+			"tenant", namespace,
+			"renderer", string(rendererType),
+			"address", rendererAddr,
+			"error", err,
+		)
+		return
+	}
+	defer conn.Close()
+
+	client := pb.NewRendererServiceClient(conn)
+	if err = render.Stream(ctx, client, fs, m.Target.Path); err != nil {
 		span.RecordError(err)
 		r.log.ErrorContext(
 			ctx,
 			"streaming to renderer failed",
 			"tenant", namespace,
 			"renderer", string(rendererType),
+			"address", rendererAddr,
 			"error", err,
 		)
 		return
