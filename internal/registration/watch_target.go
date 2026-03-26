@@ -9,6 +9,12 @@ type WatchTarget struct {
 	Ref       string
 	Path      string
 	Overrides []byte
+
+	// CredentialSecret is the name of the k8s Secret holding repo credentials.
+	// Empty for public repositories. Stored as a ConfigMap annotation
+	// (katastroma.org/credential-secret) rather than a data field, and set by
+	// the k8s/configmap package during read/write.
+	CredentialSecret string
 }
 
 // WatchTargetFromConfigMap deserializes a WatchTarget from ConfigMap data.

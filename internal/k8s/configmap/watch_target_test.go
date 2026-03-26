@@ -54,7 +54,7 @@ func TestListWatchTargets(t *testing.T) {
 		t.Fatalf("expected 2 results, got %d", len(results))
 	}
 
-	var withCred, withoutCred configmap.WatchTargetResult
+	var withCred, withoutCred registration.WatchTarget
 	for _, r := range results {
 		if r.CredentialSecret != "" {
 			withCred = r
@@ -63,16 +63,16 @@ func TestListWatchTargets(t *testing.T) {
 		}
 	}
 
-	if withCred.Target.RepoURL != "https://github.com/acme/app.git" {
-		t.Errorf("RepoURL = %q, want %q", withCred.Target.RepoURL, "https://github.com/acme/app.git")
+	if withCred.RepoURL != "https://github.com/acme/app.git" {
+		t.Errorf("RepoURL = %q, want %q", withCred.RepoURL, "https://github.com/acme/app.git")
 	}
 
 	if withCred.CredentialSecret != "my-cred" {
 		t.Errorf("CredentialSecret = %q, want %q", withCred.CredentialSecret, "my-cred")
 	}
 
-	if withoutCred.Target.Path != "k8s/" {
-		t.Errorf("Path = %q, want %q", withoutCred.Target.Path, "k8s/")
+	if withoutCred.Path != "k8s/" {
+		t.Errorf("Path = %q, want %q", withoutCred.Path, "k8s/")
 	}
 
 	if withoutCred.CredentialSecret != "" {
@@ -99,8 +99,8 @@ func TestListWatchTargets_WithOverrides(t *testing.T) {
 		t.Fatalf("expected 1 result, got %d", len(results))
 	}
 
-	if string(results[0].Target.Overrides) != "image:\n  tag: v1.2.3\n" {
-		t.Errorf("Overrides = %q, want %q", results[0].Target.Overrides, "image:\n  tag: v1.2.3\n")
+	if string(results[0].Overrides) != "image:\n  tag: v1.2.3\n" {
+		t.Errorf("Overrides = %q, want %q", results[0].Overrides, "image:\n  tag: v1.2.3\n")
 	}
 }
 
@@ -147,12 +147,13 @@ func TestPutWatchTarget_Create(t *testing.T) {
 	k8s := fake.NewSimpleClientset()
 
 	target := registration.WatchTarget{
-		RepoURL: "https://github.com/acme/app.git",
-		Ref:     "refs/heads/main",
-		Path:    "deploy/",
+		RepoURL:          "https://github.com/acme/app.git",
+		Ref:              "refs/heads/main",
+		Path:             "deploy/",
+		CredentialSecret: "my-cred",
 	}
 
-	err := configmap.PutWatchTarget(t.Context(), k8s, "tenant-a", "wt-1", target, "my-cred")
+	err := configmap.PutWatchTarget(t.Context(), k8s, "tenant-a", "wt-1", target)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -184,7 +185,7 @@ func TestPutWatchTarget_CreateNoCredential(t *testing.T) {
 		Path:    "deploy/",
 	}
 
-	err := configmap.PutWatchTarget(t.Context(), k8s, "tenant-a", "wt-1", target, "")
+	err := configmap.PutWatchTarget(t.Context(), k8s, "tenant-a", "wt-1", target)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -209,12 +210,13 @@ func TestPutWatchTarget_Update(t *testing.T) {
 	)
 
 	target := registration.WatchTarget{
-		RepoURL: "https://github.com/acme/app.git",
-		Ref:     "refs/heads/main",
-		Path:    "deploy/prod/",
+		RepoURL:          "https://github.com/acme/app.git",
+		Ref:              "refs/heads/main",
+		Path:             "deploy/prod/",
+		CredentialSecret: "new-cred",
 	}
 
-	err := configmap.PutWatchTarget(t.Context(), k8s, "tenant-a", "wt-1", target, "new-cred")
+	err := configmap.PutWatchTarget(t.Context(), k8s, "tenant-a", "wt-1", target)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -246,7 +248,7 @@ func TestPutWatchTarget_UpdateError(t *testing.T) {
 	})
 
 	target := registration.WatchTarget{RepoURL: "x", Ref: "y", Path: "z"}
-	err := configmap.PutWatchTarget(t.Context(), k8s, "tenant-a", "wt-1", target, "")
+	err := configmap.PutWatchTarget(t.Context(), k8s, "tenant-a", "wt-1", target)
 	if err == nil {
 		t.Fatal("expected error from failing update")
 	}
@@ -259,7 +261,7 @@ func TestPutWatchTarget_CreateError(t *testing.T) {
 	})
 
 	target := registration.WatchTarget{RepoURL: "x", Ref: "y", Path: "z"}
-	err := configmap.PutWatchTarget(t.Context(), k8s, "tenant-a", "wt-1", target, "")
+	err := configmap.PutWatchTarget(t.Context(), k8s, "tenant-a", "wt-1", target)
 	if err == nil {
 		t.Fatal("expected error from failing create")
 	}

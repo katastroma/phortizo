@@ -24,16 +24,9 @@ const (
 	CredentialSecretAnnotation = "katastroma.org/credential-secret"
 )
 
-// WatchTargetResult pairs a deserialized watch target with its optional
-// credential Secret name.
-type WatchTargetResult struct {
-	Target           registration.WatchTarget
-	CredentialSecret string
-}
-
 // ListWatchTargets lists all watch target ConfigMaps in the given namespace
 // and returns the deserialized watch targets.
-func ListWatchTargets(ctx context.Context, client kubernetes.Interface, namespace string) ([]WatchTargetResult, error) {
+func ListWatchTargets(ctx context.Context, client kubernetes.Interface, namespace string) ([]registration.WatchTarget, error) {
 	selector := fmt.Sprintf("%s=%s", TypeLabel, WatchTargetType)
 	list, err := client.CoreV1().ConfigMaps(namespace).List(ctx, metav1.ListOptions{
 		LabelSelector: selector,
@@ -42,34 +35,31 @@ func ListWatchTargets(ctx context.Context, client kubernetes.Interface, namespac
 		return nil, fmt.Errorf("listing watch target configmaps in %s: %w", namespace, err)
 	}
 
-	results := make([]WatchTargetResult, 0, len(list.Items))
+	targets := make([]registration.WatchTarget, 0, len(list.Items))
 	for _, cm := range list.Items {
 		target, err := registration.WatchTargetFromConfigMap(cm.Data)
 		if err != nil {
 			return nil, fmt.Errorf("deserializing configmap %s/%s: %w", namespace, cm.Name, err)
 		}
 
-		results = append(results, WatchTargetResult{
-			Target:           target,
-			CredentialSecret: cm.Annotations[CredentialSecretAnnotation],
-		})
+		target.CredentialSecret = cm.Annotations[CredentialSecretAnnotation]
+		targets = append(targets, target)
 	}
 
-	return results, nil
+	return targets, nil
 }
 
 // PutWatchTarget creates or updates a watch target ConfigMap in the given
-// namespace. If credentialSecret is non-empty, it is set as an annotation.
+// namespace. If the target has a CredentialSecret, it is set as an annotation.
 func PutWatchTarget(
 	ctx context.Context,
 	client kubernetes.Interface,
 	namespace, name string,
 	target registration.WatchTarget,
-	credentialSecret string,
 ) error {
 	configmaps := client.CoreV1().ConfigMaps(namespace)
 	data := target.MarshalConfigMap()
-	annotations := buildAnnotations(credentialSecret)
+	annotations := buildAnnotations(target.CredentialSecret)
 	labels := map[string]string{TypeLabel: WatchTargetType}
 
 	existing, err := configmaps.Get(ctx, name, metav1.GetOptions{})
