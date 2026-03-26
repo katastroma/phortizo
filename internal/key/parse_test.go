@@ -35,3 +35,23 @@ func TestParsePrivateKey_InvalidDER(t *testing.T) {
 		t.Fatal("expected error for invalid DER data")
 	}
 }
+
+func TestMarshalPrivateKey_RoundTrip(t *testing.T) {
+	pemBytes := tests.GenerateRSAPEM(t)
+
+	original, err := ParsePrivateKey(pemBytes)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	marshaled := MarshalPrivateKey(original)
+
+	restored, err := ParsePrivateKey(marshaled)
+	if err != nil {
+		t.Fatalf("unexpected error parsing marshaled key: %v", err)
+	}
+
+	if !original.Equal(restored) {
+		t.Fatal("round-tripped key does not match original")
+	}
+}

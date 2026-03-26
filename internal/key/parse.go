@@ -22,3 +22,11 @@ func ParsePrivateKey(pemBytes []byte) (*rsa.PrivateKey, error) {
 
 	return key, nil
 }
+
+// MarshalPrivateKey encodes an RSA private key as PEM-encoded PKCS1 bytes.
+func MarshalPrivateKey(k *rsa.PrivateKey) []byte {
+	return pem.EncodeToMemory(&pem.Block{
+		Type:  "RSA PRIVATE KEY",
+		Bytes: x509.MarshalPKCS1PrivateKey(k),
+	})
+}

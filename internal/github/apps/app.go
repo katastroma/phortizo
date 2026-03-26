@@ -3,6 +3,7 @@ package apps
 
 import (
 	"context"
+	"crypto/rsa"
 	"fmt"
 	"net/http"
 	"time"
@@ -24,25 +25,26 @@ const (
 
 // App holds GitHub App credentials.
 type App struct {
-	clientID      string
-	privateKeyPEM []byte
+	clientID   string
+	privateKey *rsa.PrivateKey
 }
 
 // FromAppParameters creates a GitHub App from a client ID and PEM-encoded
 // private key. Returns an error if the key cannot be parsed.
 func FromAppParameters(clientID string, privateKeyPEM []byte) (*App, error) {
-	if _, err := key.ParsePrivateKey(privateKeyPEM); err != nil {
+	pk, err := key.ParsePrivateKey(privateKeyPEM)
+	if err != nil {
 		return nil, err
 	}
 
-	return &App{clientID: clientID, privateKeyPEM: privateKeyPEM}, nil
+	return &App{clientID: clientID, privateKey: pk}, nil
 }
 
 // MarshalSecret returns the App's credentials as Secret data entries.
 func (a *App) MarshalSecret() map[string][]byte {
 	return map[string][]byte{
 		"client-id":   []byte(a.clientID),
-		"private-key": a.privateKeyPEM,
+		"private-key": key.MarshalPrivateKey(a.privateKey),
 	}
 }
 
@@ -64,11 +66,6 @@ func (a *App) ExchangeInstallationToken(ctx context.Context, httpClient *http.Cl
 }
 
 func (a *App) signJWT() (string, error) {
-	privateKey, err := key.ParsePrivateKey(a.privateKeyPEM)
-	if err != nil {
-		return "", fmt.Errorf("parsing private key: %w", err)
-	}
-
 	now := time.Now()
-	return jwt.Sign(a.clientID, now.Add(-JWTClockDrift), now.Add(JWTMaxLifetime), privateKey)
+	return jwt.Sign(a.clientID, now.Add(-JWTClockDrift), now.Add(JWTMaxLifetime), a.privateKey)
 }
