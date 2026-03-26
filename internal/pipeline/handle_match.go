@@ -18,8 +18,8 @@ func (r *Runner) HandleMatch(ctx context.Context, namespace string, m registrati
 	ctx, span := tracer.Start(ctx, SpanName, trace.WithAttributes(
 		attribute.String("tenant", namespace),
 		attribute.String("watch_target.repo_url", m.RepoURL),
-		attribute.String("watch_ref", m.Ref),
-		attribute.String("watch_path", m.Path),
+		attribute.String("watch_target.ref", m.Ref),
+		attribute.String("watch_target.path", m.Path),
 	))
 	defer span.End()
 
