@@ -7,5 +7,5 @@ import (
 
 // Handler processes matched watch targets through the pipeline
 type Handler interface {
-	HandleMatch(ctx context.Context, tenantID string, m Result)
+	HandleMatch(ctx context.Context, namespace string, m Result)
 }

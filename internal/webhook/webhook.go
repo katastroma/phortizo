@@ -40,12 +40,9 @@ func New(
 func (h *Webhook) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	namespace := r.PathValue("namespace")
 	if namespace == "" {
-		http.Error(w, "missing registration id", http.StatusBadRequest)
+		http.Error(w, "missing namespace", http.StatusBadRequest)
 		return
 	}
-
-	// TODO Get tenant config from k8s
-	var tenantID string
 
 	// TODO Get tenant watch config(s) from k8s
 	var watchTargets []registration.WatchTarget
@@ -87,7 +84,7 @@ func (h *Webhook) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer span.End()
 
 	for _, target := range matched {
-		h.runner.HandleMatch(ctx, tenantID, match.Result{
+		h.runner.HandleMatch(ctx, namespace, match.Result{
 			Target: target,
 			Event:  ev,
 		})

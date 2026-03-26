@@ -12,7 +12,7 @@ Implements the [naukleros](https://github.com/katastroma/naukleros)
 ## Pipeline
 
 1. Receive webhook at `POST /webhook/{namespace}`
-2. Look up registration by ID
+2. Retrieve stored secret from tenant namespace
 3. Verify `X-Hub-Signature-256` against stored secret
 4. Parse push event and match against watch targets
 5. Resolve tenant credentials
@@ -53,7 +53,7 @@ Implements the [naukleros](https://github.com/katastroma/naukleros)
 
 | Variable          | Default | Description                                                     |
 | ----------------- | ------- | --------------------------------------------------------------- |
-| `SERVICE_VERSION` | `dev`   | Service version reported to the OTel resource. Set by CI.       |
+| `SERVICE_VERSION` | `dev`   | Service version reported to the OTel resource.                  |
 | `PORT`            | `8080`  | HTTP server port. Serves `/healthz` and `/webhook/{namespace}`. |
 | `TEMPO_ADDRESS`   |         | gRPC address of Tempo. Enables replay via trace queries.        |
 
@@ -82,13 +82,12 @@ Implements the [naukleros](https://github.com/katastroma/naukleros)
 
 The `pipeline.run` span carries these attributes for observability and replay:
 
-| Attribute               | Description                                                          |
-| ----------------------- | -------------------------------------------------------------------- |
-| `namespace`             | Webhook registration ID. Used by replay to look up the registration. |
-| `tenant`                | Tenant identity.                                                     |
-| `watch_target.repo_url` | Repository clone URL.                                                |
-| `watch_target.ref`      | Git ref (e.g., `refs/heads/main`).                                   |
-| `watch_target.path`     | Path within the repository being watched.                            |
+| Attribute               | Description                               |
+| ----------------------- | ----------------------------------------- |
+| `namespace`             | Webhook parameter. Identifies the tenant. |
+| `watch_target.repo_url` | Repository clone URL.                     |
+| `watch_target.ref`      | Git ref (e.g., `refs/heads/main`).        |
+| `watch_target.path`     | Path within the repository being watched. |
 
 The `webhook.dispatch` span carries:
 

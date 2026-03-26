@@ -16,9 +16,9 @@ import (
 )
 
 // HandleMatch processes a matched webhook event through the pipeline.
-func (r *Runner) HandleMatch(ctx context.Context, tenantID string, m match.Result) {
+func (r *Runner) HandleMatch(ctx context.Context, namespace string, m match.Result) {
 	ctx, span := tracer.Start(ctx, "pipeline.run", trace.WithAttributes(
-		attribute.String("tenant", tenantID),
+		attribute.String("tenant", namespace),
 		attribute.String("watch_target.repo_url", m.Target.RepoURL),
 		attribute.String("watch_target.ref", m.Target.Ref),
 		attribute.String("watch_target.path", m.Target.Path),
@@ -26,6 +26,7 @@ func (r *Runner) HandleMatch(ctx context.Context, tenantID string, m match.Resul
 	defer span.End()
 
 	// TODO Retrieve credentials from k8s
+	// NOTE Use annotation from returned tenant watch target configmap
 
 	// TODO Parse credentials for type
 
@@ -36,7 +37,7 @@ func (r *Runner) HandleMatch(ctx context.Context, tenantID string, m match.Resul
 	fs, err := git.Clone(ctx, m.Target.RepoURL, m.Target.Ref, authMethod)
 	if err != nil {
 		span.RecordError(err)
-		r.log.ErrorContext(ctx, "clone failed", "tenant", tenantID, "error", err)
+		r.log.ErrorContext(ctx, "clone failed", "tenant", namespace, "error", err)
 		return
 	}
 
@@ -48,7 +49,7 @@ func (r *Runner) HandleMatch(ctx context.Context, tenantID string, m match.Resul
 		r.log.ErrorContext(
 			ctx,
 			"renderer lookup failed",
-			"tenant", tenantID,
+			"tenant", namespace,
 			"renderer", string(rendererType),
 			"error", err,
 		)
@@ -61,7 +62,7 @@ func (r *Runner) HandleMatch(ctx context.Context, tenantID string, m match.Resul
 		r.log.ErrorContext(
 			ctx,
 			"streaming to renderer failed",
-			"tenant", tenantID,
+			"tenant", namespace,
 			"renderer", string(rendererType),
 			"error", err,
 		)
@@ -69,7 +70,7 @@ func (r *Runner) HandleMatch(ctx context.Context, tenantID string, m match.Resul
 	}
 
 	r.log.InfoContext(ctx, "source streamed to renderer",
-		"tenant", tenantID,
+		"tenant", namespace,
 		"renderer", string(rendererType),
 	)
 }
