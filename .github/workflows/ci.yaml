@@ -4,6 +4,8 @@ on:
   workflow_dispatch:
   push:
     branches: [default]
+    paths-ignore:
+      - CHANGELOG.md
 
 jobs:
   version:
