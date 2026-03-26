@@ -9,19 +9,34 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 
+	"github.com/katastroma/phortizo/internal/k8s/configmap"
 	"github.com/katastroma/phortizo/internal/registration"
 	"github.com/katastroma/phortizo/internal/source"
 )
 
 // HandleMatch processes a matched webhook event through the pipeline.
-func (r *Runner) HandleMatch(ctx context.Context, namespace string, m registration.WatchTarget) {
+func (r *Runner) HandleMatch(
+	ctx context.Context,
+	namespace string,
+	m registration.WatchTarget,
+	replayCount int,
+) {
 	ctx, span := tracer.Start(ctx, SpanName, trace.WithAttributes(
 		attribute.String("tenant", namespace),
+		attribute.String("watch_target.name", m.Name),
 		attribute.String("watch_target.repo_url", m.RepoURL),
 		attribute.String("watch_target.ref", m.Ref),
 		attribute.String("watch_target.path", m.Path),
 	))
 	defer span.End()
+
+	runID := span.SpanContext().TraceID().String()
+
+	if err := configmap.AcquireLease(ctx, r.k8sClient, namespace, m.Name, runID, replayCount); err != nil {
+		span.RecordError(err)
+		r.log.ErrorContext(ctx, "lease acquisition failed", "tenant", namespace, "error", err)
+		return
+	}
 
 	var authMethod transport.AuthMethod
 
@@ -60,6 +75,18 @@ func (r *Runner) HandleMatch(ctx context.Context, namespace string, m registrati
 			"renderer", string(rendererType),
 			"error", err,
 		)
+		return
+	}
+
+	holds, err := configmap.HoldsLease(ctx, r.k8sClient, namespace, m.Name, runID)
+	if err != nil {
+		span.RecordError(err)
+		r.log.ErrorContext(ctx, "lease check failed", "tenant", namespace, "error", err)
+		return
+	}
+
+	if !holds {
+		r.log.InfoContext(ctx, "lease lost, abandoning run", "tenant", namespace, "run_id", runID)
 		return
 	}
 

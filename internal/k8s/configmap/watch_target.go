@@ -42,6 +42,7 @@ func ListWatchTargets(ctx context.Context, client kubernetes.Interface, namespac
 			return nil, fmt.Errorf("deserializing configmap %s/%s: %w", namespace, cm.Name, err)
 		}
 
+		target.Name = cm.Name
 		target.CredentialSecret = cm.Annotations[CredentialSecretAnnotation]
 		targets = append(targets, target)
 	}

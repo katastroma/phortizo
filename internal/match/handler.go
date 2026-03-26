@@ -9,5 +9,10 @@ import (
 
 // Handler processes matched watch targets through the pipeline
 type Handler interface {
-	HandleMatch(ctx context.Context, namespace string, m registration.WatchTarget)
+	HandleMatch(
+		ctx context.Context,
+		namespace string,
+		m registration.WatchTarget,
+		replayCount int,
+	)
 }

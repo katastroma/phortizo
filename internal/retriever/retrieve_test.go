@@ -5,6 +5,7 @@ import (
 	"context"
 	"log/slog"
 	"testing"
+	"time"
 
 	pb "github.com/katastroma/naukleros"
 	"github.com/katastroma/phortizo/internal/tracequery"
@@ -22,7 +23,7 @@ func (q *stubQuerier) SpanAttributes(_ context.Context, _, _ string) (tracequery
 }
 
 func TestRetrieve_Unimplemented(t *testing.T) {
-	handler := New(slog.Default(), nil, nil)
+	handler := New(slog.Default(), nil, nil, nil, 10*time.Minute, 3)
 
 	_, err := handler.Retrieve(t.Context(), &pb.RetrieveRequest{})
 	if err == nil {

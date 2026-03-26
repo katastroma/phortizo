@@ -10,6 +10,10 @@ type WatchTarget struct {
 	Path      string
 	Overrides []byte
 
+	// Name is the ConfigMap resource name in the tenant namespace. Set by the
+	// k8s/configmap package during read, used for lease operations.
+	Name string
+
 	// CredentialSecret is the name of the k8s Secret holding repo credentials.
 	// Empty for public repositories. Stored as a ConfigMap annotation
 	// (katastroma.org/credential-secret) rather than a data field, and set by

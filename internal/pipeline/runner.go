@@ -9,6 +9,7 @@ import (
 	"github.com/go-git/go-billy/v5"
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	"go.opentelemetry.io/otel"
+	"k8s.io/client-go/kubernetes"
 
 	"github.com/katastroma/phortizo/internal/auth"
 	"github.com/katastroma/phortizo/internal/source"
@@ -44,6 +45,7 @@ type Runner struct {
 	httpClient  *http.Client
 	cloner      Cloner
 	renderer    Renderer
+	k8sClient   kubernetes.Interface
 }
 
 // New creates a pipeline runner.
@@ -54,6 +56,7 @@ func New(
 	httpClient *http.Client,
 	cloner Cloner,
 	renderer Renderer,
+	k8sClient kubernetes.Interface,
 ) *Runner {
 	return &Runner{
 		log:         log,
@@ -62,5 +65,6 @@ func New(
 		httpClient:  httpClient,
 		cloner:      cloner,
 		renderer:    renderer,
+		k8sClient:   k8sClient,
 	}
 }

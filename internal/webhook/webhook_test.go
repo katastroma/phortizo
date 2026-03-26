@@ -81,7 +81,7 @@ type mockHandler struct {
 	calls []registration.WatchTarget
 }
 
-func (m *mockHandler) HandleMatch(_ context.Context, _ string, r registration.WatchTarget) {
+func (m *mockHandler) HandleMatch(_ context.Context, _ string, r registration.WatchTarget, _ int) {
 	m.calls = append(m.calls, r)
 }
 
