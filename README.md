@@ -51,11 +51,13 @@ Implements the [naukleros](https://github.com/katastroma/naukleros)
 
 ### Optional
 
-| Variable          | Default | Description                                                     |
-| ----------------- | ------- | --------------------------------------------------------------- |
-| `SERVICE_VERSION` | `dev`   | Service version reported to the OTel resource.                  |
-| `PORT`            | `8080`  | HTTP server port. Serves `/healthz` and `/webhook/{namespace}`. |
-| `TEMPO_ADDRESS`   |         | gRPC address of Tempo. Enables replay via trace queries.        |
+| Variable              | Default | Description                                                         |
+| --------------------- | ------- | ------------------------------------------------------------------- |
+| `SERVICE_VERSION`     | `dev`   | Service version reported to the OTel resource.                      |
+| `PORT`                | `8080`  | HTTP server port. Serves `/healthz` and `/webhook/{namespace}`.     |
+| `TEMPO_ADDRESS`       |         | gRPC address of Tempo. Enables replay via trace queries.            |
+| `LEASE_STALE_AFTER`   | `10m`   | Duration after which an active run lease is considered stale.       |
+| `MAX_REPLAY_ATTEMPTS` | `3`     | Maximum number of replay attempts per run before permanent failure. |
 
 ### OTel (from grpc-foundation)
 
@@ -84,13 +86,15 @@ The `pipeline.run` span carries these attributes for observability and replay:
 
 | Attribute               | Description                               |
 | ----------------------- | ----------------------------------------- |
-| `namespace`             | Webhook parameter. Identifies the tenant. |
+| `tenant`                | Tenant namespace. Identifies the tenant.  |
+| `watch_target.name`     | ConfigMap name of the watch target.       |
 | `watch_target.repo_url` | Repository clone URL.                     |
 | `watch_target.ref`      | Git ref (e.g., `refs/heads/main`).        |
 | `watch_target.path`     | Path within the repository being watched. |
 
 The `webhook.dispatch` span carries:
 
-| Attribute            | Description                   |
-| -------------------- | ----------------------------- |
-| `github.delivery_id` | GitHub webhook delivery GUID. |
+| Attribute            | Description                                    |
+| -------------------- | ---------------------------------------------- |
+| `github.delivery_id` | GitHub webhook delivery GUID.                  |
+| `github.head_commit` | Head commit SHA from the push event (`after`). |
