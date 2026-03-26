@@ -6,12 +6,13 @@ import (
 	"fmt"
 
 	"github.com/go-git/go-git/v5/plumbing/transport"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
+
 	"github.com/katastroma/phortizo/internal/git"
 	"github.com/katastroma/phortizo/internal/grpc"
 	"github.com/katastroma/phortizo/internal/match"
 	"github.com/katastroma/phortizo/internal/source"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/trace"
 )
 
 // HandleMatch processes a matched webhook event through the pipeline.
