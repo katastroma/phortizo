@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	pb "github.com/katastroma/naukleros"
-	"github.com/katastroma/phortizo/internal/match"
 	"github.com/katastroma/phortizo/internal/pipeline"
 	"github.com/katastroma/phortizo/internal/registration"
 )
@@ -48,9 +47,7 @@ func (r *Retriever) Replay(ctx context.Context, req *pb.ReplayRequest) (*pb.Repl
 	// via span attributes — if over MAX_REPLAY_ATTEMPTS (env var, needs
 	// documenting in README), report permanent failure.
 
-	r.runner.HandleMatch(ctx, namespace, match.Result{
-		Target: target,
-	})
+	r.runner.HandleMatch(ctx, namespace, target)
 
 	return &pb.ReplayResponse{}, nil
 }

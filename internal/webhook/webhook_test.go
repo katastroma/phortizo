@@ -21,7 +21,7 @@ import (
 
 	"github.com/katastroma/phortizo/internal/k8s/configmap"
 	"github.com/katastroma/phortizo/internal/k8s/secret"
-	"github.com/katastroma/phortizo/internal/match"
+	"github.com/katastroma/phortizo/internal/registration"
 )
 
 const testNamespace = "tenant-a"
@@ -78,10 +78,10 @@ func watchTargetConfigMap() *corev1.ConfigMap {
 }
 
 type mockHandler struct {
-	calls []match.Result
+	calls []registration.WatchTarget
 }
 
-func (m *mockHandler) HandleMatch(_ context.Context, _ string, r match.Result) {
+func (m *mockHandler) HandleMatch(_ context.Context, _ string, r registration.WatchTarget) {
 	m.calls = append(m.calls, r)
 }
 
@@ -233,8 +233,8 @@ func TestServeHTTP_Match(t *testing.T) {
 		t.Fatalf("expected 1 HandleMatch call, got %d", len(runner.calls))
 	}
 
-	if runner.calls[0].Target.RepoURL != "https://github.com/acme/app.git" {
-		t.Errorf("RepoURL = %q, want %q", runner.calls[0].Target.RepoURL, "https://github.com/acme/app.git")
+	if runner.calls[0].RepoURL != "https://github.com/acme/app.git" {
+		t.Errorf("RepoURL = %q, want %q", runner.calls[0].RepoURL, "https://github.com/acme/app.git")
 	}
 }
 

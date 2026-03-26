@@ -8,16 +8,16 @@ import (
 	"testing"
 
 	pb "github.com/katastroma/naukleros"
-	"github.com/katastroma/phortizo/internal/match"
+	"github.com/katastroma/phortizo/internal/registration"
 	"github.com/katastroma/phortizo/internal/tracequery"
 )
 
 type mockHandler struct {
-	calls     []match.Result
+	calls     []registration.WatchTarget
 	namespace string
 }
 
-func (m *mockHandler) HandleMatch(_ context.Context, namespace string, r match.Result) {
+func (m *mockHandler) HandleMatch(_ context.Context, namespace string, r registration.WatchTarget) {
 	m.namespace = namespace
 	m.calls = append(m.calls, r)
 }
@@ -49,8 +49,8 @@ func TestReplay(t *testing.T) {
 		t.Errorf("namespace = %q, want %q", runner.namespace, "tenant-a")
 	}
 
-	if runner.calls[0].Target.RepoURL != "https://github.com/acme/app.git" {
-		t.Errorf("RepoURL = %q, want %q", runner.calls[0].Target.RepoURL, "https://github.com/acme/app.git")
+	if runner.calls[0].RepoURL != "https://github.com/acme/app.git" {
+		t.Errorf("RepoURL = %q, want %q", runner.calls[0].RepoURL, "https://github.com/acme/app.git")
 	}
 }
 

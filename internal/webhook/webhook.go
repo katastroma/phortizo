@@ -90,10 +90,7 @@ func (h *Webhook) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer span.End()
 
 	for _, target := range matched {
-		h.runner.HandleMatch(ctx, namespace, match.Result{
-			Target: target,
-			Event:  pushEvent,
-		})
+		h.runner.HandleMatch(ctx, namespace, target)
 	}
 
 	w.WriteHeader(http.StatusAccepted)

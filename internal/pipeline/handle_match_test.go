@@ -13,7 +13,6 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/transport"
 
 	"github.com/katastroma/phortizo/internal/auth"
-	"github.com/katastroma/phortizo/internal/match"
 	"github.com/katastroma/phortizo/internal/pipeline"
 	"github.com/katastroma/phortizo/internal/registration"
 	"github.com/katastroma/phortizo/internal/source"
@@ -76,14 +75,12 @@ func testRunner(
 	return pipeline.New(slog.Default(), renderers, credentials, http.DefaultClient, cloner, renderer)
 }
 
-func testResult(credentialSecret string) match.Result {
-	return match.Result{
-		Target: registration.WatchTarget{
-			RepoURL:          "https://github.com/acme/app.git",
-			Ref:              "refs/heads/main",
-			Path:             "deploy/",
-			CredentialSecret: credentialSecret,
-		},
+func testResult(credentialSecret string) registration.WatchTarget {
+	return registration.WatchTarget{
+		RepoURL:          "https://github.com/acme/app.git",
+		Ref:              "refs/heads/main",
+		Path:             "deploy/",
+		CredentialSecret: credentialSecret,
 	}
 }
 

@@ -9,9 +9,9 @@ import (
 
 func pushEvent(ref, cloneURL string, commits []*github.HeadCommit) *github.PushEvent {
 	return &github.PushEvent{
-		Ref: github.Ptr(ref),
+		Ref: new(ref),
 		Repo: &github.PushEventRepository{
-			CloneURL: github.Ptr(cloneURL),
+			CloneURL: new(cloneURL),
 		},
 		Commits: commits,
 	}
