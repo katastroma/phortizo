@@ -40,9 +40,9 @@ type Renderer interface {
 // credentials, clone, inspect, and stream to the renderer.
 type Runner struct {
 	log         *slog.Logger
+	httpClient  *http.Client
 	renderers   map[source.RendererType]string
 	credentials CredentialReader
-	httpClient  *http.Client
 	cloner      Cloner
 	renderer    Renderer
 	k8sClient   kubernetes.Interface
@@ -51,18 +51,18 @@ type Runner struct {
 // New creates a pipeline runner.
 func New(
 	log *slog.Logger,
+	httpClient *http.Client,
 	renderers map[source.RendererType]string,
 	credentials CredentialReader,
-	httpClient *http.Client,
 	cloner Cloner,
 	renderer Renderer,
 	k8sClient kubernetes.Interface,
 ) *Runner {
 	return &Runner{
 		log:         log,
+		httpClient:  httpClient,
 		renderers:   renderers,
 		credentials: credentials,
-		httpClient:  httpClient,
 		cloner:      cloner,
 		renderer:    renderer,
 		k8sClient:   k8sClient,

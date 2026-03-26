@@ -13,6 +13,19 @@ import (
 	"github.com/katastroma/phortizo/internal/source"
 )
 
+func (r *Runner) fail(
+	ctx context.Context,
+	span trace.Span,
+	namespace, msg string,
+	err error,
+	attrs ...any,
+) {
+	span.RecordError(err)
+	args := []any{"tenant", namespace, "error", err}
+	args = append(args, attrs...)
+	r.log.ErrorContext(ctx, msg, args...)
+}
+
 // HandleMatch processes a matched webhook event through the pipeline.
 func (r *Runner) HandleMatch(
 	ctx context.Context,
@@ -32,22 +45,19 @@ func (r *Runner) HandleMatch(
 	runID := span.SpanContext().TraceID().String()
 
 	if err := configmap.AcquireLease(ctx, r.k8sClient, namespace, m.Name, runID, replayCount); err != nil {
-		span.RecordError(err)
-		r.log.ErrorContext(ctx, "lease acquisition failed", "tenant", namespace, "error", err)
+		r.fail(ctx, span, namespace, "lease acquisition failed", err)
 		return
 	}
 
 	authMethod, err := r.resolveAuth(ctx, namespace, m)
 	if err != nil {
-		span.RecordError(err)
-		r.log.ErrorContext(ctx, "authentication failed", "tenant", namespace, "error", err)
+		r.fail(ctx, span, namespace, "authentication failed", err)
 		return
 	}
 
 	fs, err := r.cloner.Clone(ctx, m.RepoURL, m.Ref, authMethod)
 	if err != nil {
-		span.RecordError(err)
-		r.log.ErrorContext(ctx, "clone failed", "tenant", namespace, "error", err)
+		r.fail(ctx, span, namespace, "clone failed", err)
 		return
 	}
 
@@ -55,19 +65,13 @@ func (r *Runner) HandleMatch(
 	rendererAddr, ok := r.renderers[rendererType]
 	if !ok {
 		err = fmt.Errorf("no renderer configured for type %q", rendererType)
-		span.RecordError(err)
-		r.log.ErrorContext(ctx, "renderer lookup failed",
-			"tenant", namespace,
-			"renderer", string(rendererType),
-			"error", err,
-		)
+		r.fail(ctx, span, namespace, "renderer lookup failed", err, "renderer", string(rendererType))
 		return
 	}
 
 	holds, err := configmap.HoldsLease(ctx, r.k8sClient, namespace, m.Name, runID)
 	if err != nil {
-		span.RecordError(err)
-		r.log.ErrorContext(ctx, "lease check failed", "tenant", namespace, "error", err)
+		r.fail(ctx, span, namespace, "lease check failed", err)
 		return
 	}
 
@@ -77,12 +81,7 @@ func (r *Runner) HandleMatch(
 	}
 
 	if err = r.renderer.Render(ctx, fs, m.Path, rendererAddr); err != nil {
-		span.RecordError(err)
-		r.log.ErrorContext(ctx, "streaming to renderer failed",
-			"tenant", namespace,
-			"renderer", string(rendererType),
-			"error", err,
-		)
+		r.fail(ctx, span, namespace, "streaming to renderer failed", err, "renderer", string(rendererType))
 		return
 	}
 

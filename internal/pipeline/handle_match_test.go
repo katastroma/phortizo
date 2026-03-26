@@ -92,7 +92,7 @@ func testRunner(
 		source.Helm: "helm-renderer:8080",
 	}
 
-	return pipeline.New(slog.Default(), renderers, credentials, http.DefaultClient, cloner, renderer, k8sClient)
+	return pipeline.New(slog.Default(), http.DefaultClient, renderers, credentials, cloner, renderer, k8sClient)
 }
 
 func testTarget(credentialSecret string) registration.WatchTarget {

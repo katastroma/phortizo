@@ -29,10 +29,10 @@ import (
 
 	"github.com/google/go-github/v84/github"
 
+	"github.com/katastroma/phortizo/internal/git"
 	gh_apps "github.com/katastroma/phortizo/internal/github/apps"
 	gh_service "github.com/katastroma/phortizo/internal/github/service"
 	gh_transport "github.com/katastroma/phortizo/internal/github/transport"
-	"github.com/katastroma/phortizo/internal/git"
 	grpc_health "github.com/katastroma/phortizo/internal/health/grpc"
 	http_health "github.com/katastroma/phortizo/internal/health/http"
 	k8s_secret "github.com/katastroma/phortizo/internal/k8s/secret"
@@ -142,9 +142,9 @@ func main() {
 	// Pipeline runner
 	runner := pipeline.New(
 		log,
+		http.DefaultClient,
 		renderers,
 		credentialReader,
-		http.DefaultClient,
 		git.Cloner{},
 		render.Renderer{},
 		k8sClient,
