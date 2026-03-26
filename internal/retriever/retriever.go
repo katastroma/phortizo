@@ -38,22 +38,3 @@ func New(
 func (r *Retriever) Retrieve(_ context.Context, _ *pb.RetrieveRequest) (*pb.RetrieveResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "Retrieve is not yet implemented")
 }
-
-// Replay a source retrieval from a previous run
-func (r *Retriever) Replay(ctx context.Context, req *pb.ReplayRequest) (*pb.ReplayResponse, error) {
-	runID := req.GetRunId()
-	r.log.InfoContext(ctx, "replay requested", "run_id", runID)
-
-	// TODO Get tenant ID and watch targets from previous trace run ID
-	var tenantID string
-	var result match.Result
-
-	// TODO Replay prevention: query OTel collector for in-flight runs matching
-	// this watch target. Skip if a newer run supersedes. Track replay count
-	// via span attributes — if over MAX_REPLAY_ATTEMPTS (env var, needs
-	// documenting in README), report permanent failure.
-
-	r.runner.HandleMatch(ctx, tenantID, result)
-
-	return &pb.ReplayResponse{}, nil
-}

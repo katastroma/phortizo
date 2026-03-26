@@ -2,13 +2,24 @@
 package retriever
 
 import (
+	"context"
 	"log/slog"
 	"testing"
 
 	pb "github.com/katastroma/naukleros"
+	"github.com/katastroma/phortizo/internal/tracequery"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
+
+type stubQuerier struct {
+	attrs tracequery.Attributes
+	err   error
+}
+
+func (q *stubQuerier) SpanAttributes(_ context.Context, _, _ string) (tracequery.Attributes, error) {
+	return q.attrs, q.err
+}
 
 func TestRetrieve_Unimplemented(t *testing.T) {
 	handler := New(slog.Default(), nil, nil)

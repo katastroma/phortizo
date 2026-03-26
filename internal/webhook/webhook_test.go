@@ -2,12 +2,29 @@ package webhook
 
 import (
 	"bytes"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 )
+
+func sign(payload, secret []byte) string {
+	mac := hmac.New(sha256.New, secret)
+	mac.Write(payload)
+	return "sha256=" + hex.EncodeToString(mac.Sum(nil))
+}
+
+func validPayload() []byte {
+	return []byte(`{
+		"ref": "refs/heads/main",
+		"repository": {"clone_url": "https://github.com/acme/app.git"},
+		"commits": [{"added": ["deploy/values.yaml"], "removed": [], "modified": []}]
+	}`)
+}
 
 func TestServeHTTP_MissingID(t *testing.T) {
 	handler := New(slog.Default(), nil)
