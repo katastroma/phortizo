@@ -23,10 +23,17 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
+
 	gh_apps "github.com/katastroma/phortizo/internal/github/apps"
+	"github.com/katastroma/phortizo/internal/git"
 	grpc_health "github.com/katastroma/phortizo/internal/health/grpc"
 	http_health "github.com/katastroma/phortizo/internal/health/http"
+	k8s_secret "github.com/katastroma/phortizo/internal/k8s/secret"
 	"github.com/katastroma/phortizo/internal/pipeline"
+	"github.com/katastroma/phortizo/internal/render"
 	"github.com/katastroma/phortizo/internal/retriever"
 	"github.com/katastroma/phortizo/internal/source"
 	"github.com/katastroma/phortizo/internal/tracequery"
@@ -72,42 +79,74 @@ func main() {
 
 	gha, err := gh_apps.FromAppParameters(clientID, []byte(privateKeyPEM))
 	if err != nil {
-		log.Error("Could not create platform GitHub App")
+		log.Error("could not create platform GitHub App", "error", err)
 		os.Exit(1)
 	}
 
-	// TODO Wire up GitHub client auth bootstrapping:
-	// 1. Create ghCred from gha + installationID + gh_api.Service
-	// 2. Wrap ghCred in AuthTransport
-	// 3. Create gh.Client with that transport
-	// 4. Create gh_service from that client
-	// 5. Solve JWT refresh for the service used by the credential
-	// 6. Pass the authenticated service to health checks
-	_ = gha
 	_ = installationID
 
+	// Kubernetes client
+	k8sConfig, err := rest.InClusterConfig()
+	if err != nil {
+		log.Info("not running in cluster, falling back to kubeconfig")
+		loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
+		k8sConfig, err = clientcmd.NewNonInteractiveDeferredLoadingClientConfig(loadingRules, nil).ClientConfig()
+		if err != nil {
+			log.Error("could not create k8s client config", "error", err)
+			os.Exit(1)
+		}
+	}
+
+	k8sClient, err := kubernetes.NewForConfig(k8sConfig)
+	if err != nil {
+		log.Error("could not create k8s client", "error", err)
+		os.Exit(1)
+	}
+
+	// Credential reader
+	credentialReader := k8s_secret.NewReader(k8sClient, gha)
+
+	// Renderer addresses
 	renderers := map[source.RendererType]string{
 		source.Helm:      os.Getenv("RENDERER_HELM"),
 		source.Kustomize: os.Getenv("RENDERER_KUSTOMIZE"),
 		source.Raw:       os.Getenv("RENDERER_RAW"),
 	}
 
-	// TODO Create client connection to k8s for managing
-	// - platform GitHub app credentials (client ID, private key, installation ID)
-	// - tenant webhook secret
-	// - tenant repo credentials
-	//   - basic auth
-	//   - SSH key
-	//   - GitHub token
-	// - tenant watch targets
+	// Lease configuration
+	leaseStaleAfter := 10 * time.Minute
+	if raw := os.Getenv("LEASE_STALE_AFTER"); raw != "" {
+		leaseStaleAfter, err = time.ParseDuration(raw)
+		if err != nil {
+			log.Error("LEASE_STALE_AFTER must be a valid duration", "error", err)
+			os.Exit(1)
+		}
+	}
 
-	runner := pipeline.New(log, renderers)
+	maxReplayAttempts := 3
+	if raw := os.Getenv("MAX_REPLAY_ATTEMPTS"); raw != "" {
+		maxReplayAttempts, err = strconv.Atoi(raw)
+		if err != nil {
+			log.Error("MAX_REPLAY_ATTEMPTS must be an integer", "error", err)
+			os.Exit(1)
+		}
+	}
+
+	// Pipeline runner
+	runner := pipeline.New(
+		log,
+		renderers,
+		credentialReader,
+		http.DefaultClient,
+		git.Cloner{},
+		render.Renderer{},
+		k8sClient,
+	)
 
 	// HTTP server
-	webhookHandler := webhook.New(log, runner)
+	webhookHandler := webhook.New(log, runner, k8sClient)
 
 	mux := http.NewServeMux()
-	// TODO Pass authenticated ghService to health check once client auth is wired
 	mux.Handle("GET /healthz", http_health.New(log))
 	mux.Handle("POST /webhook/{namespace}", webhookHandler)
 
@@ -141,8 +180,8 @@ func main() {
 		traceQuerier = tempoQuerier.New(qc)
 	}
 
-	retriverServer := retriever.New(log, traceQuerier, runner)
-	pb.RegisterRetrieverServiceServer(grpcServer, retriverServer)
+	retrieverServer := retriever.New(log, traceQuerier, runner, k8sClient, leaseStaleAfter, maxReplayAttempts)
+	pb.RegisterRetrieverServiceServer(grpcServer, retrieverServer)
 
 	sigNotifyContext, stop := context.WithCancel(mainCtx)
 	defer stop()
