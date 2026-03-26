@@ -2,37 +2,18 @@
 package webhook
 
 import (
-	"log/slog"
 	"net/http"
 
 	"github.com/google/go-github/v84/github"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/trace"
-	"k8s.io/client-go/kubernetes"
-
 	"github.com/katastroma/phortizo/internal/k8s/configmap"
 	"github.com/katastroma/phortizo/internal/k8s/secret"
 	"github.com/katastroma/phortizo/internal/match"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
-var tracer = otel.Tracer("webhook")
-
-// Webhook receives GitHub push webhooks, verifies their signature, matches
-// watch targets, and dispatches matched targets for processing.
-type Webhook struct {
-	log       *slog.Logger
-	runner    match.Handler
-	k8sClient kubernetes.Interface
-}
-
-// New creates a webhook handler.
-func New(log *slog.Logger, runner match.Handler, k8sClient kubernetes.Interface) *Webhook {
-	return &Webhook{log: log, runner: runner, k8sClient: k8sClient}
-}
-
 // ServeHTTP handles POST /webhook/{namespace}.
-func (h *Webhook) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	namespace := r.PathValue("namespace")
 	if namespace == "" {
 		http.Error(w, "missing namespace", http.StatusBadRequest)

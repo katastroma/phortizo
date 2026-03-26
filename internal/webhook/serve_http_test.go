@@ -1,4 +1,4 @@
-package webhook
+package webhook_test
 
 import (
 	"bytes"
@@ -22,6 +22,7 @@ import (
 	"github.com/katastroma/phortizo/internal/k8s/configmap"
 	"github.com/katastroma/phortizo/internal/k8s/secret"
 	"github.com/katastroma/phortizo/internal/registration"
+	"github.com/katastroma/phortizo/internal/webhook"
 )
 
 const testNamespace = "tenant-a"
@@ -86,7 +87,7 @@ func (m *mockHandler) HandleMatch(_ context.Context, _ string, r registration.Wa
 }
 
 func TestServeHTTP_MissingNamespace(t *testing.T) {
-	handler := New(slog.Default(), nil, fake.NewSimpleClientset())
+	handler := webhook.New(slog.Default(), nil, fake.NewSimpleClientset())
 
 	req := httptest.NewRequest(http.MethodPost, "/webhook/", nil)
 	rec := httptest.NewRecorder()
@@ -103,7 +104,7 @@ func TestServeHTTP_WatchTargetsError(t *testing.T) {
 	k8s.PrependReactor("list", "configmaps", func(clienttesting.Action) (bool, runtime.Object, error) {
 		return true, nil, fmt.Errorf("list denied")
 	})
-	handler := New(slog.Default(), nil, k8s)
+	handler := webhook.New(slog.Default(), nil, k8s)
 
 	req := httptest.NewRequest(http.MethodPost, "/webhook/{namespace}", nil)
 	req.SetPathValue("namespace", testNamespace)
@@ -118,7 +119,7 @@ func TestServeHTTP_WatchTargetsError(t *testing.T) {
 
 func TestServeHTTP_WebhookSecretNotFound(t *testing.T) {
 	k8s := fake.NewSimpleClientset(watchTargetConfigMap())
-	handler := New(slog.Default(), nil, k8s)
+	handler := webhook.New(slog.Default(), nil, k8s)
 
 	req := pushRequest(validPayload())
 	rec := httptest.NewRecorder()
@@ -132,7 +133,7 @@ func TestServeHTTP_WebhookSecretNotFound(t *testing.T) {
 
 func TestServeHTTP_ValidationFailure_BodyReadError(t *testing.T) {
 	k8s := fake.NewSimpleClientset(webhookSecret(), watchTargetConfigMap())
-	handler := New(slog.Default(), nil, k8s)
+	handler := webhook.New(slog.Default(), nil, k8s)
 
 	req := httptest.NewRequest(http.MethodPost, "/webhook/{namespace}", &errorReader{})
 	req.SetPathValue("namespace", testNamespace)
@@ -150,7 +151,7 @@ func TestServeHTTP_ValidationFailure_BodyReadError(t *testing.T) {
 
 func TestServeHTTP_ValidationFailure_BadSignature(t *testing.T) {
 	k8s := fake.NewSimpleClientset(webhookSecret(), watchTargetConfigMap())
-	handler := New(slog.Default(), nil, k8s)
+	handler := webhook.New(slog.Default(), nil, k8s)
 
 	req := pushRequest(validPayload())
 	req.Header.Set("X-Hub-Signature-256", "sha256=0000000000000000000000000000000000000000000000000000000000000000")
@@ -165,7 +166,7 @@ func TestServeHTTP_ValidationFailure_BadSignature(t *testing.T) {
 
 func TestServeHTTP_InvalidPayload(t *testing.T) {
 	k8s := fake.NewSimpleClientset(webhookSecret(), watchTargetConfigMap())
-	handler := New(slog.Default(), nil, k8s)
+	handler := webhook.New(slog.Default(), nil, k8s)
 
 	body := []byte("not json")
 	req := pushRequest(body)
@@ -180,7 +181,7 @@ func TestServeHTTP_InvalidPayload(t *testing.T) {
 
 func TestServeHTTP_NoMatch(t *testing.T) {
 	k8s := fake.NewSimpleClientset(webhookSecret(), watchTargetConfigMap())
-	handler := New(slog.Default(), nil, k8s)
+	handler := webhook.New(slog.Default(), nil, k8s)
 
 	body := []byte(`{
 		"ref": "refs/heads/develop",
@@ -199,7 +200,7 @@ func TestServeHTTP_NoMatch(t *testing.T) {
 
 func TestServeHTTP_NonPushEvent(t *testing.T) {
 	k8s := fake.NewSimpleClientset(webhookSecret(), watchTargetConfigMap())
-	handler := New(slog.Default(), nil, k8s)
+	handler := webhook.New(slog.Default(), nil, k8s)
 
 	body := []byte(`{"action": "opened"}`)
 	req := pushRequest(body)
@@ -216,7 +217,7 @@ func TestServeHTTP_NonPushEvent(t *testing.T) {
 func TestServeHTTP_Match(t *testing.T) {
 	k8s := fake.NewSimpleClientset(webhookSecret(), watchTargetConfigMap())
 	runner := &mockHandler{}
-	handler := New(slog.Default(), runner, k8s)
+	handler := webhook.New(slog.Default(), runner, k8s)
 
 	body := validPayload()
 	req := pushRequest(body)
