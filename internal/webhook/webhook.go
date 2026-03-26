@@ -11,7 +11,6 @@ import (
 	"go.opentelemetry.io/otel/trace"
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/katastroma/phortizo/internal/event"
 	"github.com/katastroma/phortizo/internal/k8s/configmap"
 	"github.com/katastroma/phortizo/internal/k8s/secret"
 	"github.com/katastroma/phortizo/internal/match"
@@ -77,9 +76,7 @@ func (h *Webhook) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ev := event.FromPushEvent(pushEvent)
-
-	matched := match.Find(watchTargets, ev)
+	matched := match.Find(watchTargets, pushEvent)
 	if len(matched) == 0 {
 		w.WriteHeader(http.StatusOK)
 		return
@@ -88,14 +85,14 @@ func (h *Webhook) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	deliveryID := r.Header.Get("X-GitHub-Delivery")
 	ctx, span := tracer.Start(ctx, "webhook.dispatch", trace.WithAttributes(
 		attribute.String("github.delivery_id", deliveryID),
-		attribute.String("github.head_commit", ev.CommitSHA),
+		attribute.String("github.head_commit", pushEvent.GetAfter()),
 	))
 	defer span.End()
 
 	for _, target := range matched {
 		h.runner.HandleMatch(ctx, namespace, match.Result{
 			Target: target,
-			Event:  ev,
+			Event:  pushEvent,
 		})
 	}
 

@@ -13,7 +13,6 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/transport"
 
 	"github.com/katastroma/phortizo/internal/auth"
-	"github.com/katastroma/phortizo/internal/event"
 	"github.com/katastroma/phortizo/internal/match"
 	"github.com/katastroma/phortizo/internal/pipeline"
 	"github.com/katastroma/phortizo/internal/registration"
@@ -85,7 +84,6 @@ func testResult(credentialSecret string) match.Result {
 			Path:             "deploy/",
 			CredentialSecret: credentialSecret,
 		},
-		Event: event.Push{},
 	}
 }
 
