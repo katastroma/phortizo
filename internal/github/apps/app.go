@@ -2,27 +2,73 @@
 package apps
 
 import (
-	"crypto/rsa"
-	"sync"
+	"context"
+	"fmt"
+	"net/http"
+	"time"
 
+	"github.com/google/go-github/v84/github"
+
+	"github.com/katastroma/phortizo/internal/jwt"
 	"github.com/katastroma/phortizo/internal/key"
 )
 
-// App holds GitHub App credentials. It caches the parsed
-// private key and provides methods to create clients using auth methods
-// for any installation of this App.
+const (
+	// JWTClockDrift is the amount of time to backdate the issued-at claim
+	// to account for clock drift between the server and GitHub.
+	JWTClockDrift = 60 * time.Second
+
+	// JWTMaxLifetime is the maximum lifetime GitHub allows for App JWTs.
+	JWTMaxLifetime = 10 * time.Minute
+)
+
+// App holds GitHub App credentials.
 type App struct {
-	mu         sync.Mutex
-	clientID   string
-	privateKey *rsa.PrivateKey
+	clientID      string
+	privateKeyPEM []byte
 }
 
-// FromAppParameters creates a platform GitHub App using app parameters
+// FromAppParameters creates a GitHub App from a client ID and PEM-encoded
+// private key. Returns an error if the key cannot be parsed.
 func FromAppParameters(clientID string, privateKeyPEM []byte) (*App, error) {
-	privateKey, err := key.ParsePrivateKey(privateKeyPEM)
-	if err != nil {
+	if _, err := key.ParsePrivateKey(privateKeyPEM); err != nil {
 		return nil, err
 	}
 
-	return &App{clientID: clientID, privateKey: privateKey}, nil
+	return &App{clientID: clientID, privateKeyPEM: privateKeyPEM}, nil
+}
+
+// MarshalSecret returns the App's credentials as Secret data entries.
+func (a *App) MarshalSecret() map[string][]byte {
+	return map[string][]byte{
+		"client-id":   []byte(a.clientID),
+		"private-key": a.privateKeyPEM,
+	}
+}
+
+// ExchangeInstallationToken signs a JWT and exchanges it for an installation
+// token via the GitHub API.
+func (a *App) ExchangeInstallationToken(ctx context.Context, httpClient *http.Client, installationID int64) (string, error) {
+	signed, err := a.signJWT()
+	if err != nil {
+		return "", fmt.Errorf("signing JWT: %w", err)
+	}
+
+	ghClient := github.NewClient(httpClient).WithAuthToken(signed)
+	ghToken, _, err := ghClient.Apps.CreateInstallationToken(ctx, installationID, nil)
+	if err != nil {
+		return "", fmt.Errorf("creating installation token: %w", err)
+	}
+
+	return ghToken.GetToken(), nil
+}
+
+func (a *App) signJWT() (string, error) {
+	privateKey, err := key.ParsePrivateKey(a.privateKeyPEM)
+	if err != nil {
+		return "", fmt.Errorf("parsing private key: %w", err)
+	}
+
+	now := time.Now()
+	return jwt.Sign(a.clientID, now.Add(-JWTClockDrift), now.Add(JWTMaxLifetime), privateKey)
 }
