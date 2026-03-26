@@ -31,6 +31,56 @@ func watchTargetConfigMap(name, namespace, credentialSecret string, data map[str
 	return cm
 }
 
+func TestGetWatchTarget(t *testing.T) {
+	k8s := fake.NewSimpleClientset(
+		watchTargetConfigMap("wt-1", "tenant-a", "my-cred", map[string]string{
+			"repo-url": "https://github.com/acme/app.git",
+			"ref":      "refs/heads/main",
+			"path":     "deploy/",
+		}),
+	)
+
+	target, err := configmap.GetWatchTarget(t.Context(), k8s, "tenant-a", "wt-1")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if target.Name != "wt-1" {
+		t.Errorf("Name = %q, want %q", target.Name, "wt-1")
+	}
+
+	if target.RepoURL != "https://github.com/acme/app.git" {
+		t.Errorf("RepoURL = %q, want %q", target.RepoURL, "https://github.com/acme/app.git")
+	}
+
+	if target.CredentialSecret != "my-cred" {
+		t.Errorf("CredentialSecret = %q, want %q", target.CredentialSecret, "my-cred")
+	}
+}
+
+func TestGetWatchTarget_NotFound(t *testing.T) {
+	k8s := fake.NewSimpleClientset()
+
+	_, err := configmap.GetWatchTarget(t.Context(), k8s, "tenant-a", "nonexistent")
+	if err == nil {
+		t.Fatal("expected error for missing configmap")
+	}
+}
+
+func TestGetWatchTarget_DeserializeError(t *testing.T) {
+	k8s := fake.NewSimpleClientset(
+		watchTargetConfigMap("wt-bad", "tenant-a", "", map[string]string{
+			"ref":  "refs/heads/main",
+			"path": "deploy/",
+		}),
+	)
+
+	_, err := configmap.GetWatchTarget(t.Context(), k8s, "tenant-a", "wt-bad")
+	if err == nil {
+		t.Fatal("expected error for missing repo-url")
+	}
+}
+
 func TestListWatchTargets(t *testing.T) {
 	k8s := fake.NewSimpleClientset(
 		watchTargetConfigMap("wt-1", "tenant-a", "my-cred", map[string]string{

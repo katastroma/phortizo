@@ -24,6 +24,16 @@ const (
 	CredentialSecretAnnotation = "katastroma.org/credential-secret"
 )
 
+// GetWatchTarget reads a single watch target ConfigMap by name.
+func GetWatchTarget(ctx context.Context, client kubernetes.Interface, namespace, name string) (registration.WatchTarget, error) {
+	cm, err := client.CoreV1().ConfigMaps(namespace).Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		return registration.WatchTarget{}, fmt.Errorf("reading configmap %s/%s: %w", namespace, name, err)
+	}
+
+	return watchTargetFromConfigMap(cm)
+}
+
 // ListWatchTargets lists all watch target ConfigMaps in the given namespace
 // and returns the deserialized watch targets.
 func ListWatchTargets(ctx context.Context, client kubernetes.Interface, namespace string) ([]registration.WatchTarget, error) {
@@ -37,17 +47,26 @@ func ListWatchTargets(ctx context.Context, client kubernetes.Interface, namespac
 
 	targets := make([]registration.WatchTarget, 0, len(list.Items))
 	for _, cm := range list.Items {
-		target, err := registration.WatchTargetFromConfigMap(cm.Data)
+		target, err := watchTargetFromConfigMap(&cm)
 		if err != nil {
 			return nil, fmt.Errorf("deserializing configmap %s/%s: %w", namespace, cm.Name, err)
 		}
 
-		target.Name = cm.Name
-		target.CredentialSecret = cm.Annotations[CredentialSecretAnnotation]
 		targets = append(targets, target)
 	}
 
 	return targets, nil
+}
+
+func watchTargetFromConfigMap(cm *corev1.ConfigMap) (registration.WatchTarget, error) {
+	target, err := registration.WatchTargetFromConfigMap(cm.Data)
+	if err != nil {
+		return registration.WatchTarget{}, err
+	}
+
+	target.Name = cm.Name
+	target.CredentialSecret = cm.Annotations[CredentialSecretAnnotation]
+	return target, nil
 }
 
 // PutWatchTarget creates or updates a watch target ConfigMap in the given
