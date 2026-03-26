@@ -135,9 +135,14 @@ func TestGitHubAppTenant_MarshalSecret_RoundTrip(t *testing.T) {
 		"installation-id": []byte("12345"),
 	}
 
-	cred, err := credential.GitHubAppTenantFromSecret(data)
+	result, err := credential.GitHubAppTenantFromSecret(data)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
+	}
+
+	cred, ok := result.(*credential.GitHubAppTenant)
+	if !ok {
+		t.Fatalf("expected *credential.GitHubAppTenant, got %T", result)
 	}
 
 	restored := cred.MarshalSecret()

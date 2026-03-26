@@ -49,9 +49,14 @@ func TestGitHubToken_FromSecret(t *testing.T) {
 	original := credential.NewGitHubToken("ghp_abc123")
 	data := original.MarshalSecret()
 
-	restored, err := credential.GitHubTokenFromSecret(data)
+	cred, err := credential.GitHubTokenFromSecret(data)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
+	}
+
+	restored, ok := cred.(*credential.GitHubToken)
+	if !ok {
+		t.Fatalf("expected *credential.GitHubToken, got %T", cred)
 	}
 
 	restoredData := restored.MarshalSecret()

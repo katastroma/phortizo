@@ -13,15 +13,29 @@ import (
 	credential "github.com/katastroma/phortizo/internal/onboarding/repo_credential"
 )
 
+// Deserializer converts raw Secret data into a credential.
+type Deserializer func(data map[string][]byte) (auth.Credential, error)
+
 // Reader reads credential Secrets from tenant namespaces.
 type Reader struct {
-	client      kubernetes.Interface
-	platformApp *apps.App
+	client        kubernetes.Interface
+	deserializers map[string]Deserializer
 }
 
 // NewReader returns a Reader.
 func NewReader(client kubernetes.Interface, platformApp *apps.App) *Reader {
-	return &Reader{client: client, platformApp: platformApp}
+	return &Reader{
+		client: client,
+		deserializers: map[string]Deserializer{
+			credential.TypeGitHubToken:     credential.GitHubTokenFromSecret,
+			credential.TypeBasicAuth:       credential.BasicAuthFromSecret,
+			credential.TypeSSHKey:          credential.SSHKeyFromSecret,
+			credential.TypeGitHubAppTenant: credential.GitHubAppTenantFromSecret,
+			credential.TypeGitHubAppPlatform: func(data map[string][]byte) (auth.Credential, error) {
+				return credential.GitHubAppPlatformFromSecret(data, platformApp)
+			},
+		},
+	}
 }
 
 // Get reads a Secret by name from the given namespace and returns the
@@ -32,33 +46,15 @@ func (r *Reader) Get(ctx context.Context, namespace, name string) (auth.Credenti
 		return nil, fmt.Errorf("reading secret %s/%s: %w", namespace, name, err)
 	}
 
-	return Deserialize(s.Data, r.platformApp)
-}
-
-// Deserialize converts Secret data into a credential based on the type field.
-func Deserialize(data map[string][]byte, platformApp *apps.App) (auth.Credential, error) {
-	rawType, ok := data["type"]
+	rawType, ok := s.Data["type"]
 	if !ok {
 		return nil, fmt.Errorf("missing key %q", "type")
 	}
 
-	switch string(rawType) {
-	case credential.TypeGitHubToken:
-		return credential.GitHubTokenFromSecret(data)
-
-	case credential.TypeBasicAuth:
-		return credential.BasicAuthFromSecret(data)
-
-	case credential.TypeSSHKey:
-		return credential.SSHKeyFromSecret(data)
-
-	case credential.TypeGitHubAppTenant:
-		return credential.GitHubAppTenantFromSecret(data)
-
-	case credential.TypeGitHubAppPlatform:
-		return credential.GitHubAppPlatformFromSecret(data, platformApp)
-
-	default:
+	fn, ok := r.deserializers[string(rawType)]
+	if !ok {
 		return nil, fmt.Errorf("unrecognized credential type %q", string(rawType))
 	}
+
+	return fn(s.Data)
 }

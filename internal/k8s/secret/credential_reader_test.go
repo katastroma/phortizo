@@ -134,19 +134,27 @@ func TestGet_SecretNotFound(t *testing.T) {
 	}
 }
 
-func TestDeserialize_MissingType(t *testing.T) {
-	data := map[string][]byte{"token": []byte("ghp_abc123")}
+func TestGet_MissingType(t *testing.T) {
+	k8s := fake.NewSimpleClientset(&corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{Name: "repo-cred", Namespace: "tenant-a"},
+		Data:       map[string][]byte{"token": []byte("ghp_abc123")},
+	})
 
-	_, err := secret.Deserialize(data, nil)
+	reader := secret.NewReader(k8s, nil)
+	_, err := reader.Get(t.Context(), "tenant-a", "repo-cred")
 	if err == nil {
 		t.Fatal("expected error for missing type key")
 	}
 }
 
-func TestDeserialize_UnknownType(t *testing.T) {
-	data := map[string][]byte{"type": []byte("unknown")}
+func TestGet_UnknownType(t *testing.T) {
+	k8s := fake.NewSimpleClientset(&corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{Name: "repo-cred", Namespace: "tenant-a"},
+		Data:       map[string][]byte{"type": []byte("unknown")},
+	})
 
-	_, err := secret.Deserialize(data, nil)
+	reader := secret.NewReader(k8s, nil)
+	_, err := reader.Get(t.Context(), "tenant-a", "repo-cred")
 	if err == nil {
 		t.Fatal("expected error for unknown type")
 	}

@@ -52,9 +52,14 @@ func TestSSHKey_FromSecret(t *testing.T) {
 	original := credential.NewSSHKey(pemBytes)
 	data := original.MarshalSecret()
 
-	restored, err := credential.SSHKeyFromSecret(data)
+	cred, err := credential.SSHKeyFromSecret(data)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
+	}
+
+	restored, ok := cred.(*credential.SSHKey)
+	if !ok {
+		t.Fatalf("expected *credential.SSHKey, got %T", cred)
 	}
 
 	restoredData := restored.MarshalSecret()

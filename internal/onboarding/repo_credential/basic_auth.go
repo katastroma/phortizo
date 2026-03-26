@@ -8,6 +8,8 @@ import (
 
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	githttp "github.com/go-git/go-git/v5/plumbing/transport/http"
+
+	"github.com/katastroma/phortizo/internal/auth"
 )
 
 // TypeBasicAuth is the Secret type for basic auth credentials.
@@ -25,7 +27,7 @@ func NewBasicAuth(username, password string) *BasicAuth {
 }
 
 // BasicAuthFromSecret deserializes a BasicAuth from Secret data.
-func BasicAuthFromSecret(data map[string][]byte) (*BasicAuth, error) {
+func BasicAuthFromSecret(data map[string][]byte) (auth.Credential, error) {
 	username, ok := data["username"]
 	if !ok {
 		return nil, fmt.Errorf("missing key %q", "username")

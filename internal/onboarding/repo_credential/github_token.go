@@ -9,6 +9,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	githttp "github.com/go-git/go-git/v5/plumbing/transport/http"
 
+	"github.com/katastroma/phortizo/internal/auth"
 	"github.com/katastroma/phortizo/internal/github"
 )
 
@@ -26,7 +27,7 @@ func NewGitHubToken(token string) *GitHubToken {
 }
 
 // GitHubTokenFromSecret deserializes a GitHubToken from Secret data.
-func GitHubTokenFromSecret(data map[string][]byte) (*GitHubToken, error) {
+func GitHubTokenFromSecret(data map[string][]byte) (auth.Credential, error) {
 	token, ok := data["token"]
 	if !ok {
 		return nil, fmt.Errorf("missing key %q", "token")

@@ -52,9 +52,14 @@ func TestBasicAuth_FromSecret(t *testing.T) {
 	original := credential.NewBasicAuth("user", "pass")
 	data := original.MarshalSecret()
 
-	restored, err := credential.BasicAuthFromSecret(data)
+	cred, err := credential.BasicAuthFromSecret(data)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
+	}
+
+	restored, ok := cred.(*credential.BasicAuth)
+	if !ok {
+		t.Fatalf("expected *credential.BasicAuth, got %T", cred)
 	}
 
 	restoredData := restored.MarshalSecret()
