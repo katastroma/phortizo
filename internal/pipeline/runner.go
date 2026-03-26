@@ -16,6 +16,10 @@ import (
 
 var tracer = otel.Tracer("pipeline")
 
+// SpanName is the OTel span name used by the pipeline run. The retriever
+// uses this to query trace attributes for replay.
+const SpanName = "pipeline.run"
+
 // CredentialReader reads credentials from a tenant namespace.
 type CredentialReader interface {
 	Get(ctx context.Context, namespace, name string) (auth.Credential, error)

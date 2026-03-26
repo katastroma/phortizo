@@ -15,7 +15,7 @@ import (
 
 // HandleMatch processes a matched webhook event through the pipeline.
 func (r *Runner) HandleMatch(ctx context.Context, namespace string, m match.Result) {
-	ctx, span := tracer.Start(ctx, "pipeline.run", trace.WithAttributes(
+	ctx, span := tracer.Start(ctx, SpanName, trace.WithAttributes(
 		attribute.String("tenant", namespace),
 		attribute.String("watch_target.repo_url", m.Target.RepoURL),
 		attribute.String("watch_target.ref", m.Target.Ref),
