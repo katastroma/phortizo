@@ -8,14 +8,8 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
-	grpclib "google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 
-	pb "github.com/katastroma/keleustes"
-
-	"github.com/katastroma/phortizo/internal/git"
 	"github.com/katastroma/phortizo/internal/match"
-	"github.com/katastroma/phortizo/internal/render"
 	"github.com/katastroma/phortizo/internal/source"
 )
 
@@ -29,16 +23,25 @@ func (r *Runner) HandleMatch(ctx context.Context, namespace string, m match.Resu
 	))
 	defer span.End()
 
-	// TODO Retrieve credentials from k8s
-	// NOTE Use annotation from returned tenant watch target configmap
-
-	// TODO Parse credentials for type
-
-	// If necessary, exchange credentials for token
-
 	var authMethod transport.AuthMethod
 
-	fs, err := git.Clone(ctx, m.Target.RepoURL, m.Target.Ref, authMethod)
+	if m.Target.CredentialSecret != "" {
+		cred, err := r.credentials.Get(ctx, namespace, m.Target.CredentialSecret)
+		if err != nil {
+			span.RecordError(err)
+			r.log.ErrorContext(ctx, "credential retrieval failed", "tenant", namespace, "error", err)
+			return
+		}
+
+		authMethod, err = cred.Authenticate(ctx, r.httpClient)
+		if err != nil {
+			span.RecordError(err)
+			r.log.ErrorContext(ctx, "authentication failed", "tenant", namespace, "error", err)
+			return
+		}
+	}
+
+	fs, err := r.cloner.Clone(ctx, m.Target.RepoURL, m.Target.Ref, authMethod)
 	if err != nil {
 		span.RecordError(err)
 		r.log.ErrorContext(ctx, "clone failed", "tenant", namespace, "error", err)
@@ -60,31 +63,13 @@ func (r *Runner) HandleMatch(ctx context.Context, namespace string, m match.Resu
 		return
 	}
 
-	connOpts := grpclib.WithTransportCredentials(insecure.NewCredentials())
-	conn, err := grpclib.NewClient(rendererAddr, connOpts)
-	if err != nil {
-		span.RecordError(err)
-		r.log.ErrorContext(
-			ctx,
-			"connecting to renderer failed",
-			"tenant", namespace,
-			"renderer", string(rendererType),
-			"address", rendererAddr,
-			"error", err,
-		)
-		return
-	}
-	defer conn.Close()
-
-	client := pb.NewRendererServiceClient(conn)
-	if err = render.Stream(ctx, client, fs, m.Target.Path); err != nil {
+	if err = r.renderer.Render(ctx, fs, m.Target.Path, rendererAddr); err != nil {
 		span.RecordError(err)
 		r.log.ErrorContext(
 			ctx,
 			"streaming to renderer failed",
 			"tenant", namespace,
 			"renderer", string(rendererType),
-			"address", rendererAddr,
 			"error", err,
 		)
 		return
