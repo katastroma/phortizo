@@ -68,9 +68,7 @@ func (r *Runner) HandleMatch(
 	if !ok {
 		err = fmt.Errorf("no renderer configured for type %q", rendererType)
 		span.RecordError(err)
-		r.log.ErrorContext(
-			ctx,
-			"renderer lookup failed",
+		r.log.ErrorContext(ctx, "renderer lookup failed",
 			"tenant", namespace,
 			"renderer", string(rendererType),
 			"error", err,
@@ -92,9 +90,7 @@ func (r *Runner) HandleMatch(
 
 	if err = r.renderer.Render(ctx, fs, m.Path, rendererAddr); err != nil {
 		span.RecordError(err)
-		r.log.ErrorContext(
-			ctx,
-			"streaming to renderer failed",
+		r.log.ErrorContext(ctx, "streaming to renderer failed",
 			"tenant", namespace,
 			"renderer", string(rendererType),
 			"error", err,
