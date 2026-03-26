@@ -3,14 +3,14 @@ package retriever
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"time"
 
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"k8s.io/client-go/kubernetes"
 
 	pb "github.com/katastroma/naukleros"
+	"github.com/katastroma/phortizo/internal/k8s/configmap"
 	"github.com/katastroma/phortizo/internal/match"
 	"github.com/katastroma/phortizo/internal/tracequery"
 )
@@ -46,6 +46,18 @@ func New(
 }
 
 // Retrieve handles manual source retrieval dispatch
-func (r *Retriever) Retrieve(_ context.Context, _ *pb.RetrieveRequest) (*pb.RetrieveResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "Retrieve is not yet implemented")
+func (r *Retriever) Retrieve(ctx context.Context, req *pb.RetrieveRequest) (*pb.RetrieveResponse, error) {
+	namespace := req.GetNamespace()
+	watchTargetID := req.GetWatchTargetId()
+
+	r.log.InfoContext(ctx, "retrieve requested", "namespace", namespace, "watch_target", watchTargetID)
+
+	target, err := configmap.GetWatchTarget(ctx, r.k8sClient, namespace, watchTargetID)
+	if err != nil {
+		return nil, fmt.Errorf("reading watch target %s/%s: %w", namespace, watchTargetID, err)
+	}
+
+	r.runner.HandleMatch(ctx, namespace, target, 0)
+
+	return &pb.RetrieveResponse{}, nil
 }
