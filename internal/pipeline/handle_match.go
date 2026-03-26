@@ -20,10 +20,10 @@ func (r *Runner) fail(
 	err error,
 	attrs ...any,
 ) {
-	span.RecordError(err)
 	args := []any{"tenant", namespace, "error", err}
 	args = append(args, attrs...)
 	r.log.ErrorContext(ctx, msg, args...)
+	span.RecordError(err)
 }
 
 // HandleMatch processes a matched webhook event through the pipeline.

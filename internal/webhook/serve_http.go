@@ -2,6 +2,7 @@
 package webhook
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/google/go-github/v84/github"
@@ -12,41 +13,51 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
+func (h *Handler) fail(
+	ctx context.Context,
+	w http.ResponseWriter,
+	msg string,
+	code int,
+	err error,
+	attrs ...any,
+) {
+	args := []any{"error", err}
+	args = append(args, attrs...)
+	h.log.ErrorContext(ctx, msg, args...)
+	http.Error(w, msg, code)
+}
+
 // ServeHTTP handles POST /webhook/{namespace}.
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	namespace := r.PathValue("namespace")
 	if namespace == "" {
 		http.Error(w, "missing namespace", http.StatusBadRequest)
 		return
 	}
 
-	ctx := r.Context()
-
 	watchTargets, err := configmap.ListWatchTargets(ctx, h.k8sClient, namespace)
 	if err != nil {
-		h.log.ErrorContext(ctx, "failed to retrieve watch targets", "error", err)
-		http.Error(w, "failed to retrieve watch targets", http.StatusNotFound)
+		h.fail(ctx, w, "failed to retrieve watch targets", http.StatusNotFound, err, "tenant", namespace)
 		return
 	}
 
 	webhookSecret, err := secret.ReadWebhookSecret(ctx, h.k8sClient, namespace, secret.WebhookSecretName)
 	if err != nil {
-		h.log.ErrorContext(ctx, "failed to retrieve secret", "error", err)
-		http.Error(w, "failed to retrieve secret", http.StatusNotFound)
+		h.fail(ctx, w, "failed to retrieve secret", http.StatusNotFound, err, "tenant", namespace)
 		return
 	}
 
 	payload, err := github.ValidatePayload(r, webhookSecret)
 	if err != nil {
-		h.log.WarnContext(ctx, "payload validation failed", "id", namespace, "error", err)
-		http.Error(w, "payload validation failed", http.StatusUnauthorized)
+		h.fail(ctx, w, "payload validation failed", http.StatusUnauthorized, err, "tenant", namespace)
 		return
 	}
 
 	parsed, err := github.ParseWebHook(github.WebHookType(r), payload)
 	if err != nil {
-		h.log.ErrorContext(ctx, "failed to parse webhook", "error", err)
-		http.Error(w, "failed to parse webhook", http.StatusBadRequest)
+		h.fail(ctx, w, "failed to parse webhook", http.StatusBadRequest, err, "tenant", namespace)
 		return
 	}
 
