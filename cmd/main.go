@@ -27,7 +27,11 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
+	"github.com/google/go-github/v84/github"
+
 	gh_apps "github.com/katastroma/phortizo/internal/github/apps"
+	gh_service "github.com/katastroma/phortizo/internal/github/service"
+	gh_transport "github.com/katastroma/phortizo/internal/github/transport"
 	"github.com/katastroma/phortizo/internal/git"
 	grpc_health "github.com/katastroma/phortizo/internal/health/grpc"
 	http_health "github.com/katastroma/phortizo/internal/health/http"
@@ -83,7 +87,10 @@ func main() {
 		os.Exit(1)
 	}
 
-	_ = installationID
+	// Authenticated GitHub client for platform operations (health checks)
+	ghTransport := gh_transport.NewInstallationTokenAuth(gha, installationID, nil)
+	ghClient := github.NewClient(&http.Client{Transport: ghTransport})
+	ghService := gh_service.New(ghClient)
 
 	// Kubernetes client
 	k8sConfig, err := rest.InClusterConfig()
@@ -147,7 +154,7 @@ func main() {
 	webhookHandler := webhook.New(log, runner, k8sClient)
 
 	mux := http.NewServeMux()
-	mux.Handle("GET /healthz", http_health.New(log))
+	mux.Handle("GET /healthz", http_health.New(log, ghService))
 	mux.Handle("POST /webhook/{namespace}", webhookHandler)
 
 	httpPort := os.Getenv("PORT")
@@ -160,7 +167,7 @@ func main() {
 	// gRPC server
 	grpcServer := server.New(log)
 
-	healthServer := grpc_health.New(log)
+	healthServer := grpc_health.New(log, ghService)
 	healthpb.RegisterHealthServer(grpcServer, healthServer)
 
 	// Trace querier — connects to Tempo for replay support
