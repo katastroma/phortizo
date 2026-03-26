@@ -19,14 +19,6 @@ type Runner struct {
 }
 
 // New creates a pipeline runner.
-func New(
-	log *slog.Logger,
-	renderers map[source.RendererType]string,
-) *Runner {
-	return &Runner{
-		log: log,
-		// vault: vault,
-		// ghClient:  ghClient,
-		renderers: renderers,
-	}
+func New(log *slog.Logger, renderers map[source.RendererType]string) *Runner {
+	return &Runner{log: log, renderers: renderers}
 }

@@ -7,11 +7,13 @@ import (
 	"encoding/hex"
 	"fmt"
 	"strings"
+
+	"github.com/katastroma/phortizo/internal/registration"
 )
 
 // Signature checks that the HMAC-SHA256 signature in the X-Hub-Signature-256
 // header matches the payload signed with secret.
-func Signature(payload, secret []byte, signatureHeader string) error {
+func Signature(payload, secret registration.WebhookSecret, signatureHeader string) error {
 	sig, found := strings.CutPrefix(signatureHeader, "sha256=")
 	if !found {
 		return fmt.Errorf("missing sha256= prefix in signature header")

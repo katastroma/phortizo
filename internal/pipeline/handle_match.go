@@ -16,11 +16,7 @@ import (
 )
 
 // HandleMatch processes a matched webhook event through the pipeline.
-func (r *Runner) HandleMatch(
-	ctx context.Context,
-	tenantID string,
-	m match.Result,
-) {
+func (r *Runner) HandleMatch(ctx context.Context, tenantID string, m match.Result) {
 	ctx, span := tracer.Start(ctx, "pipeline.run", trace.WithAttributes(
 		attribute.String("tenant", tenantID),
 		attribute.String("watch_target.repo_url", m.Target.RepoURL),
@@ -47,7 +43,7 @@ func (r *Runner) HandleMatch(
 	rendererType := source.DetectRenderer(fs, m.Target.Path)
 	rendererAddr, ok := r.renderers[rendererType]
 	if !ok {
-		err := fmt.Errorf("no renderer configured for type %q", rendererType)
+		err = fmt.Errorf("no renderer configured for type %q", rendererType)
 		span.RecordError(err)
 		r.log.ErrorContext(
 			ctx,
