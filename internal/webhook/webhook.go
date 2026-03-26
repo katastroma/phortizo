@@ -9,8 +9,10 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
+	"k8s.io/client-go/kubernetes"
 
 	"github.com/katastroma/phortizo/internal/event"
+	"github.com/katastroma/phortizo/internal/k8s/secret"
 	"github.com/katastroma/phortizo/internal/match"
 	"github.com/katastroma/phortizo/internal/registration"
 	"github.com/katastroma/phortizo/internal/verify"
@@ -21,19 +23,14 @@ var tracer = otel.Tracer("webhook")
 // Webhook receives GitHub push webhooks, verifies their signature, matches
 // watch targets, and dispatches matched targets for processing.
 type Webhook struct {
-	log    *slog.Logger
-	runner match.Handler
+	log       *slog.Logger
+	runner    match.Handler
+	k8sClient kubernetes.Interface
 }
 
 // New creates a webhook handler.
-func New(
-	log *slog.Logger,
-	runner match.Handler,
-) *Webhook {
-	return &Webhook{
-		log:    log,
-		runner: runner,
-	}
+func New(log *slog.Logger, runner match.Handler, k8sClient kubernetes.Interface) *Webhook {
+	return &Webhook{log: log, runner: runner, k8sClient: k8sClient}
 }
 
 // ServeHTTP handles POST /webhook/{namespace}.
@@ -47,8 +44,13 @@ func (h *Webhook) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// TODO Get tenant watch config(s) from k8s
 	var watchTargets []registration.WatchTarget
 
-	// TODO Get tenant secret from k8s
-	var secret []byte
+	ctx := r.Context()
+	webhookSecret, err := secret.ReadWebhookSecret(ctx, h.k8sClient, namespace, secret.WebhookSecretName)
+	if err != nil {
+		h.log.ErrorContext(r.Context(), "failed to retrieve secret", "error", err)
+		http.Error(w, "failed to retrieve secret", http.StatusNotFound)
+		return
+	}
 
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
@@ -58,7 +60,7 @@ func (h *Webhook) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sig := r.Header.Get("X-Hub-Signature-256")
-	if err = verify.Signature(body, secret, sig); err != nil {
+	if err = verify.Signature(body, webhookSecret, sig); err != nil {
 		h.log.WarnContext(r.Context(), "signature verification failed", "id", namespace, "error", err)
 		http.Error(w, "signature verification failed", http.StatusUnauthorized)
 		return

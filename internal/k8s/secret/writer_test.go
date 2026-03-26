@@ -1,3 +1,4 @@
+//revive:disable:package-comments
 package secret_test
 
 import (
