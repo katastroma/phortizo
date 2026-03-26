@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/go-git/go-git/v5/plumbing/transport"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 
@@ -38,22 +37,11 @@ func (r *Runner) HandleMatch(
 		return
 	}
 
-	var authMethod transport.AuthMethod
-
-	if m.CredentialSecret != "" {
-		cred, err := r.credentials.Get(ctx, namespace, m.CredentialSecret)
-		if err != nil {
-			span.RecordError(err)
-			r.log.ErrorContext(ctx, "credential retrieval failed", "tenant", namespace, "error", err)
-			return
-		}
-
-		authMethod, err = cred.Authenticate(ctx, r.httpClient)
-		if err != nil {
-			span.RecordError(err)
-			r.log.ErrorContext(ctx, "authentication failed", "tenant", namespace, "error", err)
-			return
-		}
+	authMethod, err := r.resolveAuth(ctx, namespace, m)
+	if err != nil {
+		span.RecordError(err)
+		r.log.ErrorContext(ctx, "authentication failed", "tenant", namespace, "error", err)
+		return
 	}
 
 	fs, err := r.cloner.Clone(ctx, m.RepoURL, m.Ref, authMethod)
