@@ -10,8 +10,8 @@ import (
 
 	pb "github.com/katastroma/naukleros"
 	"github.com/katastroma/phortizo/internal/k8s/configmap"
+	"github.com/katastroma/phortizo/internal/onboarding"
 	"github.com/katastroma/phortizo/internal/pipeline"
-	"github.com/katastroma/phortizo/internal/registration"
 )
 
 // Replay a source retrieval from a previous run
@@ -58,33 +58,33 @@ func (r *Retriever) Replay(ctx context.Context, req *pb.ReplayRequest) (*pb.Repl
 	return &pb.ReplayResponse{}, nil
 }
 
-func watchTargetFromAttributes(attrs map[string]string, runID string) (string, registration.WatchTarget, error) {
+func watchTargetFromAttributes(attrs map[string]string, runID string) (string, onboarding.WatchTarget, error) {
 	namespace, ok := attrs["tenant"]
 	if !ok {
-		return "", registration.WatchTarget{}, fmt.Errorf("missing attribute %q in trace %s", "tenant", runID)
+		return "", onboarding.WatchTarget{}, fmt.Errorf("missing attribute %q in trace %s", "tenant", runID)
 	}
 
 	name, ok := attrs["watch_target.name"]
 	if !ok {
-		return "", registration.WatchTarget{}, fmt.Errorf("missing attribute %q in trace %s", "watch_target.name", runID)
+		return "", onboarding.WatchTarget{}, fmt.Errorf("missing attribute %q in trace %s", "watch_target.name", runID)
 	}
 
 	repoURL, ok := attrs["watch_target.repo_url"]
 	if !ok {
-		return "", registration.WatchTarget{}, fmt.Errorf("missing attribute %q in trace %s", "watch_target.repo_url", runID)
+		return "", onboarding.WatchTarget{}, fmt.Errorf("missing attribute %q in trace %s", "watch_target.repo_url", runID)
 	}
 
 	ref, ok := attrs["watch_target.ref"]
 	if !ok {
-		return "", registration.WatchTarget{}, fmt.Errorf("missing attribute %q in trace %s", "watch_target.ref", runID)
+		return "", onboarding.WatchTarget{}, fmt.Errorf("missing attribute %q in trace %s", "watch_target.ref", runID)
 	}
 
 	path, ok := attrs["watch_target.path"]
 	if !ok {
-		return "", registration.WatchTarget{}, fmt.Errorf("missing attribute %q in trace %s", "watch_target.path", runID)
+		return "", onboarding.WatchTarget{}, fmt.Errorf("missing attribute %q in trace %s", "watch_target.path", runID)
 	}
 
-	return namespace, registration.WatchTarget{
+	return namespace, onboarding.WatchTarget{
 		Name:    name,
 		RepoURL: repoURL,
 		Ref:     ref,

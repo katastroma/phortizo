@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/google/go-github/v84/github"
-	"github.com/katastroma/phortizo/internal/registration"
+	"github.com/katastroma/phortizo/internal/onboarding"
 )
 
 func pushEvent(ref, cloneURL string, commits []*github.HeadCommit) *github.PushEvent {
@@ -26,7 +26,7 @@ func commit(added, removed, modified []string) *github.HeadCommit {
 }
 
 func TestMatches_RepoRefAndPath(t *testing.T) {
-	wt := registration.WatchTarget{
+	wt := onboarding.WatchTarget{
 		RepoURL: "https://github.com/acme/app.git",
 		Ref:     "refs/heads/main",
 		Path:    "deploy/",
@@ -38,7 +38,7 @@ func TestMatches_RepoRefAndPath(t *testing.T) {
 }
 
 func TestMatches_DifferentRepo(t *testing.T) {
-	wt := registration.WatchTarget{
+	wt := onboarding.WatchTarget{
 		RepoURL: "https://github.com/acme/app.git",
 		Ref:     "refs/heads/main",
 		Path:    "deploy/",
@@ -50,7 +50,7 @@ func TestMatches_DifferentRepo(t *testing.T) {
 }
 
 func TestMatches_DifferentRef(t *testing.T) {
-	wt := registration.WatchTarget{
+	wt := onboarding.WatchTarget{
 		RepoURL: "https://github.com/acme/app.git",
 		Ref:     "refs/heads/main",
 		Path:    "deploy/",
@@ -62,7 +62,7 @@ func TestMatches_DifferentRef(t *testing.T) {
 }
 
 func TestMatches_OutsidePath(t *testing.T) {
-	wt := registration.WatchTarget{
+	wt := onboarding.WatchTarget{
 		RepoURL: "https://github.com/acme/app.git",
 		Ref:     "refs/heads/main",
 		Path:    "deploy/",
@@ -95,7 +95,7 @@ func TestChangedPaths_Deduplicates(t *testing.T) {
 }
 
 func TestFind_MultipleMatches(t *testing.T) {
-	targets := []registration.WatchTarget{
+	targets := []onboarding.WatchTarget{
 		{RepoURL: "https://github.com/acme/app.git", Ref: "refs/heads/main", Path: "deploy/prod/"},
 		{RepoURL: "https://github.com/acme/app.git", Ref: "refs/heads/main", Path: "deploy/staging/"},
 	}

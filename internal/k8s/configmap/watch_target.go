@@ -5,11 +5,10 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/katastroma/phortizo/internal/onboarding"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-
-	"github.com/katastroma/phortizo/internal/registration"
 )
 
 const (
@@ -25,10 +24,10 @@ const (
 )
 
 // GetWatchTarget reads a single watch target ConfigMap by name.
-func GetWatchTarget(ctx context.Context, client kubernetes.Interface, namespace, name string) (registration.WatchTarget, error) {
+func GetWatchTarget(ctx context.Context, client kubernetes.Interface, namespace, name string) (onboarding.WatchTarget, error) {
 	cm, err := client.CoreV1().ConfigMaps(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
-		return registration.WatchTarget{}, fmt.Errorf("reading configmap %s/%s: %w", namespace, name, err)
+		return onboarding.WatchTarget{}, fmt.Errorf("reading configmap %s/%s: %w", namespace, name, err)
 	}
 
 	return watchTargetFromConfigMap(cm)
@@ -36,7 +35,7 @@ func GetWatchTarget(ctx context.Context, client kubernetes.Interface, namespace,
 
 // ListWatchTargets lists all watch target ConfigMaps in the given namespace
 // and returns the deserialized watch targets.
-func ListWatchTargets(ctx context.Context, client kubernetes.Interface, namespace string) ([]registration.WatchTarget, error) {
+func ListWatchTargets(ctx context.Context, client kubernetes.Interface, namespace string) ([]onboarding.WatchTarget, error) {
 	selector := fmt.Sprintf("%s=%s", TypeLabel, WatchTargetType)
 	list, err := client.CoreV1().ConfigMaps(namespace).List(ctx, metav1.ListOptions{
 		LabelSelector: selector,
@@ -45,7 +44,7 @@ func ListWatchTargets(ctx context.Context, client kubernetes.Interface, namespac
 		return nil, fmt.Errorf("listing watch target configmaps in %s: %w", namespace, err)
 	}
 
-	targets := make([]registration.WatchTarget, 0, len(list.Items))
+	targets := make([]onboarding.WatchTarget, 0, len(list.Items))
 	for _, cm := range list.Items {
 		target, err := watchTargetFromConfigMap(&cm)
 		if err != nil {
@@ -58,10 +57,10 @@ func ListWatchTargets(ctx context.Context, client kubernetes.Interface, namespac
 	return targets, nil
 }
 
-func watchTargetFromConfigMap(cm *corev1.ConfigMap) (registration.WatchTarget, error) {
-	target, err := registration.WatchTargetFromConfigMap(cm.Data)
+func watchTargetFromConfigMap(cm *corev1.ConfigMap) (onboarding.WatchTarget, error) {
+	target, err := onboarding.WatchTargetFromConfigMap(cm.Data)
 	if err != nil {
-		return registration.WatchTarget{}, err
+		return onboarding.WatchTarget{}, err
 	}
 
 	target.Name = cm.Name
@@ -75,7 +74,7 @@ func PutWatchTarget(
 	ctx context.Context,
 	client kubernetes.Interface,
 	namespace, name string,
-	target registration.WatchTarget,
+	target onboarding.WatchTarget,
 ) error {
 	configmaps := client.CoreV1().ConfigMaps(namespace)
 	data := target.MarshalConfigMap()

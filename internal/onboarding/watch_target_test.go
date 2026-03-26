@@ -1,10 +1,10 @@
-package registration_test
+package onboarding_test
 
 import (
 	"bytes"
 	"testing"
 
-	"github.com/katastroma/phortizo/internal/registration"
+	"github.com/katastroma/phortizo/internal/onboarding"
 )
 
 func TestWatchTargetFromConfigMap(t *testing.T) {
@@ -14,7 +14,7 @@ func TestWatchTargetFromConfigMap(t *testing.T) {
 		"path":     "deploy/",
 	}
 
-	target, err := registration.WatchTargetFromConfigMap(data)
+	target, err := onboarding.WatchTargetFromConfigMap(data)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -45,7 +45,7 @@ func TestWatchTargetFromConfigMap_WithOverrides(t *testing.T) {
 		"overrides": overrides,
 	}
 
-	target, err := registration.WatchTargetFromConfigMap(data)
+	target, err := onboarding.WatchTargetFromConfigMap(data)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -58,7 +58,7 @@ func TestWatchTargetFromConfigMap_WithOverrides(t *testing.T) {
 func TestWatchTargetFromConfigMap_MissingRepoURL(t *testing.T) {
 	data := map[string]string{"ref": "refs/heads/main", "path": "deploy/"}
 
-	_, err := registration.WatchTargetFromConfigMap(data)
+	_, err := onboarding.WatchTargetFromConfigMap(data)
 	if err == nil {
 		t.Fatal("expected error for missing repo-url")
 	}
@@ -67,7 +67,7 @@ func TestWatchTargetFromConfigMap_MissingRepoURL(t *testing.T) {
 func TestWatchTargetFromConfigMap_MissingRef(t *testing.T) {
 	data := map[string]string{"repo-url": "https://github.com/acme/app.git", "path": "deploy/"}
 
-	_, err := registration.WatchTargetFromConfigMap(data)
+	_, err := onboarding.WatchTargetFromConfigMap(data)
 	if err == nil {
 		t.Fatal("expected error for missing ref")
 	}
@@ -76,14 +76,14 @@ func TestWatchTargetFromConfigMap_MissingRef(t *testing.T) {
 func TestWatchTargetFromConfigMap_MissingPath(t *testing.T) {
 	data := map[string]string{"repo-url": "https://github.com/acme/app.git", "ref": "refs/heads/main"}
 
-	_, err := registration.WatchTargetFromConfigMap(data)
+	_, err := onboarding.WatchTargetFromConfigMap(data)
 	if err == nil {
 		t.Fatal("expected error for missing path")
 	}
 }
 
 func TestMarshalConfigMap(t *testing.T) {
-	target := registration.WatchTarget{
+	target := onboarding.WatchTarget{
 		RepoURL: "https://github.com/acme/app.git",
 		Ref:     "refs/heads/main",
 		Path:    "deploy/",
@@ -110,7 +110,7 @@ func TestMarshalConfigMap(t *testing.T) {
 
 func TestMarshalConfigMap_WithOverrides(t *testing.T) {
 	overrides := []byte("image:\n  tag: v1.2.3\n")
-	target := registration.WatchTarget{
+	target := onboarding.WatchTarget{
 		RepoURL:   "https://github.com/acme/app.git",
 		Ref:       "refs/heads/main",
 		Path:      "deploy/",
@@ -125,7 +125,7 @@ func TestMarshalConfigMap_WithOverrides(t *testing.T) {
 }
 
 func TestMarshalConfigMap_RoundTrip(t *testing.T) {
-	original := registration.WatchTarget{
+	original := onboarding.WatchTarget{
 		RepoURL:   "https://github.com/acme/app.git",
 		Ref:       "refs/heads/main",
 		Path:      "deploy/",
@@ -134,7 +134,7 @@ func TestMarshalConfigMap_RoundTrip(t *testing.T) {
 
 	data := original.MarshalConfigMap()
 
-	restored, err := registration.WatchTargetFromConfigMap(data)
+	restored, err := onboarding.WatchTargetFromConfigMap(data)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

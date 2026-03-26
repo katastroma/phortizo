@@ -9,7 +9,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/katastroma/phortizo/internal/k8s/configmap"
-	"github.com/katastroma/phortizo/internal/registration"
+	"github.com/katastroma/phortizo/internal/onboarding"
 	"github.com/katastroma/phortizo/internal/source"
 )
 
@@ -30,7 +30,7 @@ func (r *Runner) fail(
 func (r *Runner) HandleMatch(
 	ctx context.Context,
 	namespace string,
-	m registration.WatchTarget,
+	m onboarding.WatchTarget,
 	replayCount int,
 ) {
 	ctx, span := tracer.Start(ctx, SpanName, trace.WithAttributes(

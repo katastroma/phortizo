@@ -14,17 +14,17 @@ import (
 
 	pb "github.com/katastroma/naukleros"
 	"github.com/katastroma/phortizo/internal/k8s/configmap"
-	"github.com/katastroma/phortizo/internal/registration"
+	"github.com/katastroma/phortizo/internal/onboarding"
 	"github.com/katastroma/phortizo/internal/tracequery"
 )
 
 type mockHandler struct {
-	calls        []registration.WatchTarget
-	namespace    string
-	replayCount  int
+	calls       []onboarding.WatchTarget
+	namespace   string
+	replayCount int
 }
 
-func (m *mockHandler) HandleMatch(_ context.Context, namespace string, target registration.WatchTarget, replayCount int) {
+func (m *mockHandler) HandleMatch(_ context.Context, namespace string, target onboarding.WatchTarget, replayCount int) {
 	m.namespace = namespace
 	m.replayCount = replayCount
 	m.calls = append(m.calls, target)
@@ -33,7 +33,7 @@ func (m *mockHandler) HandleMatch(_ context.Context, namespace string, target re
 func replayAttrs() tracequery.Attributes {
 	return tracequery.Attributes{
 		"tenant":                "tenant-a",
-		"watch_target.name":    "wt-1",
+		"watch_target.name":     "wt-1",
 		"watch_target.repo_url": "https://github.com/acme/app.git",
 		"watch_target.ref":      "refs/heads/main",
 		"watch_target.path":     "deploy/",

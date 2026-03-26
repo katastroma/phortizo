@@ -6,7 +6,7 @@ import (
 
 	githttp "github.com/go-git/go-git/v5/plumbing/transport/http"
 
-	credential "github.com/katastroma/phortizo/internal/registration/repo_credential"
+	credential "github.com/katastroma/phortizo/internal/onboarding/repo_credential"
 )
 
 func TestBasicAuth_Authenticate(t *testing.T) {

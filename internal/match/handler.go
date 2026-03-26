@@ -4,7 +4,7 @@ package match
 import (
 	"context"
 
-	"github.com/katastroma/phortizo/internal/registration"
+	"github.com/katastroma/phortizo/internal/onboarding"
 )
 
 // Handler processes matched watch targets through the pipeline
@@ -12,7 +12,7 @@ type Handler interface {
 	HandleMatch(
 		ctx context.Context,
 		namespace string,
-		m registration.WatchTarget,
+		m onboarding.WatchTarget,
 		replayCount int,
 	)
 }

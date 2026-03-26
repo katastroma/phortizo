@@ -10,7 +10,7 @@ import (
 
 	"github.com/katastroma/phortizo/internal/auth"
 	"github.com/katastroma/phortizo/internal/github/apps"
-	credential "github.com/katastroma/phortizo/internal/registration/repo_credential"
+	credential "github.com/katastroma/phortizo/internal/onboarding/repo_credential"
 )
 
 // Reader reads credential Secrets from tenant namespaces.

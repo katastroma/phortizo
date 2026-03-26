@@ -11,7 +11,7 @@ import (
 	clienttesting "k8s.io/client-go/testing"
 
 	"github.com/katastroma/phortizo/internal/k8s/configmap"
-	"github.com/katastroma/phortizo/internal/registration"
+	"github.com/katastroma/phortizo/internal/onboarding"
 )
 
 func watchTargetConfigMap(name, namespace, credentialSecret string, data map[string]string) *corev1.ConfigMap {
@@ -104,7 +104,7 @@ func TestListWatchTargets(t *testing.T) {
 		t.Fatalf("expected 2 results, got %d", len(results))
 	}
 
-	var withCred, withoutCred registration.WatchTarget
+	var withCred, withoutCred onboarding.WatchTarget
 	for _, r := range results {
 		if r.CredentialSecret != "" {
 			withCred = r
@@ -196,7 +196,7 @@ func TestListWatchTargets_DeserializeError(t *testing.T) {
 func TestPutWatchTarget_Create(t *testing.T) {
 	k8s := fake.NewSimpleClientset()
 
-	target := registration.WatchTarget{
+	target := onboarding.WatchTarget{
 		RepoURL:          "https://github.com/acme/app.git",
 		Ref:              "refs/heads/main",
 		Path:             "deploy/",
@@ -229,7 +229,7 @@ func TestPutWatchTarget_Create(t *testing.T) {
 func TestPutWatchTarget_CreateNoCredential(t *testing.T) {
 	k8s := fake.NewSimpleClientset()
 
-	target := registration.WatchTarget{
+	target := onboarding.WatchTarget{
 		RepoURL: "https://github.com/acme/app.git",
 		Ref:     "refs/heads/main",
 		Path:    "deploy/",
@@ -259,7 +259,7 @@ func TestPutWatchTarget_Update(t *testing.T) {
 		}),
 	)
 
-	target := registration.WatchTarget{
+	target := onboarding.WatchTarget{
 		RepoURL:          "https://github.com/acme/app.git",
 		Ref:              "refs/heads/main",
 		Path:             "deploy/prod/",
@@ -297,7 +297,7 @@ func TestPutWatchTarget_UpdateError(t *testing.T) {
 		return true, nil, fmt.Errorf("update denied")
 	})
 
-	target := registration.WatchTarget{RepoURL: "x", Ref: "y", Path: "z"}
+	target := onboarding.WatchTarget{RepoURL: "x", Ref: "y", Path: "z"}
 	err := configmap.PutWatchTarget(t.Context(), k8s, "tenant-a", "wt-1", target)
 	if err == nil {
 		t.Fatal("expected error from failing update")
@@ -310,7 +310,7 @@ func TestPutWatchTarget_CreateError(t *testing.T) {
 		return true, nil, fmt.Errorf("create denied")
 	})
 
-	target := registration.WatchTarget{RepoURL: "x", Ref: "y", Path: "z"}
+	target := onboarding.WatchTarget{RepoURL: "x", Ref: "y", Path: "z"}
 	err := configmap.PutWatchTarget(t.Context(), k8s, "tenant-a", "wt-1", target)
 	if err == nil {
 		t.Fatal("expected error from failing create")

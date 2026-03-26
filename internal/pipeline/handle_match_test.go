@@ -17,8 +17,8 @@ import (
 
 	"github.com/katastroma/phortizo/internal/auth"
 	"github.com/katastroma/phortizo/internal/k8s/configmap"
+	"github.com/katastroma/phortizo/internal/onboarding"
 	"github.com/katastroma/phortizo/internal/pipeline"
-	"github.com/katastroma/phortizo/internal/registration"
 	"github.com/katastroma/phortizo/internal/source"
 )
 
@@ -95,8 +95,8 @@ func testRunner(
 	return pipeline.New(slog.Default(), http.DefaultClient, renderers, credentials, cloner, renderer, k8sClient)
 }
 
-func testTarget(credentialSecret string) registration.WatchTarget {
-	return registration.WatchTarget{
+func testTarget(credentialSecret string) onboarding.WatchTarget {
+	return onboarding.WatchTarget{
 		Name:             "wt-1",
 		RepoURL:          "https://github.com/acme/app.git",
 		Ref:              "refs/heads/main",

@@ -7,7 +7,7 @@ import (
 	githttp "github.com/go-git/go-git/v5/plumbing/transport/http"
 
 	"github.com/katastroma/phortizo/internal/github"
-	credential "github.com/katastroma/phortizo/internal/registration/repo_credential"
+	credential "github.com/katastroma/phortizo/internal/onboarding/repo_credential"
 )
 
 func TestGitHubToken_Authenticate(t *testing.T) {

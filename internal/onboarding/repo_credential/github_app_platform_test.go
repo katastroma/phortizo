@@ -8,7 +8,7 @@ import (
 
 	"github.com/katastroma/phortizo/internal/github"
 	"github.com/katastroma/phortizo/internal/github/apps"
-	credential "github.com/katastroma/phortizo/internal/registration/repo_credential"
+	credential "github.com/katastroma/phortizo/internal/onboarding/repo_credential"
 	"github.com/katastroma/phortizo/internal/tests"
 )
 
