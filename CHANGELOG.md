@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## 0.5.1 - 2026-03-26
+#### Bug Fixes
+- (**cd**) don't trigger on ignored files - (06326ca) - Nathan Blair
+
+- - -
+
 ## 0.5.0 - 2026-03-26
 #### Features
 - phortizo ready for integration testing - (8d1d928) - Nathan Blair
