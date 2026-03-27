@@ -6,9 +6,9 @@ on:
     branches: [default]
 
 jobs:
-  cog-check:
+  commit-check:
     name: CI
-    uses: katastroma/skeuotheke/.github/workflows/cog-check.yaml@v0
+    uses: katastroma/skeuotheke/.github/workflows/commit-check.yaml@v0
 
   version-check:
     name: CI
