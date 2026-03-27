@@ -32,7 +32,7 @@ func bareConfigMap(name, namespace string) *corev1.ConfigMap {
 func TestAcquireLease(t *testing.T) {
 	k8s := fake.NewSimpleClientset(bareConfigMap("wt-1", "tenant-a"))
 
-	err := configmap.AcquireLease(t.Context(), k8s, "tenant-a", "wt-1", "run-abc", 0)
+	err := configmap.AcquireLease(t.Context(), k8s, "tenant-a", "wt-1", "span-abc", 0)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -42,8 +42,8 @@ func TestAcquireLease(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if lease.RunID != "run-abc" {
-		t.Errorf("RunID = %q, want %q", lease.RunID, "run-abc")
+	if lease.WatchTargetLeaseID != "span-abc" {
+		t.Errorf("WatchTargetLeaseID = %q, want %q", lease.WatchTargetLeaseID, "span-abc")
 	}
 
 	if lease.ReplayCount != 0 {
@@ -54,7 +54,7 @@ func TestAcquireLease(t *testing.T) {
 func TestAcquireLease_WithReplayCount(t *testing.T) {
 	k8s := fake.NewSimpleClientset(bareConfigMap("wt-1", "tenant-a"))
 
-	err := configmap.AcquireLease(t.Context(), k8s, "tenant-a", "wt-1", "run-abc", 3)
+	err := configmap.AcquireLease(t.Context(), k8s, "tenant-a", "wt-1", "span-abc", 3)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -72,7 +72,7 @@ func TestAcquireLease_WithReplayCount(t *testing.T) {
 func TestAcquireLease_ConfigMapNotFound(t *testing.T) {
 	k8s := fake.NewSimpleClientset()
 
-	err := configmap.AcquireLease(t.Context(), k8s, "tenant-a", "nonexistent", "run-abc", 0)
+	err := configmap.AcquireLease(t.Context(), k8s, "tenant-a", "nonexistent", "span-abc", 0)
 	if err == nil {
 		t.Fatal("expected error for missing configmap")
 	}
@@ -86,8 +86,8 @@ func TestReadLease_NoAnnotations(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if lease.RunID != "" {
-		t.Errorf("RunID = %q, want empty", lease.RunID)
+	if lease.WatchTargetLeaseID != "" {
+		t.Errorf("WatchTargetLeaseID = %q, want empty", lease.WatchTargetLeaseID)
 	}
 }
 
@@ -103,7 +103,7 @@ func TestReadLease_ConfigMapNotFound(t *testing.T) {
 func TestReleaseLease(t *testing.T) {
 	k8s := fake.NewSimpleClientset(bareConfigMap("wt-1", "tenant-a"))
 
-	err := configmap.AcquireLease(t.Context(), k8s, "tenant-a", "wt-1", "run-abc", 0)
+	err := configmap.AcquireLease(t.Context(), k8s, "tenant-a", "wt-1", "span-abc", 0)
 	if err != nil {
 		t.Fatalf("acquiring: %v", err)
 	}
@@ -118,8 +118,8 @@ func TestReleaseLease(t *testing.T) {
 		t.Fatalf("reading: %v", err)
 	}
 
-	if lease.RunID != "" {
-		t.Errorf("RunID = %q, want empty after release", lease.RunID)
+	if lease.WatchTargetLeaseID != "" {
+		t.Errorf("WatchTargetLeaseID = %q, want empty after release", lease.WatchTargetLeaseID)
 	}
 }
 
@@ -135,12 +135,12 @@ func TestReleaseLease_ConfigMapNotFound(t *testing.T) {
 func TestHoldsLease(t *testing.T) {
 	k8s := fake.NewSimpleClientset(bareConfigMap("wt-1", "tenant-a"))
 
-	err := configmap.AcquireLease(t.Context(), k8s, "tenant-a", "wt-1", "run-abc", 0)
+	err := configmap.AcquireLease(t.Context(), k8s, "tenant-a", "wt-1", "span-abc", 0)
 	if err != nil {
 		t.Fatalf("acquiring: %v", err)
 	}
 
-	holds, err := configmap.HoldsLease(t.Context(), k8s, "tenant-a", "wt-1", "run-abc")
+	holds, err := configmap.HoldsLease(t.Context(), k8s, "tenant-a", "wt-1", "span-abc")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -150,15 +150,15 @@ func TestHoldsLease(t *testing.T) {
 	}
 }
 
-func TestHoldsLease_DifferentRunID(t *testing.T) {
+func TestHoldsLease_DifferentLeaseID(t *testing.T) {
 	k8s := fake.NewSimpleClientset(bareConfigMap("wt-1", "tenant-a"))
 
-	err := configmap.AcquireLease(t.Context(), k8s, "tenant-a", "wt-1", "run-abc", 0)
+	err := configmap.AcquireLease(t.Context(), k8s, "tenant-a", "wt-1", "span-abc", 0)
 	if err != nil {
 		t.Fatalf("acquiring: %v", err)
 	}
 
-	holds, err := configmap.HoldsLease(t.Context(), k8s, "tenant-a", "wt-1", "run-other")
+	holds, err := configmap.HoldsLease(t.Context(), k8s, "tenant-a", "wt-1", "span-other")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -171,7 +171,7 @@ func TestHoldsLease_DifferentRunID(t *testing.T) {
 func TestHoldsLease_ReadError(t *testing.T) {
 	k8s := fake.NewSimpleClientset()
 
-	_, err := configmap.HoldsLease(t.Context(), k8s, "tenant-a", "nonexistent", "run-abc")
+	_, err := configmap.HoldsLease(t.Context(), k8s, "tenant-a", "nonexistent", "span-abc")
 	if err == nil {
 		t.Fatal("expected error for missing configmap")
 	}
@@ -179,8 +179,8 @@ func TestHoldsLease_ReadError(t *testing.T) {
 
 func TestIsActive(t *testing.T) {
 	lease := configmap.Lease{
-		RunID:   "run-abc",
-		Started: time.Now(),
+		WatchTargetLeaseID: "span-abc",
+		Started:            time.Now(),
 	}
 
 	if !lease.IsLeaseActive(10 * time.Minute) {
@@ -190,8 +190,8 @@ func TestIsActive(t *testing.T) {
 
 func TestIsActive_Stale(t *testing.T) {
 	lease := configmap.Lease{
-		RunID:   "run-abc",
-		Started: time.Now().Add(-20 * time.Minute),
+		WatchTargetLeaseID: "span-abc",
+		Started:            time.Now().Add(-20 * time.Minute),
 	}
 
 	if lease.IsLeaseActive(10 * time.Minute) {
@@ -210,8 +210,8 @@ func TestIsActive_Empty(t *testing.T) {
 func TestReadLease_MalformedTimestamp(t *testing.T) {
 	cm := bareConfigMap("wt-1", "tenant-a")
 	cm.Annotations = map[string]string{
-		configmap.LeaseRunIDAnnotation:   "run-abc",
-		configmap.LeaseStartedAnnotation: "not-a-timestamp",
+		configmap.WatchTargetLeaseIDAnnotation:      "span-abc",
+		configmap.WatchTargetLeaseStartedAnnotation: "not-a-timestamp",
 	}
 	k8s := fake.NewSimpleClientset(cm)
 
@@ -220,8 +220,8 @@ func TestReadLease_MalformedTimestamp(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if lease.RunID != "" {
-		t.Errorf("expected empty lease for malformed timestamp, got RunID = %q", lease.RunID)
+	if lease.WatchTargetLeaseID != "" {
+		t.Errorf("expected empty lease for malformed timestamp, got WatchTargetLeaseID = %q", lease.WatchTargetLeaseID)
 	}
 }
 
@@ -231,7 +231,7 @@ func TestAcquireLease_UpdateError(t *testing.T) {
 		return true, nil, fmt.Errorf("update denied")
 	})
 
-	err := configmap.AcquireLease(t.Context(), k8s, "tenant-a", "wt-1", "run-abc", 0)
+	err := configmap.AcquireLease(t.Context(), k8s, "tenant-a", "wt-1", "span-abc", 0)
 	if err == nil {
 		t.Fatal("expected error from failing update")
 	}

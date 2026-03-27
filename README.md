@@ -11,18 +11,39 @@ Implements the [naukleros](https://github.com/katastroma/naukleros)
 
 ## Pipeline
 
+### Retrieve
+
+1. Resolve tenant namespace and watch target ID from request
+2. Resolve watch target from request workspace and watch target ID
+3. Run match pipeline for watch target
+
+### Webhook
+
 1. Receive webhook at `POST /webhook/{namespace}`
-2. Retrieve stored secret from tenant namespace
+2. Acquire stored secret from tenant namespace
 3. Validate payload and verify signature against stored secret
-4. Parse push event and match against watch targets
-5. Acquire [run ownership](https://katastroma.github.io/docs/event-driven#run-ownership)
-   lease on the watch target
-6. Resolve tenant credentials
-7. Clone repository (shallow, in-memory)
-8. Detect renderer type (Helm, Kustomize, or raw YAML)
-9. Verify run still holds the lease
-10. Stream source to the renderer via
-    [keleustēs](https://github.com/katastroma/keleustes) gRPC
+4. Parse push event and list watch targets
+5. Match push event paths against watch targets
+6. If no matches, skip
+7. For each watch target, run match pipeline
+
+### Replay
+
+1. Acquire watch target attributes from requested replay event ID.
+2. Resolve watch targets from watch target attributes
+3. For each watch target, check if lease is active, skip if so
+4. For each watch target, run match pipeline
+
+## For Each Watch Target
+
+1. Acquire
+   [watch target lease](https://katastroma.github.io/docs/event-driven#watch-target-leasing)
+2. Resolve tenant credentials
+3. Clone repository (shallow, in-memory)
+4. Detect renderer type (Helm, Kustomize, or raw YAML)
+5. Verify processing instance still holds the lease
+6. Stream source to the renderer via
+   [keleustēs](https://github.com/katastroma/keleustes) gRPC
 
 ## Credentials
 
@@ -38,11 +59,12 @@ Implements the [naukleros](https://github.com/katastroma/naukleros)
 
 ### Required
 
-| Variable                     | Description                                          |
-| ---------------------------- | ---------------------------------------------------- |
-| `GITHUB_APP_CLIENT_ID`       | Platform GitHub App client ID.                       |
-| `GITHUB_APP_INSTALLATION_ID` | Platform GitHub App installation ID. Used for health checks only. |
-| `GITHUB_APP_PRIVATE_KEY`     | PEM-encoded private key for the platform GitHub App. |
+| Variable                     | Description                                                                  |
+| ---------------------------- | ---------------------------------------------------------------------------- |
+| `GITHUB_APP_CLIENT_ID`       | Platform GitHub App client ID.                                               |
+| `GITHUB_APP_INSTALLATION_ID` | Platform GitHub App installation ID. Required for health checks.             |
+| `GITHUB_APP_PRIVATE_KEY`     | PEM-encoded private key for the platform GitHub App.                         |
+| `TEMPO_ADDRESS`              | gRPC address of Tempo. Required for watch target acquisition during replays. |
 
 ### Renderers
 
@@ -54,13 +76,12 @@ Implements the [naukleros](https://github.com/katastroma/naukleros)
 
 ### Optional
 
-| Variable              | Default | Description                                                         |
-| --------------------- | ------- | ------------------------------------------------------------------- |
-| `SERVICE_VERSION`     | `dev`   | Service version reported to the OTel resource.                      |
-| `PORT`                | `8080`  | HTTP server port. Serves `/healthz` and `/webhook/{namespace}`.     |
-| `TEMPO_ADDRESS`       |         | gRPC address of Tempo. Enables replay via trace queries.            |
-| `LEASE_STALE_AFTER`   | `10m`   | Duration after which an active run lease is considered stale.       |
-| `MAX_REPLAY_ATTEMPTS` | `3`     | Maximum number of replay attempts per run before permanent failure. |
+| Variable              | Default | Description                                                           |
+| --------------------- | ------- | --------------------------------------------------------------------- |
+| `SERVICE_VERSION`     | `dev`   | Service version reported to the OTel resource.                        |
+| `PORT`                | `8080`  | HTTP server port. Serves `/healthz` and `/webhook/{namespace}`.       |
+| `LEASE_STALE_AFTER`   | `10m`   | Duration after which a watch target lease is considered stale.        |
+| `MAX_REPLAY_ATTEMPTS` | `3`     | Maximum number of replay attempts per event before permanent failure. |
 
 ### OTel (from grpc-foundation)
 
@@ -85,19 +106,20 @@ Implements the [naukleros](https://github.com/katastroma/naukleros)
 
 ## Span Conventions
 
-The `pipeline.run` span carries these attributes for observability and replay:
+The root event span carries:
+
+| Attribute            | Description                                                |
+| -------------------- | ---------------------------------------------------------- |
+| `tenant`             | Tenant namespace. Identifies the tenant.                   |
+| `event.type`         | Event type: `webhook`, `manual`, or `replay`.              |
+| `github.delivery_id` | GitHub webhook delivery GUID (webhook events only).        |
+| `github.head_commit` | Head commit SHA from the push event (webhook events only). |
+
+The `watch_target` span (child of the event span) carries:
 
 | Attribute               | Description                               |
 | ----------------------- | ----------------------------------------- |
-| `tenant`                | Tenant namespace. Identifies the tenant.  |
 | `watch_target.name`     | ConfigMap name of the watch target.       |
 | `watch_target.repo_url` | Repository clone URL.                     |
 | `watch_target.ref`      | Git ref (e.g., `refs/heads/main`).        |
 | `watch_target.path`     | Path within the repository being watched. |
-
-The `webhook.dispatch` span carries:
-
-| Attribute            | Description                                    |
-| -------------------- | ---------------------------------------------- |
-| `github.delivery_id` | GitHub webhook delivery GUID.                  |
-| `github.head_commit` | Head commit SHA from the push event (`after`). |

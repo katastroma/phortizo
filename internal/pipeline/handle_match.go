@@ -11,6 +11,7 @@ import (
 	"github.com/katastroma/phortizo/internal/k8s/configmap"
 	"github.com/katastroma/phortizo/internal/onboarding"
 	"github.com/katastroma/phortizo/internal/source"
+	"github.com/katastroma/phortizo/internal/tracing"
 )
 
 func (r *Runner) fail(
@@ -29,22 +30,22 @@ func (r *Runner) fail(
 // HandleMatch processes a matched webhook event through the pipeline.
 func (r *Runner) HandleMatch(
 	ctx context.Context,
+	tracer trace.Tracer,
 	namespace string,
 	m onboarding.WatchTarget,
 	replayCount int,
 ) {
-	ctx, span := tracer.Start(ctx, SpanName, trace.WithAttributes(
-		attribute.String("tenant", namespace),
-		attribute.String("watch_target.name", m.Name),
-		attribute.String("watch_target.repo_url", m.RepoURL),
-		attribute.String("watch_target.ref", m.Ref),
-		attribute.String("watch_target.path", m.Path),
+	ctx, span := tracer.Start(ctx, tracing.WatchTargetSpanName, trace.WithAttributes(
+		attribute.String(tracing.WatchTargetNameAttribute, m.Name),
+		attribute.String(tracing.WatchTargetRepoURLAttribute, m.RepoURL),
+		attribute.String(tracing.WatchTargetRefAttribute, m.Ref),
+		attribute.String(tracing.WatchTargetPathAttribute, m.Path),
 	))
 	defer span.End()
 
-	runID := span.SpanContext().TraceID().String()
+	watchTargetLeaseID := span.SpanContext().SpanID().String()
 
-	if err := configmap.AcquireLease(ctx, r.k8sClient, namespace, m.Name, runID, replayCount); err != nil {
+	if err := configmap.AcquireLease(ctx, r.k8sClient, namespace, m.Name, watchTargetLeaseID, replayCount); err != nil {
 		r.fail(ctx, span, namespace, "lease acquisition failed", err)
 		return
 	}
@@ -69,14 +70,14 @@ func (r *Runner) HandleMatch(
 		return
 	}
 
-	holds, err := configmap.HoldsLease(ctx, r.k8sClient, namespace, m.Name, runID)
+	holds, err := configmap.HoldsLease(ctx, r.k8sClient, namespace, m.Name, watchTargetLeaseID)
 	if err != nil {
 		r.fail(ctx, span, namespace, "lease check failed", err)
 		return
 	}
 
 	if !holds {
-		r.log.InfoContext(ctx, "lease lost, abandoning run", "tenant", namespace, "run_id", runID)
+		r.log.InfoContext(ctx, "lease lost, abandoning processing", "tenant", namespace, "watch_target_lease_id", watchTargetLeaseID)
 		return
 	}
 

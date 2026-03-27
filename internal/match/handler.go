@@ -5,12 +5,14 @@ import (
 	"context"
 
 	"github.com/katastroma/phortizo/internal/onboarding"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Handler processes matched watch targets through the pipeline
 type Handler interface {
 	HandleMatch(
 		ctx context.Context,
+		tracer trace.Tracer,
 		namespace string,
 		m onboarding.WatchTarget,
 		replayCount int,

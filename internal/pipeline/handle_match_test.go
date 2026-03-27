@@ -11,6 +11,7 @@ import (
 	"github.com/go-git/go-billy/v5/memfs"
 	"github.com/go-git/go-billy/v5/util"
 	"github.com/go-git/go-git/v5/plumbing/transport"
+	mocktracer "git.sonicoriginal.software/grpc-testing/mocks/tracer"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
@@ -45,8 +46,26 @@ type mockCloner struct {
 	err error
 }
 
-func (m *mockCloner) Clone(context.Context, string, string, transport.AuthMethod) (billy.Filesystem, error) {
+func (m *mockCloner) Clone(
+	context.Context, string, string, transport.AuthMethod,
+) (billy.Filesystem, error) {
 	return m.fs, m.err
+}
+
+type configMapDeletingCloner struct {
+	fs        billy.Filesystem
+	k8sClient *fake.Clientset
+}
+
+func (c *configMapDeletingCloner) Clone(
+	ctx context.Context, _, _ string, _ transport.AuthMethod,
+) (billy.Filesystem, error) {
+	err := c.k8sClient.CoreV1().ConfigMaps("tenant-a").Delete(ctx, "wt-1", metav1.DeleteOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("deleting configmap: %w", err)
+	}
+
+	return c.fs, nil
 }
 
 type mockRenderer struct {
@@ -88,11 +107,10 @@ func testRunner(
 	cloner pipeline.Cloner,
 	renderer pipeline.Renderer,
 ) *pipeline.Runner {
-	renderers := map[source.RendererType]string{
-		source.Helm: "helm-renderer:8080",
-	}
+	renderers := map[source.RendererType]string{source.Helm: "helm-renderer:8080"}
 
-	return pipeline.New(slog.Default(), http.DefaultClient, renderers, credentials, cloner, renderer, k8sClient)
+	return pipeline.New(
+		slog.Default(), http.DefaultClient, renderers, credentials, cloner, renderer, k8sClient)
 }
 
 func testTarget(credentialSecret string) onboarding.WatchTarget {
@@ -109,61 +127,107 @@ func TestHandleMatch_PublicRepo(t *testing.T) {
 	k8s := fake.NewSimpleClientset(watchTargetCM())
 	runner := testRunner(k8s, nil, &mockCloner{fs: helmFS(t)}, &mockRenderer{})
 
-	runner.HandleMatch(t.Context(), "tenant-a", testTarget(""), 0)
+	mock, ctx := mocktracer.New(t)
+	defer mock.Shutdown(t)
+	runner.HandleMatch(ctx, mock.Tracer("test"), "tenant-a", testTarget(""), 0)
 }
 
 func TestHandleMatch_PrivateRepo(t *testing.T) {
 	k8s := fake.NewSimpleClientset(watchTargetCM())
-	runner := testRunner(k8s, &mockCredentialReader{cred: &mockCredential{}}, &mockCloner{fs: helmFS(t)}, &mockRenderer{})
+	runner := testRunner(
+		k8s,
+		&mockCredentialReader{cred: &mockCredential{}},
+		&mockCloner{fs: helmFS(t)},
+		&mockRenderer{},
+	)
 
-	runner.HandleMatch(t.Context(), "tenant-a", testTarget("my-cred"), 0)
+	mock, ctx := mocktracer.New(t)
+	defer mock.Shutdown(t)
+	runner.HandleMatch(ctx, mock.Tracer("test"), "tenant-a", testTarget("my-cred"), 0)
 }
 
 func TestHandleMatch_CredentialRetrievalError(t *testing.T) {
 	k8s := fake.NewSimpleClientset(watchTargetCM())
-	runner := testRunner(k8s, &mockCredentialReader{err: fmt.Errorf("not found")}, &mockCloner{fs: helmFS(t)}, &mockRenderer{})
+	runner := testRunner(
+		k8s,
+		&mockCredentialReader{err: fmt.Errorf("not found")},
+		&mockCloner{fs: helmFS(t)},
+		&mockRenderer{},
+	)
 
-	runner.HandleMatch(t.Context(), "tenant-a", testTarget("my-cred"), 0)
+	mock, ctx := mocktracer.New(t)
+	defer mock.Shutdown(t)
+	runner.HandleMatch(ctx, mock.Tracer("test"), "tenant-a", testTarget("my-cred"), 0)
 }
 
 func TestHandleMatch_AuthenticateError(t *testing.T) {
 	k8s := fake.NewSimpleClientset(watchTargetCM())
-	runner := testRunner(k8s, &mockCredentialReader{cred: &mockCredential{err: fmt.Errorf("auth failed")}}, &mockCloner{fs: helmFS(t)}, &mockRenderer{})
+	runner := testRunner(
+		k8s,
+		&mockCredentialReader{cred: &mockCredential{err: fmt.Errorf("auth failed")}},
+		&mockCloner{fs: helmFS(t)},
+		&mockRenderer{},
+	)
 
-	runner.HandleMatch(t.Context(), "tenant-a", testTarget("my-cred"), 0)
+	mock, ctx := mocktracer.New(t)
+	defer mock.Shutdown(t)
+	runner.HandleMatch(ctx, mock.Tracer("test"), "tenant-a", testTarget("my-cred"), 0)
 }
 
 func TestHandleMatch_CloneError(t *testing.T) {
 	k8s := fake.NewSimpleClientset(watchTargetCM())
-	runner := testRunner(k8s, nil, &mockCloner{err: fmt.Errorf("clone failed")}, &mockRenderer{})
+	runner := testRunner(
+		k8s,
+		nil,
+		&mockCloner{err: fmt.Errorf("clone failed")},
+		&mockRenderer{},
+	)
 
-	runner.HandleMatch(t.Context(), "tenant-a", testTarget(""), 0)
+	mock, ctx := mocktracer.New(t)
+	defer mock.Shutdown(t)
+	runner.HandleMatch(ctx, mock.Tracer("test"), "tenant-a", testTarget(""), 0)
 }
 
 func TestHandleMatch_RendererNotConfigured(t *testing.T) {
 	k8s := fake.NewSimpleClientset(watchTargetCM())
 	fs := memfs.New()
-	if err := util.WriteFile(fs, "deploy/kustomization.yaml", []byte("resources: []"), 0o644); err != nil {
+	if err := util.WriteFile(
+		fs,
+		"deploy/kustomization.yaml",
+		[]byte("resources: []"),
+		0o644,
+	); err != nil {
 		t.Fatalf("writing kustomization.yaml: %v", err)
 	}
 
 	runner := testRunner(k8s, nil, &mockCloner{fs: fs}, &mockRenderer{})
 
-	runner.HandleMatch(t.Context(), "tenant-a", testTarget(""), 0)
+	mock, ctx := mocktracer.New(t)
+	defer mock.Shutdown(t)
+	runner.HandleMatch(ctx, mock.Tracer("test"), "tenant-a", testTarget(""), 0)
 }
 
 func TestHandleMatch_RenderError(t *testing.T) {
 	k8s := fake.NewSimpleClientset(watchTargetCM())
-	runner := testRunner(k8s, nil, &mockCloner{fs: helmFS(t)}, &mockRenderer{err: fmt.Errorf("render failed")})
+	runner := testRunner(
+		k8s,
+		nil,
+		&mockCloner{fs: helmFS(t)},
+		&mockRenderer{err: fmt.Errorf("render failed")},
+	)
 
-	runner.HandleMatch(t.Context(), "tenant-a", testTarget(""), 0)
+	mock, ctx := mocktracer.New(t)
+	defer mock.Shutdown(t)
+	runner.HandleMatch(ctx, mock.Tracer("test"), "tenant-a", testTarget(""), 0)
 }
 
 func TestHandleMatch_LeaseAcquisitionError(t *testing.T) {
 	k8s := fake.NewSimpleClientset()
 	runner := testRunner(k8s, nil, &mockCloner{fs: helmFS(t)}, &mockRenderer{})
 
-	runner.HandleMatch(t.Context(), "tenant-a", testTarget(""), 0)
+	mock, ctx := mocktracer.New(t)
+	defer mock.Shutdown(t)
+	runner.HandleMatch(ctx, mock.Tracer("test"), "tenant-a", testTarget(""), 0)
 }
 
 func TestHandleMatch_LeaseLost(t *testing.T) {
@@ -177,7 +241,9 @@ func TestHandleMatch_LeaseLost(t *testing.T) {
 	}
 	runner := testRunner(k8s, nil, clobberer, &mockRenderer{})
 
-	runner.HandleMatch(t.Context(), "tenant-a", testTarget(""), 0)
+	mock, ctx := mocktracer.New(t)
+	defer mock.Shutdown(t)
+	runner.HandleMatch(ctx, mock.Tracer("test"), "tenant-a", testTarget(""), 0)
 }
 
 type leaseStealingCloner struct {
@@ -185,7 +251,9 @@ type leaseStealingCloner struct {
 	k8sClient *fake.Clientset
 }
 
-func (c *leaseStealingCloner) Clone(ctx context.Context, _, _ string, _ transport.AuthMethod) (billy.Filesystem, error) {
+func (c *leaseStealingCloner) Clone(
+	ctx context.Context, _, _ string, _ transport.AuthMethod,
+) (billy.Filesystem, error) {
 	// After the clone "succeeds", another run steals the lease
 	err := configmap.AcquireLease(ctx, c.k8sClient, "tenant-a", "wt-1", "different-run", 0)
 	if err != nil {
@@ -205,19 +273,7 @@ func TestHandleMatch_LeaseCheckError(t *testing.T) {
 	}
 	runner := testRunner(k8s, nil, deleter, &mockRenderer{})
 
-	runner.HandleMatch(t.Context(), "tenant-a", testTarget(""), 0)
-}
-
-type configMapDeletingCloner struct {
-	fs        billy.Filesystem
-	k8sClient *fake.Clientset
-}
-
-func (c *configMapDeletingCloner) Clone(ctx context.Context, _, _ string, _ transport.AuthMethod) (billy.Filesystem, error) {
-	err := c.k8sClient.CoreV1().ConfigMaps("tenant-a").Delete(ctx, "wt-1", metav1.DeleteOptions{})
-	if err != nil {
-		return nil, fmt.Errorf("deleting configmap: %w", err)
-	}
-
-	return c.fs, nil
+	mock, ctx := mocktracer.New(t)
+	defer mock.Shutdown(t)
+	runner.HandleMatch(ctx, mock.Tracer("test"), "tenant-a", testTarget(""), 0)
 }

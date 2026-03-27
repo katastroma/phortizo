@@ -1,13 +1,13 @@
-// Lease operations for pipeline run ownership.
+// Lease operations for watch target processing ownership.
 //
 // Kubernetes provides a first-class Lease resource (coordination.k8s.io/v1)
 // for leader election and distributed locking. We use ConfigMap annotations
 // instead because the watch target ConfigMap already exists for the lifetime
-// of the watch target — its lifecycle is managed by tenant registration, not
-// the pipeline. Storing lease state as annotations avoids creating and
-// garbage-collecting a separate Lease resource per watch target per pipeline
-// run. The ConfigMap's resourceVersion provides optimistic concurrency for
-// free.
+// of the watch target — its lifecycle is managed by tenant onboarding, not
+// the watch target processor. Storing lease state as annotations avoids
+// creating and garbage-collecting a separate Lease resource per watch target
+// per processing instance. The ConfigMap's resourceVersion provides optimistic
+// concurrency for free.
 
 //revive:disable:package-comments
 package configmap
@@ -23,21 +23,23 @@ import (
 )
 
 const (
-	// LeaseRunIDAnnotation is the run ID that currently owns the watch target.
-	LeaseRunIDAnnotation = "katastroma.org/active-run-id"
+	// WatchTargetLeaseIDAnnotation identifies which processing instance
+	// currently owns the watch target.
+	WatchTargetLeaseIDAnnotation = "katastroma.org/watch-target-lease-id"
 
-	// LeaseStartedAnnotation is the timestamp when the lease was acquired.
-	LeaseStartedAnnotation = "katastroma.org/active-run-started"
+	// WatchTargetLeaseStartedAnnotation is the timestamp when the lease was acquired.
+	WatchTargetLeaseStartedAnnotation = "katastroma.org/watch-target-lease-started"
 
-	// LeaseReplayCountAnnotation tracks how many times this run ID has been replayed.
-	LeaseReplayCountAnnotation = "katastroma.org/active-run-replay-count"
+	// WatchTargetLeaseReplayCountAnnotation tracks how many times this event
+	// has been replayed for this watch target.
+	WatchTargetLeaseReplayCountAnnotation = "katastroma.org/watch-target-lease-replay-count"
 )
 
 // Lease represents the current lease state on a watch target ConfigMap.
 type Lease struct {
-	RunID       string
-	Started     time.Time
-	ReplayCount int
+	WatchTargetLeaseID string
+	Started            time.Time
+	ReplayCount        int
 }
 
 // AcquireLease attempts to take ownership of a watch target ConfigMap. Uses
@@ -46,7 +48,7 @@ func AcquireLease(
 	ctx context.Context,
 	client kubernetes.Interface,
 	namespace, name string,
-	runID string,
+	watchTargetLeaseID string,
 	replayCount int,
 ) error {
 	configmaps := client.CoreV1().ConfigMaps(namespace)
@@ -60,9 +62,9 @@ func AcquireLease(
 		cm.Annotations = make(map[string]string)
 	}
 
-	cm.Annotations[LeaseRunIDAnnotation] = runID
-	cm.Annotations[LeaseStartedAnnotation] = time.Now().UTC().Format(time.RFC3339)
-	cm.Annotations[LeaseReplayCountAnnotation] = strconv.Itoa(replayCount)
+	cm.Annotations[WatchTargetLeaseIDAnnotation] = watchTargetLeaseID
+	cm.Annotations[WatchTargetLeaseStartedAnnotation] = time.Now().UTC().Format(time.RFC3339)
+	cm.Annotations[WatchTargetLeaseReplayCountAnnotation] = strconv.Itoa(replayCount)
 
 	_, err = configmaps.Update(ctx, cm, metav1.UpdateOptions{})
 	if err != nil {
@@ -102,9 +104,9 @@ func ReleaseLease(
 		return fmt.Errorf("reading configmap %s/%s: %w", namespace, name, err)
 	}
 
-	delete(cm.Annotations, LeaseRunIDAnnotation)
-	delete(cm.Annotations, LeaseStartedAnnotation)
-	delete(cm.Annotations, LeaseReplayCountAnnotation)
+	delete(cm.Annotations, WatchTargetLeaseIDAnnotation)
+	delete(cm.Annotations, WatchTargetLeaseStartedAnnotation)
+	delete(cm.Annotations, WatchTargetLeaseReplayCountAnnotation)
 
 	_, err = configmaps.Update(ctx, cm, metav1.UpdateOptions{})
 	if err != nil {
@@ -114,24 +116,24 @@ func ReleaseLease(
 	return nil
 }
 
-// HoldsLease checks if the given run ID currently holds the lease.
+// HoldsLease checks if the given watch target lease ID currently holds the lease.
 func HoldsLease(
 	ctx context.Context,
 	client kubernetes.Interface,
 	namespace, name string,
-	runID string,
+	watchTargetLeaseID string,
 ) (bool, error) {
 	lease, err := ReadLease(ctx, client, namespace, name)
 	if err != nil {
 		return false, err
 	}
 
-	return lease.RunID == runID, nil
+	return lease.WatchTargetLeaseID == watchTargetLeaseID, nil
 }
 
 // IsLeaseActive checks if a lease is held and not stale.
 func (l Lease) IsLeaseActive(staleAfter time.Duration) bool {
-	if l.RunID == "" {
+	if l.WatchTargetLeaseID == "" {
 		return false
 	}
 
@@ -139,21 +141,21 @@ func (l Lease) IsLeaseActive(staleAfter time.Duration) bool {
 }
 
 func parseLease(annotations map[string]string) Lease {
-	runID := annotations[LeaseRunIDAnnotation]
-	if runID == "" {
+	watchTargetLeaseID := annotations[WatchTargetLeaseIDAnnotation]
+	if watchTargetLeaseID == "" {
 		return Lease{}
 	}
 
-	started, err := time.Parse(time.RFC3339, annotations[LeaseStartedAnnotation])
+	started, err := time.Parse(time.RFC3339, annotations[WatchTargetLeaseStartedAnnotation])
 	if err != nil {
 		return Lease{}
 	}
 
-	replayCount, _ := strconv.Atoi(annotations[LeaseReplayCountAnnotation])
+	replayCount, _ := strconv.Atoi(annotations[WatchTargetLeaseReplayCountAnnotation])
 
 	return Lease{
-		RunID:       runID,
-		Started:     started,
-		ReplayCount: replayCount,
+		WatchTargetLeaseID: watchTargetLeaseID,
+		Started:            started,
+		ReplayCount:        replayCount,
 	}
 }

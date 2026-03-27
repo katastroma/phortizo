@@ -13,16 +13,16 @@ import (
 
 	pb "github.com/katastroma/naukleros"
 	"github.com/katastroma/phortizo/internal/k8s/configmap"
-	"github.com/katastroma/phortizo/internal/tracequery"
+	"github.com/katastroma/phortizo/internal/tracing"
 )
 
-type stubQuerier struct {
-	attrs tracequery.Attributes
+type stubTracer struct {
+	trace tracing.Trace
 	err   error
 }
 
-func (q *stubQuerier) SpanAttributes(_ context.Context, _, _ string) (tracequery.Attributes, error) {
-	return q.attrs, q.err
+func (q *stubTracer) GetTrace(_ context.Context, _ string) (tracing.Trace, error) {
+	return q.trace, q.err
 }
 
 func retrieveWatchTargetCM() *corev1.ConfigMap {

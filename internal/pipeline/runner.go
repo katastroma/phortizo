@@ -8,18 +8,11 @@ import (
 
 	"github.com/go-git/go-billy/v5"
 	"github.com/go-git/go-git/v5/plumbing/transport"
-	"go.opentelemetry.io/otel"
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/katastroma/phortizo/internal/auth"
 	"github.com/katastroma/phortizo/internal/source"
 )
-
-var tracer = otel.Tracer("pipeline")
-
-// SpanName is the OTel span name used by the pipeline run. The retriever
-// uses this to query trace attributes for replay.
-const SpanName = "pipeline.run"
 
 // CredentialReader reads credentials from a tenant namespace.
 type CredentialReader interface {

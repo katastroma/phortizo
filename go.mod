@@ -4,13 +4,14 @@ go 1.26.1
 
 require (
 	git.sonicoriginal.software/grpc-foundation v0.0.0-20251130150656-52d9c12e9e25
+	git.sonicoriginal.software/grpc-testing v0.0.0-20260327164641-a55941c81897
 	github.com/go-git/go-billy/v5 v5.8.0
 	github.com/go-git/go-git/v5 v5.17.0
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/google/go-github/v84 v84.0.0
 	github.com/grafana/tempo v1.5.0
-	github.com/katastroma/keleustes v0.4.0
-	github.com/katastroma/naukleros v0.4.0
+	github.com/katastroma/keleustes v0.4.2
+	github.com/katastroma/naukleros v0.4.3
 	go.opentelemetry.io/otel v1.42.0
 	go.opentelemetry.io/otel/trace v1.42.0
 	google.golang.org/grpc v1.79.3
@@ -66,7 +67,7 @@ require (
 	github.com/pjbgf/sha1cd v0.5.0 // indirect
 	github.com/sergi/go-diff v1.4.0 // indirect
 	github.com/skeema/knownhosts v1.3.2 // indirect
-	github.com/spf13/pflag v1.0.9 // indirect
+	github.com/spf13/pflag v1.0.10 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	github.com/xanzy/ssh-agent v0.3.3 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect

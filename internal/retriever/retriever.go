@@ -12,14 +12,14 @@ import (
 	pb "github.com/katastroma/naukleros"
 	"github.com/katastroma/phortizo/internal/k8s/configmap"
 	"github.com/katastroma/phortizo/internal/match"
-	"github.com/katastroma/phortizo/internal/tracequery"
+	"github.com/katastroma/phortizo/internal/tracing"
 )
 
 // Retriever implements the naukleros RetrieverService gRPC interface
 type Retriever struct {
 	pb.UnimplementedRetrieverServiceServer
 	log              *slog.Logger
-	traces           tracequery.Querier
+	tracer           tracing.Tracer
 	runner           match.Handler
 	k8sClient        kubernetes.Interface
 	leaseStaleAfter  time.Duration
@@ -29,7 +29,7 @@ type Retriever struct {
 // New creates a RetrieverService handler
 func New(
 	log *slog.Logger,
-	traces tracequery.Querier,
+	tracer tracing.Tracer,
 	runner match.Handler,
 	k8sClient kubernetes.Interface,
 	leaseStaleAfter time.Duration,
@@ -37,7 +37,7 @@ func New(
 ) *Retriever {
 	return &Retriever{
 		log:              log,
-		traces:           traces,
+		tracer:           tracer,
 		runner:           runner,
 		k8sClient:        k8sClient,
 		leaseStaleAfter:  leaseStaleAfter,
@@ -57,7 +57,8 @@ func (r *Retriever) Retrieve(ctx context.Context, req *pb.RetrieveRequest) (*pb.
 		return nil, fmt.Errorf("reading watch target %s/%s: %w", namespace, watchTargetID, err)
 	}
 
-	r.runner.HandleMatch(ctx, namespace, target, 0)
+	ctx, tracer := tracing.StartEvent(ctx, tracing.EventTypeManual, namespace)
+	r.runner.HandleMatch(ctx, tracer, namespace, target, 0)
 
 	return &pb.RetrieveResponse{}, nil
 }

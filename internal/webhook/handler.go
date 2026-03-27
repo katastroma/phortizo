@@ -4,13 +4,10 @@ package webhook
 import (
 	"log/slog"
 
-	"go.opentelemetry.io/otel"
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/katastroma/phortizo/internal/match"
 )
-
-var tracer = otel.Tracer("webhook")
 
 // Handler receives GitHub push webhooks, verifies their signature, matches
 // watch targets, and dispatches matched targets for processing.

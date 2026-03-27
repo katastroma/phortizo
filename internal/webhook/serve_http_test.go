@@ -13,6 +13,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"go.opentelemetry.io/otel/trace"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -82,7 +83,9 @@ type mockHandler struct {
 	calls []onboarding.WatchTarget
 }
 
-func (m *mockHandler) HandleMatch(_ context.Context, _ string, r onboarding.WatchTarget, _ int) {
+func (m *mockHandler) HandleMatch(
+	_ context.Context, _ trace.Tracer, _ string, r onboarding.WatchTarget, _ int,
+) {
 	m.calls = append(m.calls, r)
 }
 
@@ -100,14 +103,16 @@ func TestServeHTTP_MissingNamespace(t *testing.T) {
 }
 
 func TestServeHTTP_WatchTargetsError(t *testing.T) {
-	k8s := fake.NewSimpleClientset()
-	k8s.PrependReactor("list", "configmaps", func(clienttesting.Action) (bool, runtime.Object, error) {
-		return true, nil, fmt.Errorf("list denied")
-	})
+	k8s := fake.NewSimpleClientset(webhookSecret())
+	k8s.PrependReactor(
+		"list", "configmaps",
+		func(clienttesting.Action) (bool, runtime.Object, error) {
+			return true, nil, fmt.Errorf("list denied")
+		},
+	)
 	handler := webhook.New(slog.Default(), nil, k8s)
 
-	req := httptest.NewRequest(http.MethodPost, "/webhook/{namespace}", nil)
-	req.SetPathValue("namespace", testNamespace)
+	req := pushRequest(validPayload())
 	rec := httptest.NewRecorder()
 
 	handler.ServeHTTP(rec, req)

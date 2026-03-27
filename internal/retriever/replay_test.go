@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"go.opentelemetry.io/otel/trace"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
@@ -15,7 +16,7 @@ import (
 	pb "github.com/katastroma/naukleros"
 	"github.com/katastroma/phortizo/internal/k8s/configmap"
 	"github.com/katastroma/phortizo/internal/onboarding"
-	"github.com/katastroma/phortizo/internal/tracequery"
+	"github.com/katastroma/phortizo/internal/tracing"
 )
 
 type mockHandler struct {
@@ -24,19 +25,29 @@ type mockHandler struct {
 	replayCount int
 }
 
-func (m *mockHandler) HandleMatch(_ context.Context, namespace string, target onboarding.WatchTarget, replayCount int) {
+func (m *mockHandler) HandleMatch(
+	_ context.Context,
+	_ trace.Tracer,
+	namespace string,
+	target onboarding.WatchTarget,
+	replayCount int,
+) {
 	m.namespace = namespace
 	m.replayCount = replayCount
 	m.calls = append(m.calls, target)
 }
 
-func replayAttrs() tracequery.Attributes {
-	return tracequery.Attributes{
-		"tenant":                "tenant-a",
-		"watch_target.name":     "wt-1",
-		"watch_target.repo_url": "https://github.com/acme/app.git",
-		"watch_target.ref":      "refs/heads/main",
-		"watch_target.path":     "deploy/",
+func replayTrace() tracing.Trace {
+	return tracing.Trace{
+		tracing.EventSpanName: {{tracing.TenantAttribute: "tenant-a"}},
+		tracing.WatchTargetSpanName: {
+			{
+				tracing.WatchTargetNameAttribute:    "wt-1",
+				tracing.WatchTargetRepoURLAttribute: "https://github.com/acme/app.git",
+				tracing.WatchTargetRefAttribute:     "refs/heads/main",
+				tracing.WatchTargetPathAttribute:    "deploy/",
+			},
+		},
 	}
 }
 
@@ -45,7 +56,9 @@ func watchTargetCM() *corev1.ConfigMap {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "wt-1",
 			Namespace: "tenant-a",
-			Labels:    map[string]string{configmap.TypeLabel: configmap.WatchTargetType},
+			Labels: map[string]string{
+				configmap.TypeLabel: configmap.WatchTargetType,
+			},
 		},
 		Data: map[string]string{
 			"repo-url": "https://github.com/acme/app.git",
@@ -58,9 +71,9 @@ func watchTargetCM() *corev1.ConfigMap {
 func TestReplay(t *testing.T) {
 	k8s := fake.NewSimpleClientset(watchTargetCM())
 	runner := &mockHandler{}
-	handler := New(slog.Default(), &stubQuerier{attrs: replayAttrs()}, runner, k8s, 10*time.Minute, 3)
+	handler := New(slog.Default(), &stubTracer{trace: replayTrace()}, runner, k8s, 10*time.Minute, 3)
 
-	resp, err := handler.Replay(t.Context(), &pb.ReplayRequest{RunId: "trace-123"})
+	resp, err := handler.Replay(t.Context(), &pb.ReplayRequest{EventId: "trace-123"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -74,11 +87,15 @@ func TestReplay(t *testing.T) {
 	}
 
 	if runner.namespace != "tenant-a" {
-		t.Errorf("namespace = %q, want %q", runner.namespace, "tenant-a")
+		t.Errorf(
+			"namespace = %q, want %q",
+			runner.namespace, "tenant-a",
+		)
 	}
 
-	if runner.calls[0].RepoURL != "https://github.com/acme/app.git" {
-		t.Errorf("RepoURL = %q, want %q", runner.calls[0].RepoURL, "https://github.com/acme/app.git")
+	want := "https://github.com/acme/app.git"
+	if runner.calls[0].RepoURL != want {
+		t.Errorf("RepoURL = %q, want %q", runner.calls[0].RepoURL, want)
 	}
 
 	if runner.replayCount != 1 {
@@ -89,15 +106,15 @@ func TestReplay(t *testing.T) {
 func TestReplay_ActiveLease(t *testing.T) {
 	cm := watchTargetCM()
 	cm.Annotations = map[string]string{
-		configmap.LeaseRunIDAnnotation:       "other-run",
-		configmap.LeaseStartedAnnotation:     time.Now().UTC().Format(time.RFC3339),
-		configmap.LeaseReplayCountAnnotation: "0",
+		configmap.WatchTargetLeaseIDAnnotation:          "other-lease",
+		configmap.WatchTargetLeaseStartedAnnotation:     time.Now().UTC().Format(time.RFC3339),
+		configmap.WatchTargetLeaseReplayCountAnnotation: "0",
 	}
 	k8s := fake.NewSimpleClientset(cm)
 	runner := &mockHandler{}
-	handler := New(slog.Default(), &stubQuerier{attrs: replayAttrs()}, runner, k8s, 10*time.Minute, 3)
+	handler := New(slog.Default(), &stubTracer{trace: replayTrace()}, runner, k8s, 10*time.Minute, 3)
 
-	resp, err := handler.Replay(t.Context(), &pb.ReplayRequest{RunId: "trace-123"})
+	resp, err := handler.Replay(t.Context(), &pb.ReplayRequest{EventId: "trace-123"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -113,16 +130,17 @@ func TestReplay_ActiveLease(t *testing.T) {
 
 func TestReplay_StaleLease(t *testing.T) {
 	cm := watchTargetCM()
+	staleTime := time.Now().Add(-20 * time.Minute)
 	cm.Annotations = map[string]string{
-		configmap.LeaseRunIDAnnotation:       "old-run",
-		configmap.LeaseStartedAnnotation:     time.Now().Add(-20 * time.Minute).UTC().Format(time.RFC3339),
-		configmap.LeaseReplayCountAnnotation: "0",
+		configmap.WatchTargetLeaseIDAnnotation:          "old-lease",
+		configmap.WatchTargetLeaseStartedAnnotation:     staleTime.UTC().Format(time.RFC3339),
+		configmap.WatchTargetLeaseReplayCountAnnotation: "0",
 	}
 	k8s := fake.NewSimpleClientset(cm)
 	runner := &mockHandler{}
-	handler := New(slog.Default(), &stubQuerier{attrs: replayAttrs()}, runner, k8s, 10*time.Minute, 3)
+	handler := New(slog.Default(), &stubTracer{trace: replayTrace()}, runner, k8s, 10*time.Minute, 3)
 
-	resp, err := handler.Replay(t.Context(), &pb.ReplayRequest{RunId: "trace-123"})
+	resp, err := handler.Replay(t.Context(), &pb.ReplayRequest{EventId: "trace-123"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -138,90 +156,119 @@ func TestReplay_StaleLease(t *testing.T) {
 
 func TestReplay_MaxReplayAttempts(t *testing.T) {
 	cm := watchTargetCM()
+	staleTime := time.Now().Add(-20 * time.Minute)
 	cm.Annotations = map[string]string{
-		configmap.LeaseRunIDAnnotation:       "old-run",
-		configmap.LeaseStartedAnnotation:     time.Now().Add(-20 * time.Minute).UTC().Format(time.RFC3339),
-		configmap.LeaseReplayCountAnnotation: "3",
+		configmap.WatchTargetLeaseIDAnnotation:          "old-lease",
+		configmap.WatchTargetLeaseStartedAnnotation:     staleTime.UTC().Format(time.RFC3339),
+		configmap.WatchTargetLeaseReplayCountAnnotation: "3",
 	}
 	k8s := fake.NewSimpleClientset(cm)
-	handler := New(slog.Default(), &stubQuerier{attrs: replayAttrs()}, nil, k8s, 10*time.Minute, 3)
+	handler := New(slog.Default(), &stubTracer{trace: replayTrace()}, nil, k8s, 10*time.Minute, 3)
 
-	_, err := handler.Replay(t.Context(), &pb.ReplayRequest{RunId: "trace-123"})
+	_, err := handler.Replay(t.Context(), &pb.ReplayRequest{EventId: "trace-123"})
 	if err == nil {
 		t.Fatal("expected error for max replay attempts")
 	}
 }
 
 func TestReplay_TraceQueryError(t *testing.T) {
-	handler := New(slog.Default(), &stubQuerier{err: fmt.Errorf("tempo unavailable")}, nil, nil, 10*time.Minute, 3)
+	st := &stubTracer{err: fmt.Errorf("tempo unavailable")}
+	handler := New(slog.Default(), st, nil, nil, 10*time.Minute, 3)
 
-	_, err := handler.Replay(t.Context(), &pb.ReplayRequest{RunId: "trace-123"})
-	if err == nil {
+	if _, err := handler.Replay(t.Context(), &pb.ReplayRequest{EventId: "trace-123"}); err == nil {
 		t.Fatal("expected error when trace query fails")
 	}
 }
 
-func TestReplay_MissingTenant(t *testing.T) {
-	attrs := replayAttrs()
-	delete(attrs, "tenant")
-	handler := New(slog.Default(), &stubQuerier{attrs: attrs}, nil, nil, 10*time.Minute, 3)
+func TestReplay_NoEventSpan(t *testing.T) {
+	tr := tracing.Trace{tracing.WatchTargetSpanName: {{tracing.WatchTargetNameAttribute: "wt-1"}}}
+	handler := New(slog.Default(), &stubTracer{trace: tr}, nil, nil, 10*time.Minute, 3)
 
-	_, err := handler.Replay(t.Context(), &pb.ReplayRequest{RunId: "trace-123"})
-	if err == nil {
+	if _, err := handler.Replay(t.Context(), &pb.ReplayRequest{EventId: "trace-123"}); err == nil {
+		t.Fatal("expected error for missing event span")
+	}
+}
+
+func TestReplay_MissingTenant(t *testing.T) {
+	tr := tracing.Trace{
+		tracing.EventSpanName:       {{}},
+		tracing.WatchTargetSpanName: {{tracing.WatchTargetNameAttribute: "wt-1"}},
+	}
+	handler := New(slog.Default(), &stubTracer{trace: tr}, nil, nil, 10*time.Minute, 3)
+
+	if _, err := handler.Replay(t.Context(), &pb.ReplayRequest{EventId: "trace-123"}); err == nil {
 		t.Fatal("expected error for missing tenant attribute")
 	}
 }
 
 func TestReplay_MissingName(t *testing.T) {
-	attrs := replayAttrs()
-	delete(attrs, "watch_target.name")
-	handler := New(slog.Default(), &stubQuerier{attrs: attrs}, nil, nil, 10*time.Minute, 3)
+	tr := tracing.Trace{
+		tracing.EventSpanName:       {{tracing.TenantAttribute: "tenant-a"}},
+		tracing.WatchTargetSpanName: {{}},
+	}
+	k8s := fake.NewSimpleClientset(watchTargetCM())
+	handler := New(slog.Default(), &stubTracer{trace: tr}, nil, k8s, 10*time.Minute, 3)
 
-	_, err := handler.Replay(t.Context(), &pb.ReplayRequest{RunId: "trace-123"})
-	if err == nil {
+	if _, err := handler.Replay(t.Context(), &pb.ReplayRequest{EventId: "trace-123"}); err == nil {
 		t.Fatal("expected error for missing name attribute")
 	}
 }
 
 func TestReplay_MissingRepoURL(t *testing.T) {
-	attrs := replayAttrs()
-	delete(attrs, "watch_target.repo_url")
-	handler := New(slog.Default(), &stubQuerier{attrs: attrs}, nil, nil, 10*time.Minute, 3)
+	tr := tracing.Trace{
+		tracing.EventSpanName:       {{tracing.TenantAttribute: "tenant-a"}},
+		tracing.WatchTargetSpanName: {{tracing.WatchTargetNameAttribute: "wt-1"}},
+	}
+	k8s := fake.NewSimpleClientset(watchTargetCM())
+	handler := New(slog.Default(), &stubTracer{trace: tr}, nil, k8s, 10*time.Minute, 3)
 
-	_, err := handler.Replay(t.Context(), &pb.ReplayRequest{RunId: "trace-123"})
-	if err == nil {
+	if _, err := handler.Replay(t.Context(), &pb.ReplayRequest{EventId: "trace-123"}); err == nil {
 		t.Fatal("expected error for missing repo_url attribute")
 	}
 }
 
 func TestReplay_MissingRef(t *testing.T) {
-	attrs := replayAttrs()
-	delete(attrs, "watch_target.ref")
-	handler := New(slog.Default(), &stubQuerier{attrs: attrs}, nil, nil, 10*time.Minute, 3)
+	tr := tracing.Trace{
+		tracing.EventSpanName: {{tracing.TenantAttribute: "tenant-a"}},
+		tracing.WatchTargetSpanName: {
+			{
+				tracing.WatchTargetNameAttribute:    "wt-1",
+				tracing.WatchTargetRepoURLAttribute: "https://github.com/acme/app.git",
+			},
+		},
+	}
+	k8s := fake.NewSimpleClientset(watchTargetCM())
+	handler := New(slog.Default(), &stubTracer{trace: tr}, nil, k8s, 10*time.Minute, 3)
 
-	_, err := handler.Replay(t.Context(), &pb.ReplayRequest{RunId: "trace-123"})
-	if err == nil {
+	if _, err := handler.Replay(t.Context(), &pb.ReplayRequest{EventId: "trace-123"}); err == nil {
 		t.Fatal("expected error for missing ref attribute")
 	}
 }
 
 func TestReplay_MissingPath(t *testing.T) {
-	attrs := replayAttrs()
-	delete(attrs, "watch_target.path")
-	handler := New(slog.Default(), &stubQuerier{attrs: attrs}, nil, nil, 10*time.Minute, 3)
+	tr := tracing.Trace{
+		tracing.EventSpanName: {{tracing.TenantAttribute: "tenant-a"}},
+		tracing.WatchTargetSpanName: {
+			{
+				tracing.WatchTargetNameAttribute:    "wt-1",
+				tracing.WatchTargetRepoURLAttribute: "https://github.com/acme/app.git",
+				tracing.WatchTargetRefAttribute:     "refs/heads/main",
+			},
+		},
+	}
+	k8s := fake.NewSimpleClientset(watchTargetCM())
+	handler := New(slog.Default(), &stubTracer{trace: tr}, nil, k8s, 10*time.Minute, 3)
 
-	_, err := handler.Replay(t.Context(), &pb.ReplayRequest{RunId: "trace-123"})
-	if err == nil {
+	if _, err := handler.Replay(t.Context(), &pb.ReplayRequest{EventId: "trace-123"}); err == nil {
 		t.Fatal("expected error for missing path attribute")
 	}
 }
 
 func TestReplay_LeaseReadError(t *testing.T) {
 	k8s := fake.NewSimpleClientset()
-	handler := New(slog.Default(), &stubQuerier{attrs: replayAttrs()}, nil, k8s, 10*time.Minute, 3)
+	handler := New(slog.Default(), &stubTracer{trace: replayTrace()}, nil, k8s, 10*time.Minute, 3)
 
-	_, err := handler.Replay(t.Context(), &pb.ReplayRequest{RunId: "trace-123"})
-	if err == nil {
+	if _, err := handler.Replay(t.Context(), &pb.ReplayRequest{EventId: "trace-123"}); err == nil {
 		t.Fatal("expected error when configmap not found")
 	}
 }

@@ -40,8 +40,8 @@ import (
 	"github.com/katastroma/phortizo/internal/render"
 	"github.com/katastroma/phortizo/internal/retriever"
 	"github.com/katastroma/phortizo/internal/source"
-	"github.com/katastroma/phortizo/internal/tracequery"
-	tempoQuerier "github.com/katastroma/phortizo/internal/tracequery/tempo"
+	"github.com/katastroma/phortizo/internal/tracing"
+	tempoTracer "github.com/katastroma/phortizo/internal/tracing/tempo"
 	"github.com/katastroma/phortizo/internal/webhook"
 )
 
@@ -171,7 +171,7 @@ func main() {
 	healthpb.RegisterHealthServer(grpcServer, healthServer)
 
 	// Trace querier — connects to Tempo for replay support
-	var traceQuerier tracequery.Querier
+	var traceQuerier tracing.Tracer
 	if tempoAddr := os.Getenv("TEMPO_ADDRESS"); tempoAddr != "" {
 		tempoConn, err := grpc.NewClient(
 			tempoAddr,
@@ -184,7 +184,7 @@ func main() {
 		defer tempoConn.Close()
 
 		qc := tempopb.NewQuerierClient(tempoConn)
-		traceQuerier = tempoQuerier.New(qc)
+		traceQuerier = tempoTracer.New(qc)
 	}
 
 	retrieverServer := retriever.New(log, traceQuerier, runner, k8sClient, leaseStaleAfter, maxReplayAttempts)

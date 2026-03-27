@@ -9,24 +9,23 @@ import (
 	"github.com/grafana/tempo/pkg/tempopb"
 	commonv1 "github.com/grafana/tempo/pkg/tempopb/common/v1"
 
-	"github.com/katastroma/phortizo/internal/tracequery"
+	"github.com/katastroma/phortizo/internal/tracing"
 )
 
-var _ tracequery.Querier = (*Querier)(nil)
+var _ tracing.Tracer = (*Tracer)(nil)
 
-// Querier queries Tempo for span attributes via gRPC.
-type Querier struct {
+// Tracer queries Tempo for trace data via gRPC.
+type Tracer struct {
 	client tempopb.QuerierClient
 }
 
 // New creates a Tempo trace querier.
-func New(client tempopb.QuerierClient) *Querier {
-	return &Querier{client: client}
+func New(client tempopb.QuerierClient) *Tracer {
+	return &Tracer{client: client}
 }
 
-// SpanAttributes retrieves attributes from the named span within the given
-// trace.
-func (q *Querier) SpanAttributes(ctx context.Context, traceID string, spanName string) (tracequery.Attributes, error) {
+// GetTrace retrieves the full trace and returns all spans grouped by name.
+func (q *Tracer) GetTrace(ctx context.Context, traceID string) (tracing.Trace, error) {
 	traceIDBytes, err := hex.DecodeString(traceID)
 	if err != nil {
 		return nil, fmt.Errorf("decoding trace ID %q: %w", traceID, err)
@@ -43,28 +42,29 @@ func (q *Querier) SpanAttributes(ctx context.Context, traceID string, spanName s
 		return nil, fmt.Errorf("trace %s not found", traceID)
 	}
 
-	return findSpanAttributes(resp.Trace, spanName)
+	return groupSpansByName(resp.Trace), nil
 }
 
-func findSpanAttributes(trace *tempopb.Trace, spanName string) (tracequery.Attributes, error) {
+func groupSpansByName(trace *tempopb.Trace) tracing.Trace {
+	result := make(tracing.Trace)
 	for _, batch := range trace.Batches {
 		for _, ils := range batch.InstrumentationLibrarySpans {
 			for _, span := range ils.Spans {
-				if span.Name == spanName {
-					return extractAttributes(span.Attributes), nil
-				}
+				result[span.Name] = append(result[span.Name], extractAttributes(span.Attributes))
 			}
 		}
 	}
-	return nil, fmt.Errorf("span %q not found in trace", spanName)
+
+	return result
 }
 
-func extractAttributes(kvs []*commonv1.KeyValue) tracequery.Attributes {
-	attrs := make(tracequery.Attributes, len(kvs))
+func extractAttributes(kvs []*commonv1.KeyValue) tracing.Attributes {
+	attrs := make(tracing.Attributes, len(kvs))
 	for _, kv := range kvs {
 		if kv.Value != nil && kv.Value.GetStringValue() != "" {
 			attrs[kv.Key] = kv.Value.GetStringValue()
 		}
 	}
+
 	return attrs
 }
