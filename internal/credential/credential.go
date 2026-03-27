@@ -12,3 +12,8 @@ import (
 type Authenticator interface {
 	Authenticate(ctx context.Context, httpClient *http.Client) (transport.AuthMethod, error)
 }
+
+// Reader reads credentials from a tenant namespace.
+type Reader interface {
+	Get(ctx context.Context, namespace, name string) (Authenticator, error)
+}

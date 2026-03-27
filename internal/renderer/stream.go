@@ -13,9 +13,9 @@ import (
 	pb "github.com/katastroma/keleustes"
 )
 
-// Stream opens a Render stream on the client and sends the source content
+// stream opens a Render stream on the client and sends the source content
 // from the filesystem at root. It closes the send side when done.
-func Stream(ctx context.Context, client pb.RendererServiceClient, fs billy.Filesystem, root string) error {
+func stream(ctx context.Context, client pb.RendererServiceClient, fs billy.Filesystem, root string) error {
 	stream, err := client.Render(ctx)
 	if err != nil {
 		return fmt.Errorf("opening render stream: %w", err)

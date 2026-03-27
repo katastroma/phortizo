@@ -63,7 +63,7 @@ func (r *Runner) HandleMatch(
 		return
 	}
 
-	rendererType := renderer.DetectRenderer(fs, m.Path)
+	rendererType := renderer.Detect(fs, m.Path)
 	rendererAddr, ok := r.renderers[rendererType]
 	if !ok {
 		err = fmt.Errorf("no renderer configured for type %q", rendererType)
@@ -82,7 +82,7 @@ func (r *Runner) HandleMatch(
 		return
 	}
 
-	if err = r.renderer.Render(ctx, fs, m.Path, rendererAddr); err != nil {
+	if err = r.renderer.Stream(ctx, fs, m.Path, rendererAddr); err != nil {
 		r.fail(ctx, span, namespace, "streaming to renderer failed", err, "renderer", string(rendererType))
 		return
 	}

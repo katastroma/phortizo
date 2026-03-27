@@ -2,32 +2,15 @@
 package pipeline
 
 import (
-	"context"
 	"log/slog"
 	"net/http"
 
-	"github.com/go-git/go-billy/v5"
-	"github.com/go-git/go-git/v5/plumbing/transport"
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/katastroma/phortizo/internal/credential"
+	"github.com/katastroma/phortizo/internal/git"
 	"github.com/katastroma/phortizo/internal/renderer"
 )
-
-// CredentialReader reads credentials from a tenant namespace.
-type CredentialReader interface {
-	Get(ctx context.Context, namespace, name string) (credential.Authenticator, error)
-}
-
-// Cloner performs a git clone and returns the worktree filesystem.
-type Cloner interface {
-	Clone(ctx context.Context, url, ref string, auth transport.AuthMethod) (billy.Filesystem, error)
-}
-
-// Renderer streams source content to a renderer service.
-type Renderer interface {
-	Render(ctx context.Context, fs billy.Filesystem, path, addr string) error
-}
 
 // Runner orchestrates the pipeline for a matched webhook event: resolve
 // credentials, clone, inspect, and stream to the renderer.
@@ -35,9 +18,9 @@ type Runner struct {
 	log         *slog.Logger
 	httpClient  *http.Client
 	renderers   map[renderer.Type]string
-	credentials CredentialReader
-	cloner      Cloner
-	renderer    Renderer
+	credentials credential.Reader
+	cloner      git.Cloner
+	renderer    renderer.Streamer
 	k8sClient   kubernetes.Interface
 }
 
@@ -46,9 +29,9 @@ func New(
 	log *slog.Logger,
 	httpClient *http.Client,
 	renderers map[renderer.Type]string,
-	credentials CredentialReader,
-	cloner Cloner,
-	renderer Renderer,
+	credentials credential.Reader,
+	cloner git.Cloner,
+	renderer renderer.Streamer,
 	k8sClient kubernetes.Interface,
 ) *Runner {
 	return &Runner{

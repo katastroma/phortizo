@@ -144,8 +144,8 @@ func main() {
 		http.DefaultClient,
 		renderers,
 		credentialReader,
-		git.Cloner{},
-		renderer.Renderer{},
+		git.Client{},
+		renderer.Client{},
 		k8sClient,
 	)
 

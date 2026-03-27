@@ -17,6 +17,7 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 
 	"github.com/katastroma/phortizo/internal/credential"
+	"github.com/katastroma/phortizo/internal/git"
 	"github.com/katastroma/phortizo/internal/k8s/configmap"
 	"github.com/katastroma/phortizo/internal/pipeline"
 	"github.com/katastroma/phortizo/internal/renderer"
@@ -72,7 +73,7 @@ type mockRenderer struct {
 	err error
 }
 
-func (m *mockRenderer) Render(context.Context, billy.Filesystem, string, string) error {
+func (m *mockRenderer) Stream(context.Context, billy.Filesystem, string, string) error {
 	return m.err
 }
 
@@ -103,14 +104,19 @@ func watchTargetCM() *corev1.ConfigMap {
 
 func testRunner(
 	k8sClient *fake.Clientset,
-	credentials pipeline.CredentialReader,
-	cloner pipeline.Cloner,
-	r pipeline.Renderer,
+	credentials credential.Reader,
+	cloner git.Cloner,
+	r renderer.Streamer,
 ) *pipeline.Runner {
 	renderers := map[renderer.Type]string{renderer.Helm: "helm-renderer:8080"}
-
 	return pipeline.New(
-		slog.Default(), http.DefaultClient, renderers, credentials, cloner, r, k8sClient)
+		slog.Default(),
+		http.DefaultClient,
+		renderers, credentials,
+		cloner,
+		r,
+		k8sClient,
+	)
 }
 
 func testTarget(credentialSecret string) *source.Target {
