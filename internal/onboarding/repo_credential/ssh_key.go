@@ -9,7 +9,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	gitssh "github.com/go-git/go-git/v5/plumbing/transport/ssh"
 
-	"github.com/katastroma/phortizo/internal/auth"
+	"github.com/katastroma/phortizo/internal/credential"
 )
 
 // TypeSSHKey is the Secret type for SSH key credentials.
@@ -26,7 +26,7 @@ func NewSSHKey(privateKey []byte) *SSHKey {
 }
 
 // SSHKeyFromSecret deserializes an SSHKey from Secret data.
-func SSHKeyFromSecret(data map[string][]byte) (auth.Authenticator, error) {
+func SSHKeyFromSecret(data map[string][]byte) (credential.Authenticator, error) {
 	pk, ok := data["private-key"]
 	if !ok {
 		return nil, fmt.Errorf("missing key %q", "private-key")

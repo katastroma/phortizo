@@ -10,13 +10,13 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/katastroma/phortizo/internal/auth"
+	"github.com/katastroma/phortizo/internal/credential"
 	"github.com/katastroma/phortizo/internal/renderer"
 )
 
 // CredentialReader reads credentials from a tenant namespace.
 type CredentialReader interface {
-	Get(ctx context.Context, namespace, name string) (auth.Authenticator, error)
+	Get(ctx context.Context, namespace, name string) (credential.Authenticator, error)
 }
 
 // Cloner performs a git clone and returns the worktree filesystem.

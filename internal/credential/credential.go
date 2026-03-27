@@ -1,5 +1,5 @@
 //revive:disable:package-comments
-package auth
+package credential
 
 import (
 	"context"

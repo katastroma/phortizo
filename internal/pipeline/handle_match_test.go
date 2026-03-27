@@ -16,7 +16,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 
-	"github.com/katastroma/phortizo/internal/auth"
+	"github.com/katastroma/phortizo/internal/credential"
 	"github.com/katastroma/phortizo/internal/k8s/configmap"
 	"github.com/katastroma/phortizo/internal/pipeline"
 	"github.com/katastroma/phortizo/internal/renderer"
@@ -24,11 +24,11 @@ import (
 )
 
 type mockCredentialReader struct {
-	cred auth.Authenticator
+	cred credential.Authenticator
 	err  error
 }
 
-func (m *mockCredentialReader) Get(context.Context, string, string) (auth.Authenticator, error) {
+func (m *mockCredentialReader) Get(context.Context, string, string) (credential.Authenticator, error) {
 	return m.cred, m.err
 }
 
