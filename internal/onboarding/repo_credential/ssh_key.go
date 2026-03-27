@@ -26,7 +26,7 @@ func NewSSHKey(privateKey []byte) *SSHKey {
 }
 
 // SSHKeyFromSecret deserializes an SSHKey from Secret data.
-func SSHKeyFromSecret(data map[string][]byte) (auth.Credential, error) {
+func SSHKeyFromSecret(data map[string][]byte) (auth.Authenticator, error) {
 	pk, ok := data["private-key"]
 	if !ok {
 		return nil, fmt.Errorf("missing key %q", "private-key")

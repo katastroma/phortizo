@@ -27,7 +27,7 @@ func NewBasicAuth(username, password string) *BasicAuth {
 }
 
 // BasicAuthFromSecret deserializes a BasicAuth from Secret data.
-func BasicAuthFromSecret(data map[string][]byte) (auth.Credential, error) {
+func BasicAuthFromSecret(data map[string][]byte) (auth.Authenticator, error) {
 	username, ok := data["username"]
 	if !ok {
 		return nil, fmt.Errorf("missing key %q", "username")

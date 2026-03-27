@@ -27,7 +27,7 @@ func NewGitHubToken(token string) *GitHubToken {
 }
 
 // GitHubTokenFromSecret deserializes a GitHubToken from Secret data.
-func GitHubTokenFromSecret(data map[string][]byte) (auth.Credential, error) {
+func GitHubTokenFromSecret(data map[string][]byte) (auth.Authenticator, error) {
 	token, ok := data["token"]
 	if !ok {
 		return nil, fmt.Errorf("missing key %q", "token")

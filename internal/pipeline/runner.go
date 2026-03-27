@@ -16,7 +16,7 @@ import (
 
 // CredentialReader reads credentials from a tenant namespace.
 type CredentialReader interface {
-	Get(ctx context.Context, namespace, name string) (auth.Credential, error)
+	Get(ctx context.Context, namespace, name string) (auth.Authenticator, error)
 }
 
 // Cloner performs a git clone and returns the worktree filesystem.

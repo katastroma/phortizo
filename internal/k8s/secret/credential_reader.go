@@ -14,7 +14,7 @@ import (
 )
 
 // Deserializer converts raw Secret data into a credential.
-type Deserializer func(data map[string][]byte) (auth.Credential, error)
+type Deserializer func(data map[string][]byte) (auth.Authenticator, error)
 
 // Reader reads credential Secrets from tenant namespaces.
 type Reader struct {
@@ -31,7 +31,7 @@ func NewReader(client kubernetes.Interface, platformApp *apps.App) *Reader {
 			credential.TypeBasicAuth:       credential.BasicAuthFromSecret,
 			credential.TypeSSHKey:          credential.SSHKeyFromSecret,
 			credential.TypeGitHubAppTenant: credential.GitHubAppTenantFromSecret,
-			credential.TypeGitHubAppPlatform: func(data map[string][]byte) (auth.Credential, error) {
+			credential.TypeGitHubAppPlatform: func(data map[string][]byte) (auth.Authenticator, error) {
 				return credential.GitHubAppPlatformFromSecret(data, platformApp)
 			},
 		},
@@ -40,7 +40,7 @@ func NewReader(client kubernetes.Interface, platformApp *apps.App) *Reader {
 
 // Get reads a Secret by name from the given namespace and returns the
 // deserialized credential.
-func (r *Reader) Get(ctx context.Context, namespace, name string) (auth.Credential, error) {
+func (r *Reader) Get(ctx context.Context, namespace, name string) (auth.Authenticator, error) {
 	s, err := r.client.CoreV1().Secrets(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("reading secret %s/%s: %w", namespace, name, err)

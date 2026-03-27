@@ -24,11 +24,11 @@ import (
 )
 
 type mockCredentialReader struct {
-	cred auth.Credential
+	cred auth.Authenticator
 	err  error
 }
 
-func (m *mockCredentialReader) Get(context.Context, string, string) (auth.Credential, error) {
+func (m *mockCredentialReader) Get(context.Context, string, string) (auth.Authenticator, error) {
 	return m.cred, m.err
 }
 

@@ -8,7 +8,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/transport"
 )
 
-// Credential resolves authentication for git operations.
-type Credential interface {
+// Authenticator resolves authentication for git operations.
+type Authenticator interface {
 	Authenticate(ctx context.Context, httpClient *http.Client) (transport.AuthMethod, error)
 }

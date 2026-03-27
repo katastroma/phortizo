@@ -30,7 +30,7 @@ func NewGitHubAppTenant(app *apps.App, installationID int64) *GitHubAppTenant {
 }
 
 // GitHubAppTenantFromSecret deserializes a GitHubAppTenant from Secret data.
-func GitHubAppTenantFromSecret(data map[string][]byte) (auth.Credential, error) {
+func GitHubAppTenantFromSecret(data map[string][]byte) (auth.Authenticator, error) {
 	clientID, ok := data["client-id"]
 	if !ok {
 		return nil, fmt.Errorf("missing key %q", "client-id")

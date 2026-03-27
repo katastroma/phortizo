@@ -33,7 +33,7 @@ func NewGitHubAppPlatform(platformApp *apps.App, installationID int64) *GitHubAp
 // GitHubAppPlatformFromSecret deserializes a GitHubAppPlatform from Secret
 // data. The platform App is provided externally since the Secret only stores
 // the installation ID.
-func GitHubAppPlatformFromSecret(data map[string][]byte, platformApp *apps.App) (auth.Credential, error) {
+func GitHubAppPlatformFromSecret(data map[string][]byte, platformApp *apps.App) (auth.Authenticator, error) {
 	rawID, ok := data["installation-id"]
 	if !ok {
 		return nil, fmt.Errorf("missing key %q", "installation-id")
