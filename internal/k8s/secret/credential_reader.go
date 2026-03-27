@@ -8,9 +8,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
+	"github.com/katastroma/phortizo/internal/credential"
 	credential1 "github.com/katastroma/phortizo/internal/credential"
 	"github.com/katastroma/phortizo/internal/github/apps"
-	credential "github.com/katastroma/phortizo/internal/onboarding/repo_credential"
 )
 
 // Deserializer converts raw Secret data into a credential.

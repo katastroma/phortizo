@@ -6,9 +6,9 @@ import (
 
 	githttp "github.com/go-git/go-git/v5/plumbing/transport/http"
 
+	"github.com/katastroma/phortizo/internal/credential"
 	"github.com/katastroma/phortizo/internal/github"
 	"github.com/katastroma/phortizo/internal/github/apps"
-	credential "github.com/katastroma/phortizo/internal/onboarding/repo_credential"
 	"github.com/katastroma/phortizo/internal/tests"
 )
 

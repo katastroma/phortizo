@@ -6,7 +6,7 @@ import (
 
 	gitssh "github.com/go-git/go-git/v5/plumbing/transport/ssh"
 
-	credential "github.com/katastroma/phortizo/internal/onboarding/repo_credential"
+	"github.com/katastroma/phortizo/internal/credential"
 	"github.com/katastroma/phortizo/internal/tests"
 )
 

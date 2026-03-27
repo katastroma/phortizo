@@ -7,9 +7,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 
+	"github.com/katastroma/phortizo/internal/credential"
 	"github.com/katastroma/phortizo/internal/github/apps"
 	"github.com/katastroma/phortizo/internal/k8s/secret"
-	credential "github.com/katastroma/phortizo/internal/onboarding/repo_credential"
 	"github.com/katastroma/phortizo/internal/tests"
 )
 
