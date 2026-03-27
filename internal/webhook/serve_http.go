@@ -8,7 +8,6 @@ import (
 	"github.com/google/go-github/v84/github"
 	"github.com/katastroma/phortizo/internal/k8s/configmap"
 	"github.com/katastroma/phortizo/internal/k8s/secret"
-	"github.com/katastroma/phortizo/internal/match"
 	"github.com/katastroma/phortizo/internal/tracing"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
@@ -69,7 +68,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	matched := match.Find(watchTargets, pushEvent)
+	matched := match(watchTargets, pushEvent)
 	if len(matched) == 0 {
 		h.log.InfoContext(ctx, "no watch targets found for event")
 		w.WriteHeader(http.StatusOK)
@@ -87,7 +86,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer span.End()
 
 	for _, target := range matched {
-		h.runner.HandleMatch(ctx, tracer, namespace, target, 0)
+		h.matcher.HandleMatch(ctx, tracer, namespace, target, 0)
 	}
 
 	w.WriteHeader(http.StatusAccepted)

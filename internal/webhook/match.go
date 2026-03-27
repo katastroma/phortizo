@@ -1,5 +1,5 @@
 //revive:disable:package-comments
-package match
+package webhook
 
 import (
 	"slices"
@@ -9,10 +9,11 @@ import (
 	"github.com/katastroma/phortizo/internal/source"
 )
 
-// Find returns the watch targets that match the given push event. A target
-// matches when its repo URL and ref equal the event's, and at least one
+// match watch targets with the given push event.
+//
+// A target matches when its repo URL and ref equal the event's, and at least one
 // changed path has the target's path as a prefix.
-func Find(targets []source.WatchTarget, ev *github.PushEvent) []source.WatchTarget {
+func match(targets []source.WatchTarget, ev *github.PushEvent) []source.WatchTarget {
 	url := ev.GetRepo().GetCloneURL()
 	ref := ev.GetRef()
 	changed := changedPaths(ev)

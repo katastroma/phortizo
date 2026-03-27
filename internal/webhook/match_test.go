@@ -1,4 +1,4 @@
-package match
+package webhook
 
 import (
 	"testing"
@@ -103,7 +103,7 @@ func TestFind_MultipleMatches(t *testing.T) {
 		commit([]string{"deploy/prod/values.yaml", "deploy/staging/values.yaml"}, nil, nil),
 	})
 
-	matched := Find(targets, ev)
+	matched := match(targets, ev)
 	if len(matched) != 2 {
 		t.Fatalf("expected 2 matches, got %d", len(matched))
 	}
@@ -114,7 +114,7 @@ func TestFind_EmptyTargets(t *testing.T) {
 		commit([]string{"deploy/values.yaml"}, nil, nil),
 	})
 
-	if len(Find(nil, ev)) != 0 {
+	if len(match(nil, ev)) != 0 {
 		t.Fatal("expected no matches for nil targets")
 	}
 }
