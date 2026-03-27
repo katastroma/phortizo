@@ -19,13 +19,13 @@ func watchTargetConfigMap(name, namespace, credentialSecret string, data map[str
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
-			Labels:    map[string]string{configmap.TypeLabel: configmap.WatchTargetType},
+			Labels:    map[string]string{configmap.TypeLabel: source.TypeLabel},
 		},
 		Data: data,
 	}
 
 	if credentialSecret != "" {
-		cm.Annotations = map[string]string{configmap.CredentialSecretAnnotation: credentialSecret}
+		cm.Annotations = map[string]string{source.CredentialSecretAnnotation: credentialSecret}
 	}
 
 	return cm
@@ -104,7 +104,7 @@ func TestListWatchTargets(t *testing.T) {
 		t.Fatalf("expected 2 results, got %d", len(results))
 	}
 
-	var withCred, withoutCred source.WatchTarget
+	var withCred, withoutCred *source.Target
 	for _, r := range results {
 		if r.CredentialSecret != "" {
 			withCred = r
@@ -196,7 +196,7 @@ func TestListWatchTargets_DeserializeError(t *testing.T) {
 func TestPutWatchTarget_Create(t *testing.T) {
 	k8s := fake.NewSimpleClientset()
 
-	target := source.WatchTarget{
+	target := source.Target{
 		RepoURL:          "https://github.com/acme/app.git",
 		Ref:              "refs/heads/main",
 		Path:             "deploy/",
@@ -217,19 +217,19 @@ func TestPutWatchTarget_Create(t *testing.T) {
 		t.Errorf("repo-url = %q, want %q", cm.Data["repo-url"], "https://github.com/acme/app.git")
 	}
 
-	if cm.Labels[configmap.TypeLabel] != configmap.WatchTargetType {
-		t.Errorf("label = %q, want %q", cm.Labels[configmap.TypeLabel], configmap.WatchTargetType)
+	if cm.Labels[configmap.TypeLabel] != source.TypeLabel {
+		t.Errorf("label = %q, want %q", cm.Labels[configmap.TypeLabel], source.TypeLabel)
 	}
 
-	if cm.Annotations[configmap.CredentialSecretAnnotation] != "my-cred" {
-		t.Errorf("annotation = %q, want %q", cm.Annotations[configmap.CredentialSecretAnnotation], "my-cred")
+	if cm.Annotations[source.CredentialSecretAnnotation] != "my-cred" {
+		t.Errorf("annotation = %q, want %q", cm.Annotations[source.CredentialSecretAnnotation], "my-cred")
 	}
 }
 
 func TestPutWatchTarget_CreateNoCredential(t *testing.T) {
 	k8s := fake.NewSimpleClientset()
 
-	target := source.WatchTarget{
+	target := source.Target{
 		RepoURL: "https://github.com/acme/app.git",
 		Ref:     "refs/heads/main",
 		Path:    "deploy/",
@@ -259,7 +259,7 @@ func TestPutWatchTarget_Update(t *testing.T) {
 		}),
 	)
 
-	target := source.WatchTarget{
+	target := source.Target{
 		RepoURL:          "https://github.com/acme/app.git",
 		Ref:              "refs/heads/main",
 		Path:             "deploy/prod/",
@@ -280,8 +280,8 @@ func TestPutWatchTarget_Update(t *testing.T) {
 		t.Errorf("path = %q, want %q", cm.Data["path"], "deploy/prod/")
 	}
 
-	if cm.Annotations[configmap.CredentialSecretAnnotation] != "new-cred" {
-		t.Errorf("annotation = %q, want %q", cm.Annotations[configmap.CredentialSecretAnnotation], "new-cred")
+	if cm.Annotations[source.CredentialSecretAnnotation] != "new-cred" {
+		t.Errorf("annotation = %q, want %q", cm.Annotations[source.CredentialSecretAnnotation], "new-cred")
 	}
 }
 
@@ -297,7 +297,7 @@ func TestPutWatchTarget_UpdateError(t *testing.T) {
 		return true, nil, fmt.Errorf("update denied")
 	})
 
-	target := source.WatchTarget{RepoURL: "x", Ref: "y", Path: "z"}
+	target := source.Target{RepoURL: "x", Ref: "y", Path: "z"}
 	err := configmap.PutWatchTarget(t.Context(), k8s, "tenant-a", "wt-1", target)
 	if err == nil {
 		t.Fatal("expected error from failing update")
@@ -310,7 +310,7 @@ func TestPutWatchTarget_CreateError(t *testing.T) {
 		return true, nil, fmt.Errorf("create denied")
 	})
 
-	target := source.WatchTarget{RepoURL: "x", Ref: "y", Path: "z"}
+	target := source.Target{RepoURL: "x", Ref: "y", Path: "z"}
 	err := configmap.PutWatchTarget(t.Context(), k8s, "tenant-a", "wt-1", target)
 	if err == nil {
 		t.Fatal("expected error from failing create")

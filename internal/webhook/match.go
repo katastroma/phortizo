@@ -13,12 +13,12 @@ import (
 //
 // A target matches when its repo URL and ref equal the event's, and at least one
 // changed path has the target's path as a prefix.
-func match(targets []source.WatchTarget, ev *github.PushEvent) []source.WatchTarget {
+func match(targets []*source.Target, ev *github.PushEvent) []*source.Target {
 	url := ev.GetRepo().GetCloneURL()
 	ref := ev.GetRef()
 	changed := changedPaths(ev)
 
-	var matched []source.WatchTarget
+	var matched []*source.Target
 	for _, t := range targets {
 		if matches(t, url, ref, changed) {
 			matched = append(matched, t)
@@ -33,7 +33,7 @@ func hasPrefix(path string) func(string) bool {
 	}
 }
 
-func matches(wt source.WatchTarget, url, ref string, paths []string) bool {
+func matches(wt *source.Target, url, ref string, paths []string) bool {
 	if wt.RepoURL != url || wt.Ref != ref {
 		return false
 	}

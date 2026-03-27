@@ -91,7 +91,7 @@ func watchTargetCM() *corev1.ConfigMap {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "wt-1",
 			Namespace: "tenant-a",
-			Labels:    map[string]string{configmap.TypeLabel: configmap.WatchTargetType},
+			Labels:    map[string]string{configmap.TypeLabel: source.TypeLabel},
 		},
 		Data: map[string]string{
 			"repo-url": "https://github.com/acme/app.git",
@@ -113,8 +113,8 @@ func testRunner(
 		slog.Default(), http.DefaultClient, renderers, credentials, cloner, r, k8sClient)
 }
 
-func testTarget(credentialSecret string) source.WatchTarget {
-	return source.WatchTarget{
+func testTarget(credentialSecret string) *source.Target {
+	return &source.Target{
 		Name:             "wt-1",
 		RepoURL:          "https://github.com/acme/app.git",
 		Ref:              "refs/heads/main",

@@ -68,7 +68,7 @@ func watchTargetConfigMap() *corev1.ConfigMap {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "wt-1",
 			Namespace: testNamespace,
-			Labels:    map[string]string{configmap.TypeLabel: configmap.WatchTargetType},
+			Labels:    map[string]string{configmap.TypeLabel: source.TypeLabel},
 		},
 		Data: map[string]string{
 			"repo-url": "https://github.com/acme/app.git",
@@ -79,11 +79,11 @@ func watchTargetConfigMap() *corev1.ConfigMap {
 }
 
 type mockHandler struct {
-	calls []source.WatchTarget
+	calls []*source.Target
 }
 
 func (m *mockHandler) HandleMatch(
-	_ context.Context, _ trace.Tracer, _ string, r source.WatchTarget, _ int,
+	_ context.Context, _ trace.Tracer, _ string, r *source.Target, _ int,
 ) {
 	m.calls = append(m.calls, r)
 }

@@ -12,6 +12,7 @@ import (
 	clienttesting "k8s.io/client-go/testing"
 
 	"github.com/katastroma/phortizo/internal/k8s/configmap"
+	"github.com/katastroma/phortizo/internal/source"
 )
 
 func bareConfigMap(name, namespace string) *corev1.ConfigMap {
@@ -19,7 +20,7 @@ func bareConfigMap(name, namespace string) *corev1.ConfigMap {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
-			Labels:    map[string]string{configmap.TypeLabel: configmap.WatchTargetType},
+			Labels:    map[string]string{configmap.TypeLabel: source.TypeLabel},
 		},
 		Data: map[string]string{
 			"repo-url": "https://github.com/acme/app.git",

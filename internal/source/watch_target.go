@@ -3,8 +3,17 @@ package source
 
 import "fmt"
 
-// WatchTarget represents a tracked location within a repository.
-type WatchTarget struct {
+const (
+	// TypeLabel is the label value for watch target ConfigMaps.
+	TypeLabel = "watch-target"
+
+	// CredentialSecretAnnotation is the annotation key pointing to the
+	// credential Secret name in the same namespace.
+	CredentialSecretAnnotation = "katastroma.org/credential-secret"
+)
+
+// Target represents a tracked location within a repository.
+type Target struct {
 	RepoURL   string
 	Ref       string
 	Path      string
@@ -21,21 +30,21 @@ type WatchTarget struct {
 	CredentialSecret string
 }
 
-// WatchTargetFromConfigMap deserializes a WatchTarget from ConfigMap data.
-func WatchTargetFromConfigMap(data map[string]string) (WatchTarget, error) {
+// TargetFromConfigMap deserializes a WatchTarget from ConfigMap data.
+func TargetFromConfigMap(data map[string]string) (Target, error) {
 	repoURL, ok := data["repo-url"]
 	if !ok {
-		return WatchTarget{}, fmt.Errorf("missing key %q", "repo-url")
+		return Target{}, fmt.Errorf("missing key %q", "repo-url")
 	}
 
 	ref, ok := data["ref"]
 	if !ok {
-		return WatchTarget{}, fmt.Errorf("missing key %q", "ref")
+		return Target{}, fmt.Errorf("missing key %q", "ref")
 	}
 
 	path, ok := data["path"]
 	if !ok {
-		return WatchTarget{}, fmt.Errorf("missing key %q", "path")
+		return Target{}, fmt.Errorf("missing key %q", "path")
 	}
 
 	var overrides []byte
@@ -43,7 +52,7 @@ func WatchTargetFromConfigMap(data map[string]string) (WatchTarget, error) {
 		overrides = []byte(raw)
 	}
 
-	return WatchTarget{
+	return Target{
 		RepoURL:   repoURL,
 		Ref:       ref,
 		Path:      path,
@@ -52,7 +61,7 @@ func WatchTargetFromConfigMap(data map[string]string) (WatchTarget, error) {
 }
 
 // MarshalConfigMap serializes the WatchTarget to ConfigMap data.
-func (t WatchTarget) MarshalConfigMap() map[string]string {
+func (t Target) MarshalConfigMap() map[string]string {
 	data := map[string]string{
 		"repo-url": t.RepoURL,
 		"ref":      t.Ref,

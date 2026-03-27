@@ -32,7 +32,7 @@ func (r *Runner) HandleMatch(
 	ctx context.Context,
 	tracer trace.Tracer,
 	namespace string,
-	m source.WatchTarget,
+	m *source.Target,
 	replayCount int,
 ) {
 	ctx, span := tracer.Start(ctx, tracing.WatchTargetSpanName, trace.WithAttributes(
@@ -45,7 +45,8 @@ func (r *Runner) HandleMatch(
 
 	watchTargetLeaseID := span.SpanContext().SpanID().String()
 
-	if err := configmap.AcquireLease(ctx, r.k8sClient, namespace, m.Name, watchTargetLeaseID, replayCount); err != nil {
+	err := configmap.AcquireLease(ctx, r.k8sClient, namespace, m.Name, watchTargetLeaseID, replayCount)
+	if err != nil {
 		r.fail(ctx, span, namespace, "lease acquisition failed", err)
 		return
 	}

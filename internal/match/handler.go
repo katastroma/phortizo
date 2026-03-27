@@ -14,7 +14,7 @@ type Handler interface {
 		ctx context.Context,
 		tracer trace.Tracer,
 		namespace string,
-		m source.WatchTarget,
+		m *source.Target,
 		replayCount int,
 	)
 }

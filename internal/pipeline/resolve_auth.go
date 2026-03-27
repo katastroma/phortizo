@@ -11,7 +11,7 @@ import (
 func (r *Runner) resolveAuth(
 	ctx context.Context,
 	namespace string,
-	m source.WatchTarget,
+	m *source.Target,
 ) (transport.AuthMethod, error) {
 	if m.CredentialSecret == "" {
 		return nil, nil

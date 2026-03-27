@@ -20,7 +20,7 @@ import (
 )
 
 type mockHandler struct {
-	calls       []source.WatchTarget
+	calls       []*source.Target
 	namespace   string
 	replayCount int
 }
@@ -29,7 +29,7 @@ func (m *mockHandler) HandleMatch(
 	_ context.Context,
 	_ trace.Tracer,
 	namespace string,
-	target source.WatchTarget,
+	target *source.Target,
 	replayCount int,
 ) {
 	m.namespace = namespace
@@ -57,7 +57,7 @@ func watchTargetCM() *corev1.ConfigMap {
 			Name:      "wt-1",
 			Namespace: "tenant-a",
 			Labels: map[string]string{
-				configmap.TypeLabel: configmap.WatchTargetType,
+				configmap.TypeLabel: source.TypeLabel,
 			},
 		},
 		Data: map[string]string{

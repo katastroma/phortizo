@@ -55,7 +55,7 @@ func (r *Retriever) replayTarget(
 	ctx context.Context,
 	otelTracer trace.Tracer,
 	eventID, namespace string,
-	target *source.WatchTarget,
+	target *source.Target,
 ) error {
 	lease, err := configmap.ReadLease(ctx, r.k8sClient, namespace, target.Name)
 	if err != nil {
@@ -84,11 +84,11 @@ func (r *Retriever) replayTarget(
 			r.maxReplayAttemps, target.Name, eventID)
 	}
 
-	r.runner.HandleMatch(ctx, otelTracer, namespace, *target, replayCount)
+	r.runner.HandleMatch(ctx, otelTracer, namespace, target, replayCount)
 	return nil
 }
 
-func watchTargetFromAttributes(attrs tracing.Attributes, eventID string) (*source.WatchTarget, error) {
+func watchTargetFromAttributes(attrs tracing.Attributes, eventID string) (*source.Target, error) {
 	name, ok := attrs[tracing.WatchTargetNameAttribute]
 	if !ok {
 		return nil, fmt.Errorf("missing attribute %q in event %s", tracing.WatchTargetNameAttribute, eventID)
@@ -109,5 +109,5 @@ func watchTargetFromAttributes(attrs tracing.Attributes, eventID string) (*sourc
 		return nil, fmt.Errorf("missing attribute %q in event %s", tracing.WatchTargetPathAttribute, eventID)
 	}
 
-	return &source.WatchTarget{Name: name, RepoURL: repoURL, Ref: ref, Path: path}, nil
+	return &source.Target{Name: name, RepoURL: repoURL, Ref: ref, Path: path}, nil
 }
