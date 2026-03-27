@@ -7,10 +7,13 @@ on:
 
 jobs:
   cog-check:
+    name: CI
     uses: katastroma/skeuotheke/.github/workflows/cog-check.yaml@v0
 
   version-check:
+    name: CI
     uses: katastroma/skeuotheke/.github/workflows/version-check.yaml@v0
 
-  ci:
+  go-ci:
+    name: CI
     uses: katastroma/skeuotheke/.github/workflows/ci-go.yaml@v0
