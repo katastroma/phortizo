@@ -21,7 +21,6 @@ import (
 	clienttesting "k8s.io/client-go/testing"
 
 	"github.com/katastroma/phortizo/internal/k8s/configmap"
-	"github.com/katastroma/phortizo/internal/k8s/secret"
 	"github.com/katastroma/phortizo/internal/source"
 	"github.com/katastroma/phortizo/internal/webhook"
 )
@@ -55,11 +54,11 @@ func pushRequest(body []byte) *http.Request {
 func webhookSecret() *corev1.Secret {
 	return &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      secret.WebhookSecretName,
+			Name:      webhook.SecretName,
 			Namespace: testNamespace,
 		},
 		Data: map[string][]byte{
-			secret.WebhookSecretKey: []byte(testSecret),
+			webhook.SecretKey: []byte(testSecret),
 		},
 	}
 }

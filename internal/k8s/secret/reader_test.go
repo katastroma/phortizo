@@ -11,13 +11,14 @@ import (
 	"github.com/katastroma/phortizo/internal/k8s/secret"
 )
 
-func TestReadWebhookSecret(t *testing.T) {
+func TestReadSecret(t *testing.T) {
+	const testKey = "test-key"
 	k8s := fake.NewSimpleClientset(&corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{Name: "webhook", Namespace: "tenant-a"},
-		Data:       map[string][]byte{secret.WebhookSecretKey: []byte("hmac-secret-bytes")},
+		Data:       map[string][]byte{testKey: []byte("hmac-secret-bytes")},
 	})
 
-	got, err := secret.ReadWebhookSecret(t.Context(), k8s, "tenant-a", "webhook")
+	got, err := secret.Read(t.Context(), k8s, "tenant-a", "webhook", testKey)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -27,22 +28,23 @@ func TestReadWebhookSecret(t *testing.T) {
 	}
 }
 
-func TestReadWebhookSecret_NotFound(t *testing.T) {
+func TestReadSecret_NotFound(t *testing.T) {
 	k8s := fake.NewSimpleClientset()
 
-	_, err := secret.ReadWebhookSecret(t.Context(), k8s, "tenant-a", "nonexistent")
+	_, err := secret.Read(t.Context(), k8s, "tenant-a", "nonexistent", "")
 	if err == nil {
 		t.Fatal("expected error for missing secret")
 	}
 }
 
-func TestReadWebhookSecret_MissingKey(t *testing.T) {
+func TestReadSecret_MissingKey(t *testing.T) {
+	wrongKey := "test-key"
 	k8s := fake.NewSimpleClientset(&corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{Name: "webhook", Namespace: "tenant-a"},
-		Data:       map[string][]byte{"wrong-key": []byte("hmac-secret-bytes")},
+		Data:       map[string][]byte{wrongKey: []byte("hmac-secret-bytes")},
 	})
 
-	_, err := secret.ReadWebhookSecret(t.Context(), k8s, "tenant-a", "webhook")
+	_, err := secret.Read(t.Context(), k8s, "tenant-a", "webhook", "wrong-key")
 	if err == nil {
 		t.Fatal("expected error for missing webhook-secret key")
 	}
