@@ -6,18 +6,18 @@ import (
 	"strings"
 
 	"github.com/google/go-github/v84/github"
-	"github.com/katastroma/phortizo/internal/onboarding"
+	"github.com/katastroma/phortizo/internal/source"
 )
 
 // Find returns the watch targets that match the given push event. A target
 // matches when its repo URL and ref equal the event's, and at least one
 // changed path has the target's path as a prefix.
-func Find(targets []onboarding.WatchTarget, ev *github.PushEvent) []onboarding.WatchTarget {
+func Find(targets []source.WatchTarget, ev *github.PushEvent) []source.WatchTarget {
 	url := ev.GetRepo().GetCloneURL()
 	ref := ev.GetRef()
 	changed := changedPaths(ev)
 
-	var matched []onboarding.WatchTarget
+	var matched []source.WatchTarget
 	for _, t := range targets {
 		if matches(t, url, ref, changed) {
 			matched = append(matched, t)
@@ -32,7 +32,7 @@ func hasPrefix(path string) func(string) bool {
 	}
 }
 
-func matches(wt onboarding.WatchTarget, url, ref string, paths []string) bool {
+func matches(wt source.WatchTarget, url, ref string, paths []string) bool {
 	if wt.RepoURL != url || wt.Ref != ref {
 		return false
 	}

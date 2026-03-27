@@ -22,7 +22,7 @@ import (
 
 	"github.com/katastroma/phortizo/internal/k8s/configmap"
 	"github.com/katastroma/phortizo/internal/k8s/secret"
-	"github.com/katastroma/phortizo/internal/onboarding"
+	"github.com/katastroma/phortizo/internal/source"
 	"github.com/katastroma/phortizo/internal/webhook"
 )
 
@@ -80,11 +80,11 @@ func watchTargetConfigMap() *corev1.ConfigMap {
 }
 
 type mockHandler struct {
-	calls []onboarding.WatchTarget
+	calls []source.WatchTarget
 }
 
 func (m *mockHandler) HandleMatch(
-	_ context.Context, _ trace.Tracer, _ string, r onboarding.WatchTarget, _ int,
+	_ context.Context, _ trace.Tracer, _ string, r source.WatchTarget, _ int,
 ) {
 	m.calls = append(m.calls, r)
 }

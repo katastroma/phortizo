@@ -11,7 +11,7 @@ import (
 
 	pb "github.com/katastroma/naukleros"
 	"github.com/katastroma/phortizo/internal/k8s/configmap"
-	"github.com/katastroma/phortizo/internal/onboarding"
+	"github.com/katastroma/phortizo/internal/source"
 	"github.com/katastroma/phortizo/internal/tracing"
 )
 
@@ -55,7 +55,7 @@ func (r *Retriever) replayTarget(
 	ctx context.Context,
 	otelTracer trace.Tracer,
 	eventID, namespace string,
-	target *onboarding.WatchTarget,
+	target *source.WatchTarget,
 ) error {
 	lease, err := configmap.ReadLease(ctx, r.k8sClient, namespace, target.Name)
 	if err != nil {
@@ -88,7 +88,7 @@ func (r *Retriever) replayTarget(
 	return nil
 }
 
-func watchTargetFromAttributes(attrs tracing.Attributes, eventID string) (*onboarding.WatchTarget, error) {
+func watchTargetFromAttributes(attrs tracing.Attributes, eventID string) (*source.WatchTarget, error) {
 	name, ok := attrs[tracing.WatchTargetNameAttribute]
 	if !ok {
 		return nil, fmt.Errorf("missing attribute %q in event %s", tracing.WatchTargetNameAttribute, eventID)
@@ -109,5 +109,5 @@ func watchTargetFromAttributes(attrs tracing.Attributes, eventID string) (*onboa
 		return nil, fmt.Errorf("missing attribute %q in event %s", tracing.WatchTargetPathAttribute, eventID)
 	}
 
-	return &onboarding.WatchTarget{Name: name, RepoURL: repoURL, Ref: ref, Path: path}, nil
+	return &source.WatchTarget{Name: name, RepoURL: repoURL, Ref: ref, Path: path}, nil
 }

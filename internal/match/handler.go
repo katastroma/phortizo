@@ -4,7 +4,7 @@ package match
 import (
 	"context"
 
-	"github.com/katastroma/phortizo/internal/onboarding"
+	"github.com/katastroma/phortizo/internal/source"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -14,7 +14,7 @@ type Handler interface {
 		ctx context.Context,
 		tracer trace.Tracer,
 		namespace string,
-		m onboarding.WatchTarget,
+		m source.WatchTarget,
 		replayCount int,
 	)
 }

@@ -5,13 +5,13 @@ import (
 	"context"
 
 	"github.com/go-git/go-git/v5/plumbing/transport"
-	"github.com/katastroma/phortizo/internal/onboarding"
+	"github.com/katastroma/phortizo/internal/source"
 )
 
 func (r *Runner) resolveAuth(
 	ctx context.Context,
 	namespace string,
-	m onboarding.WatchTarget,
+	m source.WatchTarget,
 ) (transport.AuthMethod, error) {
 	if m.CredentialSecret == "" {
 		return nil, nil

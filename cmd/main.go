@@ -37,9 +37,8 @@ import (
 	http_health "github.com/katastroma/phortizo/internal/health/http"
 	k8s_secret "github.com/katastroma/phortizo/internal/k8s/secret"
 	"github.com/katastroma/phortizo/internal/pipeline"
-	"github.com/katastroma/phortizo/internal/render"
+	"github.com/katastroma/phortizo/internal/renderer"
 	"github.com/katastroma/phortizo/internal/retriever"
-	"github.com/katastroma/phortizo/internal/source"
 	"github.com/katastroma/phortizo/internal/tracing"
 	tempoTracer "github.com/katastroma/phortizo/internal/tracing/tempo"
 	"github.com/katastroma/phortizo/internal/webhook"
@@ -114,10 +113,10 @@ func main() {
 	credentialReader := k8s_secret.NewReader(k8sClient, gha)
 
 	// Renderer addresses
-	renderers := map[source.RendererType]string{
-		source.Helm:      os.Getenv("RENDERER_HELM"),
-		source.Kustomize: os.Getenv("RENDERER_KUSTOMIZE"),
-		source.Raw:       os.Getenv("RENDERER_RAW"),
+	renderers := map[renderer.Type]string{
+		renderer.Helm:      os.Getenv("RENDERER_HELM"),
+		renderer.Kustomize: os.Getenv("RENDERER_KUSTOMIZE"),
+		renderer.Raw:       os.Getenv("RENDERER_RAW"),
 	}
 
 	// Lease configuration
@@ -146,7 +145,7 @@ func main() {
 		renderers,
 		credentialReader,
 		git.Cloner{},
-		render.Renderer{},
+		renderer.Renderer{},
 		k8sClient,
 	)
 

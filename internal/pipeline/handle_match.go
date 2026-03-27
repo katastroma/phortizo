@@ -9,7 +9,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/katastroma/phortizo/internal/k8s/configmap"
-	"github.com/katastroma/phortizo/internal/onboarding"
+	"github.com/katastroma/phortizo/internal/renderer"
 	"github.com/katastroma/phortizo/internal/source"
 	"github.com/katastroma/phortizo/internal/tracing"
 )
@@ -32,7 +32,7 @@ func (r *Runner) HandleMatch(
 	ctx context.Context,
 	tracer trace.Tracer,
 	namespace string,
-	m onboarding.WatchTarget,
+	m source.WatchTarget,
 	replayCount int,
 ) {
 	ctx, span := tracer.Start(ctx, tracing.WatchTargetSpanName, trace.WithAttributes(
@@ -62,7 +62,7 @@ func (r *Runner) HandleMatch(
 		return
 	}
 
-	rendererType := source.DetectRenderer(fs, m.Path)
+	rendererType := renderer.DetectRenderer(fs, m.Path)
 	rendererAddr, ok := r.renderers[rendererType]
 	if !ok {
 		err = fmt.Errorf("no renderer configured for type %q", rendererType)

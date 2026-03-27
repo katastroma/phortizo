@@ -11,7 +11,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/katastroma/phortizo/internal/auth"
-	"github.com/katastroma/phortizo/internal/source"
+	"github.com/katastroma/phortizo/internal/renderer"
 )
 
 // CredentialReader reads credentials from a tenant namespace.
@@ -34,7 +34,7 @@ type Renderer interface {
 type Runner struct {
 	log         *slog.Logger
 	httpClient  *http.Client
-	renderers   map[source.RendererType]string
+	renderers   map[renderer.Type]string
 	credentials CredentialReader
 	cloner      Cloner
 	renderer    Renderer
@@ -45,7 +45,7 @@ type Runner struct {
 func New(
 	log *slog.Logger,
 	httpClient *http.Client,
-	renderers map[source.RendererType]string,
+	renderers map[renderer.Type]string,
 	credentials CredentialReader,
 	cloner Cloner,
 	renderer Renderer,

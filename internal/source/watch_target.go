@@ -1,5 +1,5 @@
 //revive:disable:package-comments
-package onboarding
+package source
 
 import "fmt"
 

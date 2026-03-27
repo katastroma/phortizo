@@ -15,12 +15,12 @@ import (
 
 	pb "github.com/katastroma/naukleros"
 	"github.com/katastroma/phortizo/internal/k8s/configmap"
-	"github.com/katastroma/phortizo/internal/onboarding"
+	"github.com/katastroma/phortizo/internal/source"
 	"github.com/katastroma/phortizo/internal/tracing"
 )
 
 type mockHandler struct {
-	calls       []onboarding.WatchTarget
+	calls       []source.WatchTarget
 	namespace   string
 	replayCount int
 }
@@ -29,7 +29,7 @@ func (m *mockHandler) HandleMatch(
 	_ context.Context,
 	_ trace.Tracer,
 	namespace string,
-	target onboarding.WatchTarget,
+	target source.WatchTarget,
 	replayCount int,
 ) {
 	m.namespace = namespace

@@ -7,19 +7,19 @@ import (
 	"net/http"
 	"testing"
 
+	mocktracer "git.sonicoriginal.software/grpc-testing/mocks/tracer"
 	"github.com/go-git/go-billy/v5"
 	"github.com/go-git/go-billy/v5/memfs"
 	"github.com/go-git/go-billy/v5/util"
 	"github.com/go-git/go-git/v5/plumbing/transport"
-	mocktracer "git.sonicoriginal.software/grpc-testing/mocks/tracer"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 
 	"github.com/katastroma/phortizo/internal/auth"
 	"github.com/katastroma/phortizo/internal/k8s/configmap"
-	"github.com/katastroma/phortizo/internal/onboarding"
 	"github.com/katastroma/phortizo/internal/pipeline"
+	"github.com/katastroma/phortizo/internal/renderer"
 	"github.com/katastroma/phortizo/internal/source"
 )
 
@@ -105,16 +105,16 @@ func testRunner(
 	k8sClient *fake.Clientset,
 	credentials pipeline.CredentialReader,
 	cloner pipeline.Cloner,
-	renderer pipeline.Renderer,
+	r pipeline.Renderer,
 ) *pipeline.Runner {
-	renderers := map[source.RendererType]string{source.Helm: "helm-renderer:8080"}
+	renderers := map[renderer.Type]string{renderer.Helm: "helm-renderer:8080"}
 
 	return pipeline.New(
-		slog.Default(), http.DefaultClient, renderers, credentials, cloner, renderer, k8sClient)
+		slog.Default(), http.DefaultClient, renderers, credentials, cloner, r, k8sClient)
 }
 
-func testTarget(credentialSecret string) onboarding.WatchTarget {
-	return onboarding.WatchTarget{
+func testTarget(credentialSecret string) source.WatchTarget {
+	return source.WatchTarget{
 		Name:             "wt-1",
 		RepoURL:          "https://github.com/acme/app.git",
 		Ref:              "refs/heads/main",

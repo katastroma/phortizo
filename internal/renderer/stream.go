@@ -1,5 +1,5 @@
 //revive:disable:package-comments
-package render
+package renderer
 
 import (
 	"context"
