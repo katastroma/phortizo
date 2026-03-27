@@ -2,6 +2,16 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## 0.5.2 - 2026-03-27
+#### Bug Fixes
+- PR workflow - (f7937c2) - Nathan Blair
+#### Documentation
+- use org CONTRIBUTING.md - (794c37f) - Nathan Blair
+#### Continuous Integration
+- add PR workflow - (ac44a64) - Nathan Blair
+
+- - -
+
 ## 0.5.1 - 2026-03-26
 #### Bug Fixes
 - (**cd**) don't trigger on ignored files - (06326ca) - Nathan Blair
