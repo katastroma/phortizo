@@ -1,0 +1,16 @@
+name: PR
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [default]
+
+jobs:
+  cog-check:
+    uses: katastroma/skeuotheke/.github/workflows/ci-go@v0
+
+  version-check:
+    uses: katastroma/skeuotheke/.github/workflows/ci-go@v0
+
+  ci:
+    uses: katastroma/skeuotheke/.github/workflows/ci-go@v0
