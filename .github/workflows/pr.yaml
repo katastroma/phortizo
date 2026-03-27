@@ -6,11 +6,14 @@ on:
     branches: [default]
 
 jobs:
-  cog-check:
-    uses: katastroma/skeuotheke/.github/workflows/ci-go@v0
+  commit-check:
+    name: CI
+    uses: katastroma/skeuotheke/.github/workflows/commit-check.yaml@v0
 
   version-check:
-    uses: katastroma/skeuotheke/.github/workflows/ci-go@v0
+    name: CI
+    uses: katastroma/skeuotheke/.github/workflows/version-check.yaml@v0
 
-  ci:
-    uses: katastroma/skeuotheke/.github/workflows/ci-go@v0
+  ci-go:
+    name: CI
+    uses: katastroma/skeuotheke/.github/workflows/ci-go.yaml@v0
