@@ -86,7 +86,12 @@ func (r *Retriever) replayTarget(
 			r.maxReplayAttemps, target.Name, eventID)
 	}
 
-	r.runner.HandleMatch(ctx, otelTracer, namespace, target, replayCount)
+	target.Process(
+		ctx, r.log, otelTracer, namespace, replayCount,
+		r.acquireLease, r.resolveAuth, r.clone, r.lookupRenderer,
+		r.verifyLease, r.stream,
+	)
+
 	return nil
 }
 

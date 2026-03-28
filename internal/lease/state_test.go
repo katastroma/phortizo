@@ -1,3 +1,4 @@
+//revive:disable:package-comments
 package lease_test
 
 import (

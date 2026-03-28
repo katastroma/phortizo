@@ -8,7 +8,10 @@ import (
 	"testing"
 	"time"
 
-	"go.opentelemetry.io/otel/trace"
+	"github.com/go-git/go-billy/v5"
+	"github.com/go-git/go-billy/v5/memfs"
+	"github.com/go-git/go-billy/v5/util"
+	"github.com/go-git/go-git/v5/plumbing/transport"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
@@ -21,22 +24,48 @@ import (
 	"github.com/katastroma/phortizo/internal/tracing"
 )
 
-type mockHandler struct {
-	calls       []*source.Target
+func helmFS(t *testing.T) billy.Filesystem {
+	t.Helper()
+
+	fs := memfs.New()
+	if err := util.WriteFile(fs, "deploy/Chart.yaml", []byte("name: test"), 0o644); err != nil {
+		t.Fatalf("writing Chart.yaml: %v", err)
+	}
+
+	return fs
+}
+
+type processRecorder struct {
+	calls       int
 	namespace   string
 	replayCount int
 }
 
-func (m *mockHandler) HandleMatch(
-	_ context.Context,
-	_ trace.Tracer,
-	namespace string,
-	target *source.Target,
-	replayCount int,
+func (r *processRecorder) noopClosures(t *testing.T) (
+	func(context.Context, string, string, string, int) error,
+	func(context.Context, string, string) (transport.AuthMethod, error),
+	func(context.Context, string, string, transport.AuthMethod) (billy.Filesystem, error),
+	func(billy.Filesystem, string) (string, error),
+	func(context.Context, string, string, string) (bool, error),
+	func(context.Context, billy.Filesystem, string, string) error,
 ) {
-	m.namespace = namespace
-	m.replayCount = replayCount
-	m.calls = append(m.calls, target)
+	t.Helper()
+
+	fs := helmFS(t)
+
+	return func(_ context.Context, ns, _, _ string, rc int) error {
+			r.namespace = ns
+			r.replayCount = rc
+			return nil
+		},
+		func(_ context.Context, _, _ string) (transport.AuthMethod, error) { return nil, nil },
+		func(_ context.Context, _, _ string, _ transport.AuthMethod) (billy.Filesystem, error) { return fs, nil },
+		func(_ billy.Filesystem, _ string) (string, error) { return "helm-renderer:8080", nil },
+		func(_ context.Context, _, _, _ string) (bool, error) { return true, nil },
+		func(_ context.Context, _ billy.Filesystem, _, _ string) error {
+			r.calls++
+			return nil
+		}
 }
 
 func replayTrace() tracing.Trace {
@@ -70,8 +99,14 @@ func watchTargetCM() *corev1.ConfigMap {
 
 func TestReplay(t *testing.T) {
 	k8s := fake.NewSimpleClientset(watchTargetCM())
-	runner := &mockHandler{}
-	handler := New(slog.Default(), &stubTracer{trace: replayTrace()}, runner, k8s, 10*time.Minute, 3)
+	rec := &processRecorder{}
+	acquire, resolve, clone, lookup, verify, stream := rec.noopClosures(t)
+
+	handler := New(
+		slog.Default(), &stubTracer{trace: replayTrace()}, k8s,
+		10*time.Minute, 3,
+		acquire, resolve, clone, lookup, verify, stream,
+	)
 
 	resp, err := handler.Replay(t.Context(), &pb.ReplayRequest{EventId: "trace-123"})
 	if err != nil {
@@ -82,24 +117,16 @@ func TestReplay(t *testing.T) {
 		t.Fatal("expected non-nil response")
 	}
 
-	if len(runner.calls) != 1 {
-		t.Fatalf("expected 1 HandleMatch call, got %d", len(runner.calls))
+	if rec.calls != 1 {
+		t.Fatalf("expected 1 Process call, got %d", rec.calls)
 	}
 
-	if runner.namespace != "tenant-a" {
-		t.Errorf(
-			"namespace = %q, want %q",
-			runner.namespace, "tenant-a",
-		)
+	if rec.namespace != "tenant-a" {
+		t.Errorf("namespace = %q, want %q", rec.namespace, "tenant-a")
 	}
 
-	want := "https://github.com/acme/app.git"
-	if runner.calls[0].RepoURL != want {
-		t.Errorf("RepoURL = %q, want %q", runner.calls[0].RepoURL, want)
-	}
-
-	if runner.replayCount != 1 {
-		t.Errorf("replayCount = %d, want %d", runner.replayCount, 1)
+	if rec.replayCount != 1 {
+		t.Errorf("replayCount = %d, want %d", rec.replayCount, 1)
 	}
 }
 
@@ -111,8 +138,14 @@ func TestReplay_ActiveLease(t *testing.T) {
 		lease.ReplayCountAnnotation: "0",
 	}
 	k8s := fake.NewSimpleClientset(cm)
-	runner := &mockHandler{}
-	handler := New(slog.Default(), &stubTracer{trace: replayTrace()}, runner, k8s, 10*time.Minute, 3)
+	rec := &processRecorder{}
+	acquire, resolve, clone, lookup, verify, stream := rec.noopClosures(t)
+
+	handler := New(
+		slog.Default(), &stubTracer{trace: replayTrace()}, k8s,
+		10*time.Minute, 3,
+		acquire, resolve, clone, lookup, verify, stream,
+	)
 
 	resp, err := handler.Replay(t.Context(), &pb.ReplayRequest{EventId: "trace-123"})
 	if err != nil {
@@ -123,8 +156,8 @@ func TestReplay_ActiveLease(t *testing.T) {
 		t.Fatal("expected non-nil response")
 	}
 
-	if len(runner.calls) != 0 {
-		t.Errorf("expected no HandleMatch calls, got %d", len(runner.calls))
+	if rec.calls != 0 {
+		t.Errorf("expected no Process calls, got %d", rec.calls)
 	}
 }
 
@@ -137,8 +170,14 @@ func TestReplay_StaleLease(t *testing.T) {
 		lease.ReplayCountAnnotation: "0",
 	}
 	k8s := fake.NewSimpleClientset(cm)
-	runner := &mockHandler{}
-	handler := New(slog.Default(), &stubTracer{trace: replayTrace()}, runner, k8s, 10*time.Minute, 3)
+	rec := &processRecorder{}
+	acquire, resolve, clone, lookup, verify, stream := rec.noopClosures(t)
+
+	handler := New(
+		slog.Default(), &stubTracer{trace: replayTrace()}, k8s,
+		10*time.Minute, 3,
+		acquire, resolve, clone, lookup, verify, stream,
+	)
 
 	resp, err := handler.Replay(t.Context(), &pb.ReplayRequest{EventId: "trace-123"})
 	if err != nil {
@@ -149,8 +188,8 @@ func TestReplay_StaleLease(t *testing.T) {
 		t.Fatal("expected non-nil response")
 	}
 
-	if len(runner.calls) != 1 {
-		t.Fatalf("expected 1 HandleMatch call, got %d", len(runner.calls))
+	if rec.calls != 1 {
+		t.Fatalf("expected 1 Process call, got %d", rec.calls)
 	}
 }
 
@@ -163,7 +202,12 @@ func TestReplay_MaxReplayAttempts(t *testing.T) {
 		lease.ReplayCountAnnotation: "3",
 	}
 	k8s := fake.NewSimpleClientset(cm)
-	handler := New(slog.Default(), &stubTracer{trace: replayTrace()}, nil, k8s, 10*time.Minute, 3)
+
+	handler := New(
+		slog.Default(), &stubTracer{trace: replayTrace()}, k8s,
+		10*time.Minute, 3,
+		nil, nil, nil, nil, nil, nil,
+	)
 
 	_, err := handler.Replay(t.Context(), &pb.ReplayRequest{EventId: "trace-123"})
 	if err == nil {
@@ -173,7 +217,11 @@ func TestReplay_MaxReplayAttempts(t *testing.T) {
 
 func TestReplay_TraceQueryError(t *testing.T) {
 	st := &stubTracer{err: fmt.Errorf("tempo unavailable")}
-	handler := New(slog.Default(), st, nil, nil, 10*time.Minute, 3)
+	handler := New(
+		slog.Default(), st, nil,
+		10*time.Minute, 3,
+		nil, nil, nil, nil, nil, nil,
+	)
 
 	if _, err := handler.Replay(t.Context(), &pb.ReplayRequest{EventId: "trace-123"}); err == nil {
 		t.Fatal("expected error when trace query fails")
@@ -182,7 +230,11 @@ func TestReplay_TraceQueryError(t *testing.T) {
 
 func TestReplay_NoEventSpan(t *testing.T) {
 	tr := tracing.Trace{tracing.WatchTargetSpanName: {{tracing.WatchTargetNameAttribute: "wt-1"}}}
-	handler := New(slog.Default(), &stubTracer{trace: tr}, nil, nil, 10*time.Minute, 3)
+	handler := New(
+		slog.Default(), &stubTracer{trace: tr}, nil,
+		10*time.Minute, 3,
+		nil, nil, nil, nil, nil, nil,
+	)
 
 	if _, err := handler.Replay(t.Context(), &pb.ReplayRequest{EventId: "trace-123"}); err == nil {
 		t.Fatal("expected error for missing event span")
@@ -194,7 +246,11 @@ func TestReplay_MissingTenant(t *testing.T) {
 		tracing.EventSpanName:       {{}},
 		tracing.WatchTargetSpanName: {{tracing.WatchTargetNameAttribute: "wt-1"}},
 	}
-	handler := New(slog.Default(), &stubTracer{trace: tr}, nil, nil, 10*time.Minute, 3)
+	handler := New(
+		slog.Default(), &stubTracer{trace: tr}, nil,
+		10*time.Minute, 3,
+		nil, nil, nil, nil, nil, nil,
+	)
 
 	if _, err := handler.Replay(t.Context(), &pb.ReplayRequest{EventId: "trace-123"}); err == nil {
 		t.Fatal("expected error for missing tenant attribute")
@@ -207,7 +263,11 @@ func TestReplay_MissingName(t *testing.T) {
 		tracing.WatchTargetSpanName: {{}},
 	}
 	k8s := fake.NewSimpleClientset(watchTargetCM())
-	handler := New(slog.Default(), &stubTracer{trace: tr}, nil, k8s, 10*time.Minute, 3)
+	handler := New(
+		slog.Default(), &stubTracer{trace: tr}, k8s,
+		10*time.Minute, 3,
+		nil, nil, nil, nil, nil, nil,
+	)
 
 	if _, err := handler.Replay(t.Context(), &pb.ReplayRequest{EventId: "trace-123"}); err == nil {
 		t.Fatal("expected error for missing name attribute")
@@ -220,7 +280,11 @@ func TestReplay_MissingRepoURL(t *testing.T) {
 		tracing.WatchTargetSpanName: {{tracing.WatchTargetNameAttribute: "wt-1"}},
 	}
 	k8s := fake.NewSimpleClientset(watchTargetCM())
-	handler := New(slog.Default(), &stubTracer{trace: tr}, nil, k8s, 10*time.Minute, 3)
+	handler := New(
+		slog.Default(), &stubTracer{trace: tr}, k8s,
+		10*time.Minute, 3,
+		nil, nil, nil, nil, nil, nil,
+	)
 
 	if _, err := handler.Replay(t.Context(), &pb.ReplayRequest{EventId: "trace-123"}); err == nil {
 		t.Fatal("expected error for missing repo_url attribute")
@@ -238,7 +302,11 @@ func TestReplay_MissingRef(t *testing.T) {
 		},
 	}
 	k8s := fake.NewSimpleClientset(watchTargetCM())
-	handler := New(slog.Default(), &stubTracer{trace: tr}, nil, k8s, 10*time.Minute, 3)
+	handler := New(
+		slog.Default(), &stubTracer{trace: tr}, k8s,
+		10*time.Minute, 3,
+		nil, nil, nil, nil, nil, nil,
+	)
 
 	if _, err := handler.Replay(t.Context(), &pb.ReplayRequest{EventId: "trace-123"}); err == nil {
 		t.Fatal("expected error for missing ref attribute")
@@ -257,7 +325,11 @@ func TestReplay_MissingPath(t *testing.T) {
 		},
 	}
 	k8s := fake.NewSimpleClientset(watchTargetCM())
-	handler := New(slog.Default(), &stubTracer{trace: tr}, nil, k8s, 10*time.Minute, 3)
+	handler := New(
+		slog.Default(), &stubTracer{trace: tr}, k8s,
+		10*time.Minute, 3,
+		nil, nil, nil, nil, nil, nil,
+	)
 
 	if _, err := handler.Replay(t.Context(), &pb.ReplayRequest{EventId: "trace-123"}); err == nil {
 		t.Fatal("expected error for missing path attribute")
@@ -266,7 +338,11 @@ func TestReplay_MissingPath(t *testing.T) {
 
 func TestReplay_LeaseReadError(t *testing.T) {
 	k8s := fake.NewSimpleClientset()
-	handler := New(slog.Default(), &stubTracer{trace: replayTrace()}, nil, k8s, 10*time.Minute, 3)
+	handler := New(
+		slog.Default(), &stubTracer{trace: replayTrace()}, k8s,
+		10*time.Minute, 3,
+		nil, nil, nil, nil, nil, nil,
+	)
 
 	if _, err := handler.Replay(t.Context(), &pb.ReplayRequest{EventId: "trace-123"}); err == nil {
 		t.Fatal("expected error when configmap not found")

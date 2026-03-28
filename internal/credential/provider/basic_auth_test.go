@@ -1,4 +1,4 @@
-package credential_test
+package provider_test
 
 import (
 	"bytes"
@@ -6,11 +6,11 @@ import (
 
 	githttp "github.com/go-git/go-git/v5/plumbing/transport/http"
 
-	"github.com/katastroma/phortizo/internal/credential"
+	"github.com/katastroma/phortizo/internal/credential/provider"
 )
 
 func TestBasicAuth_Authenticate(t *testing.T) {
-	cred := credential.NewBasicAuth("user", "pass")
+	cred := provider.NewBasicAuth("user", "pass")
 
 	auth, err := cred.Authenticate(t.Context(), nil)
 	if err != nil {
@@ -32,11 +32,11 @@ func TestBasicAuth_Authenticate(t *testing.T) {
 }
 
 func TestBasicAuth_MarshalSecret(t *testing.T) {
-	cred := credential.NewBasicAuth("user", "pass")
+	cred := provider.NewBasicAuth("user", "pass")
 	data := cred.MarshalSecret()
 
-	if string(data["type"]) != credential.TypeBasicAuth {
-		t.Errorf("type = %q, want %q", data["type"], credential.TypeBasicAuth)
+	if string(data["type"]) != provider.TypeBasicAuth {
+		t.Errorf("type = %q, want %q", data["type"], provider.TypeBasicAuth)
 	}
 
 	if string(data["username"]) != "user" {
@@ -49,17 +49,17 @@ func TestBasicAuth_MarshalSecret(t *testing.T) {
 }
 
 func TestBasicAuth_FromSecret(t *testing.T) {
-	original := credential.NewBasicAuth("user", "pass")
+	original := provider.NewBasicAuth("user", "pass")
 	data := original.MarshalSecret()
 
-	cred, err := credential.BasicAuthFromSecret(data)
+	cred, err := provider.BasicAuthFromSecret(data)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	restored, ok := cred.(*credential.BasicAuth)
+	restored, ok := cred.(*provider.BasicAuth)
 	if !ok {
-		t.Fatalf("expected *credential.BasicAuth, got %T", cred)
+		t.Fatalf("expected *provider.BasicAuth, got %T", cred)
 	}
 
 	restoredData := restored.MarshalSecret()
@@ -74,11 +74,11 @@ func TestBasicAuth_FromSecret(t *testing.T) {
 
 func TestBasicAuth_FromSecret_MissingUsername(t *testing.T) {
 	data := map[string][]byte{
-		"type":     []byte(credential.TypeBasicAuth),
+		"type":     []byte(provider.TypeBasicAuth),
 		"password": []byte("pass"),
 	}
 
-	_, err := credential.BasicAuthFromSecret(data)
+	_, err := provider.BasicAuthFromSecret(data)
 	if err == nil {
 		t.Fatal("expected error for missing username key")
 	}
@@ -86,11 +86,11 @@ func TestBasicAuth_FromSecret_MissingUsername(t *testing.T) {
 
 func TestBasicAuth_FromSecret_MissingPassword(t *testing.T) {
 	data := map[string][]byte{
-		"type":     []byte(credential.TypeBasicAuth),
+		"type":     []byte(provider.TypeBasicAuth),
 		"username": []byte("user"),
 	}
 
-	_, err := credential.BasicAuthFromSecret(data)
+	_, err := provider.BasicAuthFromSecret(data)
 	if err == nil {
 		t.Fatal("expected error for missing password key")
 	}

@@ -1,5 +1,5 @@
 //revive:disable:package-comments
-package credential
+package provider
 
 import (
 	"context"
@@ -8,6 +8,7 @@ import (
 
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	githttp "github.com/go-git/go-git/v5/plumbing/transport/http"
+	"github.com/katastroma/phortizo/internal/credential"
 )
 
 // TypeBasicAuth is the Secret type for basic auth credentials.
@@ -25,7 +26,7 @@ func NewBasicAuth(username, password string) *BasicAuth {
 }
 
 // BasicAuthFromSecret deserializes a BasicAuth from Secret data.
-func BasicAuthFromSecret(data map[string][]byte) (Authenticator, error) {
+func BasicAuthFromSecret(data map[string][]byte) (credential.Authenticator, error) {
 	username, ok := data["username"]
 	if !ok {
 		return nil, fmt.Errorf("missing key %q", "username")

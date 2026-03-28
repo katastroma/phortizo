@@ -1,4 +1,4 @@
-package credential_test
+package provider_test
 
 import (
 	"bytes"
@@ -7,7 +7,7 @@ import (
 
 	githttp "github.com/go-git/go-git/v5/plumbing/transport/http"
 
-	"github.com/katastroma/phortizo/internal/credential"
+	"github.com/katastroma/phortizo/internal/credential/provider"
 	"github.com/katastroma/phortizo/internal/github"
 	"github.com/katastroma/phortizo/internal/github/apps"
 	"github.com/katastroma/phortizo/internal/tests"
@@ -16,13 +16,13 @@ import (
 func TestGitHubAppTenant_FromSecret(t *testing.T) {
 	pemBytes := tests.GenerateRSAPEM(t)
 	data := map[string][]byte{
-		"type":            []byte(credential.TypeGitHubAppTenant),
+		"type":            []byte(provider.TypeGitHubAppTenant),
 		"client-id":       []byte("Iv1.abc123"),
 		"private-key":     pemBytes,
 		"installation-id": []byte("12345"),
 	}
 
-	cred, err := credential.GitHubAppTenantFromSecret(data)
+	cred, err := provider.GitHubAppTenantFromSecret(data)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -34,12 +34,12 @@ func TestGitHubAppTenant_FromSecret(t *testing.T) {
 
 func TestGitHubAppTenant_FromSecret_MissingClientID(t *testing.T) {
 	data := map[string][]byte{
-		"type":            []byte(credential.TypeGitHubAppTenant),
+		"type":            []byte(provider.TypeGitHubAppTenant),
 		"private-key":     tests.GenerateRSAPEM(t),
 		"installation-id": []byte("12345"),
 	}
 
-	_, err := credential.GitHubAppTenantFromSecret(data)
+	_, err := provider.GitHubAppTenantFromSecret(data)
 	if err == nil {
 		t.Fatal("expected error for missing client-id")
 	}
@@ -47,12 +47,12 @@ func TestGitHubAppTenant_FromSecret_MissingClientID(t *testing.T) {
 
 func TestGitHubAppTenant_FromSecret_MissingPrivateKey(t *testing.T) {
 	data := map[string][]byte{
-		"type":            []byte(credential.TypeGitHubAppTenant),
+		"type":            []byte(provider.TypeGitHubAppTenant),
 		"client-id":       []byte("Iv1.abc123"),
 		"installation-id": []byte("12345"),
 	}
 
-	_, err := credential.GitHubAppTenantFromSecret(data)
+	_, err := provider.GitHubAppTenantFromSecret(data)
 	if err == nil {
 		t.Fatal("expected error for missing private-key")
 	}
@@ -60,12 +60,12 @@ func TestGitHubAppTenant_FromSecret_MissingPrivateKey(t *testing.T) {
 
 func TestGitHubAppTenant_FromSecret_MissingInstallationID(t *testing.T) {
 	data := map[string][]byte{
-		"type":        []byte(credential.TypeGitHubAppTenant),
+		"type":        []byte(provider.TypeGitHubAppTenant),
 		"client-id":   []byte("Iv1.abc123"),
 		"private-key": tests.GenerateRSAPEM(t),
 	}
 
-	_, err := credential.GitHubAppTenantFromSecret(data)
+	_, err := provider.GitHubAppTenantFromSecret(data)
 	if err == nil {
 		t.Fatal("expected error for missing installation-id")
 	}
@@ -73,13 +73,13 @@ func TestGitHubAppTenant_FromSecret_MissingInstallationID(t *testing.T) {
 
 func TestGitHubAppTenant_FromSecret_InvalidInstallationID(t *testing.T) {
 	data := map[string][]byte{
-		"type":            []byte(credential.TypeGitHubAppTenant),
+		"type":            []byte(provider.TypeGitHubAppTenant),
 		"client-id":       []byte("Iv1.abc123"),
 		"private-key":     tests.GenerateRSAPEM(t),
 		"installation-id": []byte("not-a-number"),
 	}
 
-	_, err := credential.GitHubAppTenantFromSecret(data)
+	_, err := provider.GitHubAppTenantFromSecret(data)
 	if err == nil {
 		t.Fatal("expected error for invalid installation-id")
 	}
@@ -87,13 +87,13 @@ func TestGitHubAppTenant_FromSecret_InvalidInstallationID(t *testing.T) {
 
 func TestGitHubAppTenant_FromSecret_InvalidPEM(t *testing.T) {
 	data := map[string][]byte{
-		"type":            []byte(credential.TypeGitHubAppTenant),
+		"type":            []byte(provider.TypeGitHubAppTenant),
 		"client-id":       []byte("Iv1.abc123"),
 		"private-key":     []byte("not-a-pem"),
 		"installation-id": []byte("12345"),
 	}
 
-	_, err := credential.GitHubAppTenantFromSecret(data)
+	_, err := provider.GitHubAppTenantFromSecret(data)
 	if err == nil {
 		t.Fatal("expected error for invalid PEM")
 	}
@@ -106,11 +106,11 @@ func TestGitHubAppTenant_MarshalSecret(t *testing.T) {
 		t.Fatalf("creating app: %v", err)
 	}
 
-	cred := credential.NewGitHubAppTenant(app, 12345)
+	cred := provider.NewGitHubAppTenant(app, 12345)
 	data := cred.MarshalSecret()
 
-	if string(data["type"]) != credential.TypeGitHubAppTenant {
-		t.Errorf("type = %q, want %q", data["type"], credential.TypeGitHubAppTenant)
+	if string(data["type"]) != provider.TypeGitHubAppTenant {
+		t.Errorf("type = %q, want %q", data["type"], provider.TypeGitHubAppTenant)
 	}
 
 	if string(data["client-id"]) != "Iv1.abc123" {
@@ -129,20 +129,20 @@ func TestGitHubAppTenant_MarshalSecret(t *testing.T) {
 func TestGitHubAppTenant_MarshalSecret_RoundTrip(t *testing.T) {
 	pemBytes := tests.GenerateRSAPEM(t)
 	data := map[string][]byte{
-		"type":            []byte(credential.TypeGitHubAppTenant),
+		"type":            []byte(provider.TypeGitHubAppTenant),
 		"client-id":       []byte("Iv1.abc123"),
 		"private-key":     pemBytes,
 		"installation-id": []byte("12345"),
 	}
 
-	result, err := credential.GitHubAppTenantFromSecret(data)
+	result, err := provider.GitHubAppTenantFromSecret(data)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	cred, ok := result.(*credential.GitHubAppTenant)
+	cred, ok := result.(*provider.GitHubAppTenant)
 	if !ok {
-		t.Fatalf("expected *credential.GitHubAppTenant, got %T", result)
+		t.Fatalf("expected *provider.GitHubAppTenant, got %T", result)
 	}
 
 	restored := cred.MarshalSecret()
@@ -162,7 +162,7 @@ func TestGitHubAppTenant_Authenticate(t *testing.T) {
 		t.Fatalf("creating app: %v", err)
 	}
 
-	cred := credential.NewGitHubAppTenant(app, 12345)
+	cred := provider.NewGitHubAppTenant(app, 12345)
 	httpClient := &http.Client{Transport: &tests.FakeInstallationTokenTransport{Token: "ghs_fake_token"}}
 
 	auth, err := cred.Authenticate(t.Context(), httpClient)
@@ -191,7 +191,7 @@ func TestGitHubAppTenant_Authenticate_APIError(t *testing.T) {
 		t.Fatalf("creating app: %v", err)
 	}
 
-	cred := credential.NewGitHubAppTenant(app, 12345)
+	cred := provider.NewGitHubAppTenant(app, 12345)
 	httpClient := &http.Client{Transport: &tests.FailingTransport{}}
 
 	_, err = cred.Authenticate(t.Context(), httpClient)

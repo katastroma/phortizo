@@ -13,7 +13,10 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"go.opentelemetry.io/otel/trace"
+	"github.com/go-git/go-billy/v5"
+	"github.com/go-git/go-billy/v5/memfs"
+	"github.com/go-git/go-billy/v5/util"
+	"github.com/go-git/go-git/v5/plumbing/transport"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -78,18 +81,46 @@ func watchTargetConfigMap() *corev1.ConfigMap {
 	}
 }
 
-type mockHandler struct {
-	calls []*source.Target
+func helmFS(t *testing.T) billy.Filesystem {
+	t.Helper()
+
+	fs := memfs.New()
+	if err := util.WriteFile(fs, "deploy/Chart.yaml", []byte("name: test"), 0o644); err != nil {
+		t.Fatalf("writing Chart.yaml: %v", err)
+	}
+
+	return fs
 }
 
-func (m *mockHandler) HandleMatch(
-	_ context.Context, _ trace.Tracer, _ string, r *source.Target, _ int,
+func noopHandler(t *testing.T) (
+	func(context.Context, string, string, string, int) error,
+	func(context.Context, string, string) (transport.AuthMethod, error),
+	func(context.Context, string, string, transport.AuthMethod) (billy.Filesystem, error),
+	func(billy.Filesystem, string) (string, error),
+	func(context.Context, string, string, string) (bool, error),
+	func(context.Context, billy.Filesystem, string, string) error,
 ) {
-	m.calls = append(m.calls, r)
+	t.Helper()
+
+	fs := helmFS(t)
+
+	return func(_ context.Context, _, _, _ string, _ int) error { return nil },
+		func(_ context.Context, _, _ string) (transport.AuthMethod, error) { return nil, nil },
+		func(_ context.Context, _, _ string, _ transport.AuthMethod) (billy.Filesystem, error) { return fs, nil },
+		func(_ billy.Filesystem, _ string) (string, error) { return "helm-renderer:8080", nil },
+		func(_ context.Context, _, _, _ string) (bool, error) { return true, nil },
+		func(_ context.Context, _ billy.Filesystem, _, _ string) error { return nil }
+}
+
+func newTestHandler(t *testing.T, k8s *fake.Clientset) *webhook.Handler {
+	t.Helper()
+
+	acquire, resolve, clone, lookup, verify, stream := noopHandler(t)
+	return webhook.New(slog.Default(), k8s, acquire, resolve, clone, lookup, verify, stream)
 }
 
 func TestServeHTTP_MissingNamespace(t *testing.T) {
-	handler := webhook.New(slog.Default(), nil, fake.NewSimpleClientset())
+	handler := newTestHandler(t, fake.NewSimpleClientset())
 
 	req := httptest.NewRequest(http.MethodPost, "/webhook/", nil)
 	rec := httptest.NewRecorder()
@@ -109,7 +140,7 @@ func TestServeHTTP_WatchTargetsError(t *testing.T) {
 			return true, nil, fmt.Errorf("list denied")
 		},
 	)
-	handler := webhook.New(slog.Default(), nil, k8s)
+	handler := newTestHandler(t, k8s)
 
 	req := pushRequest(validPayload())
 	rec := httptest.NewRecorder()
@@ -123,7 +154,7 @@ func TestServeHTTP_WatchTargetsError(t *testing.T) {
 
 func TestServeHTTP_WebhookSecretNotFound(t *testing.T) {
 	k8s := fake.NewSimpleClientset(watchTargetConfigMap())
-	handler := webhook.New(slog.Default(), nil, k8s)
+	handler := newTestHandler(t, k8s)
 
 	req := pushRequest(validPayload())
 	rec := httptest.NewRecorder()
@@ -145,7 +176,7 @@ func TestServeHTTP_WebhookSecretMissingKey(t *testing.T) {
 	}
 
 	k8s := fake.NewSimpleClientset(secretWithoutKey)
-	handler := webhook.New(slog.Default(), nil, k8s)
+	handler := newTestHandler(t, k8s)
 
 	req := pushRequest(validPayload())
 	rec := httptest.NewRecorder()
@@ -159,7 +190,7 @@ func TestServeHTTP_WebhookSecretMissingKey(t *testing.T) {
 
 func TestServeHTTP_ValidationFailure_BodyReadError(t *testing.T) {
 	k8s := fake.NewSimpleClientset(webhookSecret(), watchTargetConfigMap())
-	handler := webhook.New(slog.Default(), nil, k8s)
+	handler := newTestHandler(t, k8s)
 
 	req := httptest.NewRequest(http.MethodPost, "/webhook/{namespace}", &errorReader{})
 	req.SetPathValue("namespace", testNamespace)
@@ -177,7 +208,7 @@ func TestServeHTTP_ValidationFailure_BodyReadError(t *testing.T) {
 
 func TestServeHTTP_ValidationFailure_BadSignature(t *testing.T) {
 	k8s := fake.NewSimpleClientset(webhookSecret(), watchTargetConfigMap())
-	handler := webhook.New(slog.Default(), nil, k8s)
+	handler := newTestHandler(t, k8s)
 
 	req := pushRequest(validPayload())
 	req.Header.Set("X-Hub-Signature-256", "sha256=0000000000000000000000000000000000000000000000000000000000000000")
@@ -192,7 +223,7 @@ func TestServeHTTP_ValidationFailure_BadSignature(t *testing.T) {
 
 func TestServeHTTP_InvalidPayload(t *testing.T) {
 	k8s := fake.NewSimpleClientset(webhookSecret(), watchTargetConfigMap())
-	handler := webhook.New(slog.Default(), nil, k8s)
+	handler := newTestHandler(t, k8s)
 
 	body := []byte("not json")
 	req := pushRequest(body)
@@ -207,7 +238,7 @@ func TestServeHTTP_InvalidPayload(t *testing.T) {
 
 func TestServeHTTP_NoMatch(t *testing.T) {
 	k8s := fake.NewSimpleClientset(webhookSecret(), watchTargetConfigMap())
-	handler := webhook.New(slog.Default(), nil, k8s)
+	handler := newTestHandler(t, k8s)
 
 	body := []byte(`{
 		"ref": "refs/heads/develop",
@@ -226,7 +257,7 @@ func TestServeHTTP_NoMatch(t *testing.T) {
 
 func TestServeHTTP_NonPushEvent(t *testing.T) {
 	k8s := fake.NewSimpleClientset(webhookSecret(), watchTargetConfigMap())
-	handler := webhook.New(slog.Default(), nil, k8s)
+	handler := newTestHandler(t, k8s)
 
 	body := []byte(`{"action": "opened"}`)
 	req := pushRequest(body)
@@ -242,8 +273,15 @@ func TestServeHTTP_NonPushEvent(t *testing.T) {
 
 func TestServeHTTP_Match(t *testing.T) {
 	k8s := fake.NewSimpleClientset(webhookSecret(), watchTargetConfigMap())
-	runner := &mockHandler{}
-	handler := webhook.New(slog.Default(), runner, k8s)
+
+	var processed int
+	acquire, resolve, clone, lookup, verify, _ := noopHandler(t)
+	countingStream := func(_ context.Context, _ billy.Filesystem, _, _ string) error {
+		processed++
+		return nil
+	}
+
+	handler := webhook.New(slog.Default(), k8s, acquire, resolve, clone, lookup, verify, countingStream)
 
 	body := validPayload()
 	req := pushRequest(body)
@@ -256,12 +294,8 @@ func TestServeHTTP_Match(t *testing.T) {
 		t.Errorf("status = %d, want %d", rec.Code, http.StatusAccepted)
 	}
 
-	if len(runner.calls) != 1 {
-		t.Fatalf("expected 1 HandleMatch call, got %d", len(runner.calls))
-	}
-
-	if runner.calls[0].RepoURL != "https://github.com/acme/app.git" {
-		t.Errorf("RepoURL = %q, want %q", runner.calls[0].RepoURL, "https://github.com/acme/app.git")
+	if processed != 1 {
+		t.Errorf("expected 1 Process call, got %d", processed)
 	}
 }
 

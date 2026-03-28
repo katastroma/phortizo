@@ -29,14 +29,18 @@ import (
 
 	"github.com/google/go-github/v84/github"
 
+	"github.com/katastroma/phortizo/internal/credential"
+	"github.com/katastroma/phortizo/internal/credential/provider"
 	"github.com/katastroma/phortizo/internal/git"
 	gh_apps "github.com/katastroma/phortizo/internal/github/apps"
 	gh_service "github.com/katastroma/phortizo/internal/github/service"
 	gh_transport "github.com/katastroma/phortizo/internal/github/transport"
 	grpc_health "github.com/katastroma/phortizo/internal/health/grpc"
 	http_health "github.com/katastroma/phortizo/internal/health/http"
-	"github.com/katastroma/phortizo/internal/credential"
-	"github.com/katastroma/phortizo/internal/pipeline"
+	"github.com/katastroma/phortizo/internal/k8s/configmap"
+	"github.com/katastroma/phortizo/internal/k8s/secret"
+	"github.com/katastroma/phortizo/internal/lease"
+	"github.com/katastroma/phortizo/internal/object"
 	"github.com/katastroma/phortizo/internal/renderer"
 	"github.com/katastroma/phortizo/internal/retriever"
 	"github.com/katastroma/phortizo/internal/tracing"
@@ -110,7 +114,7 @@ func main() {
 	}
 
 	// Credential reader
-	credentialReader := credential.NewReader(gha)
+	credentialReader := provider.NewReader(gha)
 
 	// Renderer addresses
 	renderers := map[renderer.Type]string{
@@ -138,19 +142,45 @@ func main() {
 		}
 	}
 
-	// Pipeline runner
-	runner := pipeline.New(
-		log,
-		http.DefaultClient,
-		renderers,
-		credentialReader,
-		git.Client{},
-		renderer.Client{},
-		k8sClient,
-	)
+	// Pipeline step closures
+	newConfigMapStore := func(ns string) object.Store[string] {
+		return configmap.NewStore(k8sClient, ns)
+	}
+	newSecretStore := func(ns string) object.Store[[]byte] {
+		return secret.NewStore(k8sClient, ns)
+	}
+
+	acquireLease := lease.AcquireFunc(newConfigMapStore)
+	resolveAuth := credential.ResolveFunc(credentialReader, http.DefaultClient, newSecretStore)
+	gitClient := git.Client{}
+	lookupRenderer := renderer.LookupFunc(renderers)
+	verifyLease := lease.VerifyFunc(newConfigMapStore)
+
+	// Renderer gRPC connections
+	rendererConns := make(map[string]grpc.ClientConnInterface, len(renderers))
+	for rendererType, addr := range renderers {
+		if addr == "" {
+			continue
+		}
+
+		conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		if err != nil {
+			log.Error("connecting to renderer", "type", string(rendererType), "address", addr, "error", err)
+			os.Exit(1)
+		}
+		defer conn.Close()
+
+		rendererConns[addr] = conn
+	}
+
+	streamToRenderer := renderer.StreamFunc(rendererConns)
 
 	// HTTP server
-	webhookHandler := webhook.New(log, runner, k8sClient)
+	webhookHandler := webhook.New(
+		log, k8sClient,
+		acquireLease, resolveAuth, gitClient.Clone, lookupRenderer,
+		verifyLease, streamToRenderer,
+	)
 
 	mux := http.NewServeMux()
 	mux.Handle("GET /healthz", http_health.New(log, ghService))
@@ -170,7 +200,7 @@ func main() {
 	healthpb.RegisterHealthServer(grpcServer, healthServer)
 
 	// Trace querier — connects to Tempo for replay support
-	var traceQuerier tracing.Tracer
+	var tracer tracing.Tracer
 	if tempoAddr := os.Getenv("TEMPO_ADDRESS"); tempoAddr != "" {
 		tempoConn, err := grpc.NewClient(
 			tempoAddr,
@@ -183,10 +213,15 @@ func main() {
 		defer tempoConn.Close()
 
 		qc := tempopb.NewQuerierClient(tempoConn)
-		traceQuerier = tempoTracer.New(qc)
+		tracer = tempoTracer.New(qc)
 	}
 
-	retrieverServer := retriever.New(log, traceQuerier, runner, k8sClient, leaseStaleAfter, maxReplayAttempts)
+	retrieverServer := retriever.New(
+		log, tracer, k8sClient,
+		leaseStaleAfter, maxReplayAttempts,
+		acquireLease, resolveAuth, gitClient.Clone, lookupRenderer,
+		verifyLease, streamToRenderer,
+	)
 	pb.RegisterRetrieverServiceServer(grpcServer, retrieverServer)
 
 	sigNotifyContext, stop := context.WithCancel(mainCtx)

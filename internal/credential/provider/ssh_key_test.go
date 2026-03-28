@@ -1,4 +1,4 @@
-package credential_test
+package provider_test
 
 import (
 	"bytes"
@@ -6,13 +6,13 @@ import (
 
 	gitssh "github.com/go-git/go-git/v5/plumbing/transport/ssh"
 
-	"github.com/katastroma/phortizo/internal/credential"
+	"github.com/katastroma/phortizo/internal/credential/provider"
 	"github.com/katastroma/phortizo/internal/tests"
 )
 
 func TestSSHKey_Authenticate(t *testing.T) {
 	pemBytes := tests.GenerateRSAPEM(t)
-	cred := credential.NewSSHKey(pemBytes)
+	cred := provider.NewSSHKey(pemBytes)
 
 	auth, err := cred.Authenticate(t.Context(), nil)
 	if err != nil {
@@ -25,7 +25,7 @@ func TestSSHKey_Authenticate(t *testing.T) {
 }
 
 func TestSSHKey_Authenticate_InvalidKey(t *testing.T) {
-	cred := credential.NewSSHKey([]byte("not-a-valid-key"))
+	cred := provider.NewSSHKey([]byte("not-a-valid-key"))
 
 	_, err := cred.Authenticate(t.Context(), nil)
 	if err == nil {
@@ -35,11 +35,11 @@ func TestSSHKey_Authenticate_InvalidKey(t *testing.T) {
 
 func TestSSHKey_MarshalSecret(t *testing.T) {
 	pemBytes := tests.GenerateRSAPEM(t)
-	cred := credential.NewSSHKey(pemBytes)
+	cred := provider.NewSSHKey(pemBytes)
 	data := cred.MarshalSecret()
 
-	if string(data["type"]) != credential.TypeSSHKey {
-		t.Errorf("type = %q, want %q", data["type"], credential.TypeSSHKey)
+	if string(data["type"]) != provider.TypeSSHKey {
+		t.Errorf("type = %q, want %q", data["type"], provider.TypeSSHKey)
 	}
 
 	if !bytes.Equal(data["private-key"], pemBytes) {
@@ -49,17 +49,17 @@ func TestSSHKey_MarshalSecret(t *testing.T) {
 
 func TestSSHKey_FromSecret(t *testing.T) {
 	pemBytes := tests.GenerateRSAPEM(t)
-	original := credential.NewSSHKey(pemBytes)
+	original := provider.NewSSHKey(pemBytes)
 	data := original.MarshalSecret()
 
-	cred, err := credential.SSHKeyFromSecret(data)
+	cred, err := provider.SSHKeyFromSecret(data)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	restored, ok := cred.(*credential.SSHKey)
+	restored, ok := cred.(*provider.SSHKey)
 	if !ok {
-		t.Fatalf("expected *credential.SSHKey, got %T", cred)
+		t.Fatalf("expected *provider.SSHKey, got %T", cred)
 	}
 
 	restoredData := restored.MarshalSecret()
@@ -69,9 +69,9 @@ func TestSSHKey_FromSecret(t *testing.T) {
 }
 
 func TestSSHKey_FromSecret_MissingKey(t *testing.T) {
-	data := map[string][]byte{"type": []byte(credential.TypeSSHKey)}
+	data := map[string][]byte{"type": []byte(provider.TypeSSHKey)}
 
-	_, err := credential.SSHKeyFromSecret(data)
+	_, err := provider.SSHKeyFromSecret(data)
 	if err == nil {
 		t.Fatal("expected error for missing private-key")
 	}

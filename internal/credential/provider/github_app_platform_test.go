@@ -1,4 +1,4 @@
-package credential_test
+package provider_test
 
 import (
 	"net/http"
@@ -6,7 +6,7 @@ import (
 
 	githttp "github.com/go-git/go-git/v5/plumbing/transport/http"
 
-	"github.com/katastroma/phortizo/internal/credential"
+	"github.com/katastroma/phortizo/internal/credential/provider"
 	"github.com/katastroma/phortizo/internal/github"
 	"github.com/katastroma/phortizo/internal/github/apps"
 	"github.com/katastroma/phortizo/internal/tests"
@@ -20,11 +20,11 @@ func TestGitHubAppPlatform_FromSecret(t *testing.T) {
 	}
 
 	data := map[string][]byte{
-		"type":            []byte(credential.TypeGitHubAppPlatform),
+		"type":            []byte(provider.TypeGitHubAppPlatform),
 		"installation-id": []byte("67890"),
 	}
 
-	cred, err := credential.GitHubAppPlatformFromSecret(data, platformApp)
+	cred, err := provider.GitHubAppPlatformFromSecret(data, platformApp)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -42,10 +42,10 @@ func TestGitHubAppPlatform_FromSecret_MissingInstallationID(t *testing.T) {
 	}
 
 	data := map[string][]byte{
-		"type": []byte(credential.TypeGitHubAppPlatform),
+		"type": []byte(provider.TypeGitHubAppPlatform),
 	}
 
-	_, err = credential.GitHubAppPlatformFromSecret(data, platformApp)
+	_, err = provider.GitHubAppPlatformFromSecret(data, platformApp)
 	if err == nil {
 		t.Fatal("expected error for missing installation-id")
 	}
@@ -59,11 +59,11 @@ func TestGitHubAppPlatform_FromSecret_InvalidInstallationID(t *testing.T) {
 	}
 
 	data := map[string][]byte{
-		"type":            []byte(credential.TypeGitHubAppPlatform),
+		"type":            []byte(provider.TypeGitHubAppPlatform),
 		"installation-id": []byte("not-a-number"),
 	}
 
-	_, err = credential.GitHubAppPlatformFromSecret(data, platformApp)
+	_, err = provider.GitHubAppPlatformFromSecret(data, platformApp)
 	if err == nil {
 		t.Fatal("expected error for invalid installation-id")
 	}
@@ -76,11 +76,11 @@ func TestGitHubAppPlatform_MarshalSecret(t *testing.T) {
 		t.Fatalf("creating platform app: %v", err)
 	}
 
-	cred := credential.NewGitHubAppPlatform(platformApp, 67890)
+	cred := provider.NewGitHubAppPlatform(platformApp, 67890)
 	data := cred.MarshalSecret()
 
-	if string(data["type"]) != credential.TypeGitHubAppPlatform {
-		t.Errorf("type = %q, want %q", data["type"], credential.TypeGitHubAppPlatform)
+	if string(data["type"]) != provider.TypeGitHubAppPlatform {
+		t.Errorf("type = %q, want %q", data["type"], provider.TypeGitHubAppPlatform)
 	}
 
 	if string(data["installation-id"]) != "67890" {
@@ -95,7 +95,7 @@ func TestGitHubAppPlatform_Authenticate(t *testing.T) {
 		t.Fatalf("creating platform app: %v", err)
 	}
 
-	cred := credential.NewGitHubAppPlatform(platformApp, 67890)
+	cred := provider.NewGitHubAppPlatform(platformApp, 67890)
 	httpClient := &http.Client{Transport: &tests.FakeInstallationTokenTransport{Token: "ghs_platform_token"}}
 
 	auth, err := cred.Authenticate(t.Context(), httpClient)
@@ -124,7 +124,7 @@ func TestGitHubAppPlatform_Authenticate_APIError(t *testing.T) {
 		t.Fatalf("creating platform app: %v", err)
 	}
 
-	cred := credential.NewGitHubAppPlatform(platformApp, 67890)
+	cred := provider.NewGitHubAppPlatform(platformApp, 67890)
 	httpClient := &http.Client{Transport: &tests.FailingTransport{}}
 
 	_, err = cred.Authenticate(t.Context(), httpClient)

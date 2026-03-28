@@ -1,4 +1,4 @@
-package credential_test
+package provider_test
 
 import (
 	"bytes"
@@ -6,12 +6,12 @@ import (
 
 	githttp "github.com/go-git/go-git/v5/plumbing/transport/http"
 
-	"github.com/katastroma/phortizo/internal/credential"
+	"github.com/katastroma/phortizo/internal/credential/provider"
 	"github.com/katastroma/phortizo/internal/github"
 )
 
 func TestGitHubToken_Authenticate(t *testing.T) {
-	cred := credential.NewGitHubToken("ghp_abc123")
+	cred := provider.NewGitHubToken("ghp_abc123")
 
 	auth, err := cred.Authenticate(t.Context(), nil)
 	if err != nil {
@@ -33,11 +33,11 @@ func TestGitHubToken_Authenticate(t *testing.T) {
 }
 
 func TestGitHubToken_MarshalSecret(t *testing.T) {
-	cred := credential.NewGitHubToken("ghp_abc123")
+	cred := provider.NewGitHubToken("ghp_abc123")
 	data := cred.MarshalSecret()
 
-	if string(data["type"]) != credential.TypeGitHubToken {
-		t.Errorf("type = %q, want %q", data["type"], credential.TypeGitHubToken)
+	if string(data["type"]) != provider.TypeGitHubToken {
+		t.Errorf("type = %q, want %q", data["type"], provider.TypeGitHubToken)
 	}
 
 	if string(data["token"]) != "ghp_abc123" {
@@ -46,17 +46,17 @@ func TestGitHubToken_MarshalSecret(t *testing.T) {
 }
 
 func TestGitHubToken_FromSecret(t *testing.T) {
-	original := credential.NewGitHubToken("ghp_abc123")
+	original := provider.NewGitHubToken("ghp_abc123")
 	data := original.MarshalSecret()
 
-	cred, err := credential.GitHubTokenFromSecret(data)
+	cred, err := provider.GitHubTokenFromSecret(data)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	restored, ok := cred.(*credential.GitHubToken)
+	restored, ok := cred.(*provider.GitHubToken)
 	if !ok {
-		t.Fatalf("expected *credential.GitHubToken, got %T", cred)
+		t.Fatalf("expected *provider.GitHubToken, got %T", cred)
 	}
 
 	restoredData := restored.MarshalSecret()
@@ -66,9 +66,9 @@ func TestGitHubToken_FromSecret(t *testing.T) {
 }
 
 func TestGitHubToken_FromSecret_MissingKey(t *testing.T) {
-	data := map[string][]byte{"type": []byte(credential.TypeGitHubToken)}
+	data := map[string][]byte{"type": []byte(provider.TypeGitHubToken)}
 
-	_, err := credential.GitHubTokenFromSecret(data)
+	_, err := provider.GitHubTokenFromSecret(data)
 	if err == nil {
 		t.Fatal("expected error for missing token key")
 	}

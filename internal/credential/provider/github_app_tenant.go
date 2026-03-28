@@ -1,5 +1,5 @@
 //revive:disable:package-comments
-package credential
+package provider
 
 import (
 	"context"
@@ -10,6 +10,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	githttp "github.com/go-git/go-git/v5/plumbing/transport/http"
 
+	"github.com/katastroma/phortizo/internal/credential"
 	gh "github.com/katastroma/phortizo/internal/github"
 	"github.com/katastroma/phortizo/internal/github/apps"
 )
@@ -29,7 +30,7 @@ func NewGitHubAppTenant(app *apps.App, installationID int64) *GitHubAppTenant {
 }
 
 // GitHubAppTenantFromSecret deserializes a GitHubAppTenant from Secret data.
-func GitHubAppTenantFromSecret(data map[string][]byte) (Authenticator, error) {
+func GitHubAppTenantFromSecret(data map[string][]byte) (credential.Authenticator, error) {
 	clientID, ok := data["client-id"]
 	if !ok {
 		return nil, fmt.Errorf("missing key %q", "client-id")

@@ -6,13 +6,14 @@ import (
 	"fmt"
 	"net/http"
 
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
+
 	"github.com/google/go-github/v84/github"
 	"github.com/katastroma/phortizo/internal/k8s/configmap"
 	"github.com/katastroma/phortizo/internal/k8s/secret"
 	"github.com/katastroma/phortizo/internal/source"
 	"github.com/katastroma/phortizo/internal/tracing"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/trace"
 )
 
 func (h *Handler) fail(
@@ -98,7 +99,11 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer span.End()
 
 	for _, target := range matched {
-		h.matcher.HandleMatch(ctx, tracer, namespace, target, 0)
+		target.Process(
+			ctx, h.log, tracer, namespace, 0,
+			h.acquireLease, h.resolveAuth, h.clone, h.lookupRenderer,
+			h.verifyLease, h.stream,
+		)
 	}
 
 	w.WriteHeader(http.StatusAccepted)

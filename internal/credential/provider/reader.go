@@ -1,30 +1,31 @@
 //revive:disable:package-comments
-package credential
+package provider
 
 import (
 	"context"
 	"fmt"
 
+	"github.com/katastroma/phortizo/internal/credential"
 	"github.com/katastroma/phortizo/internal/github/apps"
 	"github.com/katastroma/phortizo/internal/object"
 )
 
 // Deserializer converts raw Secret data into a credential
-type Deserializer func(data map[string][]byte) (Authenticator, error)
+type Deserializer func(data map[string][]byte) (credential.Authenticator, error)
 
 type reader struct {
 	deserializers map[string]Deserializer
 }
 
 // NewReader returns a Reader that deserializes credentials from a store
-func NewReader(platformApp *apps.App) Reader {
+func NewReader(platformApp *apps.App) credential.Reader {
 	return &reader{
 		deserializers: map[string]Deserializer{
 			TypeGitHubToken:     GitHubTokenFromSecret,
 			TypeBasicAuth:       BasicAuthFromSecret,
 			TypeSSHKey:          SSHKeyFromSecret,
 			TypeGitHubAppTenant: GitHubAppTenantFromSecret,
-			TypeGitHubAppPlatform: func(data map[string][]byte) (Authenticator, error) {
+			TypeGitHubAppPlatform: func(data map[string][]byte) (credential.Authenticator, error) {
 				return GitHubAppPlatformFromSecret(data, platformApp)
 			},
 		},
@@ -32,7 +33,9 @@ func NewReader(platformApp *apps.App) Reader {
 }
 
 // Get reads a Secret by name from the store and returns the deserialized credential
-func (r *reader) Get(ctx context.Context, store object.Store[[]byte], name string) (Authenticator, error) {
+func (r *reader) Get(
+	ctx context.Context, store object.Store[[]byte], name string,
+) (credential.Authenticator, error) {
 	resource, err := store.Get(ctx, name)
 	if err != nil {
 		return nil, err

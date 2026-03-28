@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-git/go-billy/v5"
+	"github.com/go-git/go-git/v5/plumbing/transport"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
@@ -44,8 +46,30 @@ func retrieveWatchTargetCM() *corev1.ConfigMap {
 
 func TestRetrieve(t *testing.T) {
 	k8s := fake.NewSimpleClientset(retrieveWatchTargetCM())
-	runner := &mockHandler{}
-	handler := New(slog.Default(), nil, runner, k8s, 10*time.Minute, 3)
+
+	var processedNamespace string
+	var processedReplayCount int
+	var processedTarget string
+
+	acquireFn := func(_ context.Context, ns, name, _ string, rc int) error {
+		processedNamespace = ns
+		processedReplayCount = rc
+		processedTarget = name
+		return nil
+	}
+	resolveFn := func(_ context.Context, _, _ string) (transport.AuthMethod, error) { return nil, nil }
+	cloneFn := func(_ context.Context, _, _ string, _ transport.AuthMethod) (billy.Filesystem, error) {
+		return helmFS(t), nil
+	}
+	lookupFn := func(_ billy.Filesystem, _ string) (string, error) { return "helm-renderer:8080", nil }
+	verifyFn := func(_ context.Context, _, _, _ string) (bool, error) { return true, nil }
+	streamFn := func(_ context.Context, _ billy.Filesystem, _, _ string) error { return nil }
+
+	handler := New(
+		slog.Default(), nil, k8s,
+		10*time.Minute, 3,
+		acquireFn, resolveFn, cloneFn, lookupFn, verifyFn, streamFn,
+	)
 
 	resp, err := handler.Retrieve(t.Context(), &pb.RetrieveRequest{
 		Namespace:     "tenant-a",
@@ -59,30 +83,26 @@ func TestRetrieve(t *testing.T) {
 		t.Fatal("expected non-nil response")
 	}
 
-	if len(runner.calls) != 1 {
-		t.Fatalf("expected 1 HandleMatch call, got %d", len(runner.calls))
+	if processedNamespace != "tenant-a" {
+		t.Errorf("namespace = %q, want %q", processedNamespace, "tenant-a")
 	}
 
-	if runner.namespace != "tenant-a" {
-		t.Errorf("namespace = %q, want %q", runner.namespace, "tenant-a")
+	if processedTarget != "wt-1" {
+		t.Errorf("target = %q, want %q", processedTarget, "wt-1")
 	}
 
-	if runner.calls[0].RepoURL != "https://github.com/acme/app.git" {
-		t.Errorf("RepoURL = %q, want %q", runner.calls[0].RepoURL, "https://github.com/acme/app.git")
-	}
-
-	if runner.calls[0].Name != "wt-1" {
-		t.Errorf("Name = %q, want %q", runner.calls[0].Name, "wt-1")
-	}
-
-	if runner.replayCount != 0 {
-		t.Errorf("replayCount = %d, want %d", runner.replayCount, 0)
+	if processedReplayCount != 0 {
+		t.Errorf("replayCount = %d, want %d", processedReplayCount, 0)
 	}
 }
 
 func TestRetrieve_WatchTargetNotFound(t *testing.T) {
 	k8s := fake.NewSimpleClientset()
-	handler := New(slog.Default(), nil, nil, k8s, 10*time.Minute, 3)
+	handler := New(
+		slog.Default(), nil, k8s,
+		10*time.Minute, 3,
+		nil, nil, nil, nil, nil, nil,
+	)
 
 	_, err := handler.Retrieve(t.Context(), &pb.RetrieveRequest{
 		Namespace:     "tenant-a",

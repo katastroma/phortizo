@@ -1,9 +1,9 @@
-package credential_test
+package provider_test
 
 import (
 	"testing"
 
-	"github.com/katastroma/phortizo/internal/credential"
+	"github.com/katastroma/phortizo/internal/credential/provider"
 	"github.com/katastroma/phortizo/internal/github/apps"
 	"github.com/katastroma/phortizo/internal/tests"
 )
@@ -17,55 +17,55 @@ func seedSecret(store *tests.MockStore[[]byte], name string, data map[string][]b
 func TestGet_GitHubToken(t *testing.T) {
 	store := tests.NewMockStore[[]byte]()
 	seedSecret(store, "repo-cred", map[string][]byte{
-		"type":  []byte(credential.TypeGitHubToken),
+		"type":  []byte(provider.TypeGitHubToken),
 		"token": []byte("ghp_abc123"),
 	})
 
-	reader := credential.NewReader(nil)
+	reader := provider.NewReader(nil)
 	cred, err := reader.Get(t.Context(), store, "repo-cred")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if _, ok := cred.(*credential.GitHubToken); !ok {
-		t.Fatalf("expected *credential.GitHubToken, got %T", cred)
+	if _, ok := cred.(*provider.GitHubToken); !ok {
+		t.Fatalf("expected *provider.GitHubToken, got %T", cred)
 	}
 }
 
 func TestGet_BasicAuth(t *testing.T) {
 	store := tests.NewMockStore[[]byte]()
 	seedSecret(store, "repo-cred", map[string][]byte{
-		"type":     []byte(credential.TypeBasicAuth),
+		"type":     []byte(provider.TypeBasicAuth),
 		"username": []byte("user"),
 		"password": []byte("pass"),
 	})
 
-	reader := credential.NewReader(nil)
+	reader := provider.NewReader(nil)
 	cred, err := reader.Get(t.Context(), store, "repo-cred")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if _, ok := cred.(*credential.BasicAuth); !ok {
-		t.Fatalf("expected *credential.BasicAuth, got %T", cred)
+	if _, ok := cred.(*provider.BasicAuth); !ok {
+		t.Fatalf("expected *provider.BasicAuth, got %T", cred)
 	}
 }
 
 func TestGet_SSHKey(t *testing.T) {
 	store := tests.NewMockStore[[]byte]()
 	seedSecret(store, "repo-cred", map[string][]byte{
-		"type":        []byte(credential.TypeSSHKey),
+		"type":        []byte(provider.TypeSSHKey),
 		"private-key": []byte("fake-pem-bytes"),
 	})
 
-	reader := credential.NewReader(nil)
+	reader := provider.NewReader(nil)
 	cred, err := reader.Get(t.Context(), store, "repo-cred")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if _, ok := cred.(*credential.SSHKey); !ok {
-		t.Fatalf("expected *credential.SSHKey, got %T", cred)
+	if _, ok := cred.(*provider.SSHKey); !ok {
+		t.Fatalf("expected *provider.SSHKey, got %T", cred)
 	}
 }
 
@@ -74,20 +74,20 @@ func TestGet_GitHubAppTenant(t *testing.T) {
 
 	store := tests.NewMockStore[[]byte]()
 	seedSecret(store, "repo-cred", map[string][]byte{
-		"type":            []byte(credential.TypeGitHubAppTenant),
+		"type":            []byte(provider.TypeGitHubAppTenant),
 		"client-id":       []byte("Iv1.abc123"),
 		"private-key":     pemBytes,
 		"installation-id": []byte("12345"),
 	})
 
-	reader := credential.NewReader(nil)
+	reader := provider.NewReader(nil)
 	cred, err := reader.Get(t.Context(), store, "repo-cred")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if _, ok := cred.(*credential.GitHubAppTenant); !ok {
-		t.Fatalf("expected *credential.GitHubAppTenant, got %T", cred)
+	if _, ok := cred.(*provider.GitHubAppTenant); !ok {
+		t.Fatalf("expected *provider.GitHubAppTenant, got %T", cred)
 	}
 }
 
@@ -100,25 +100,25 @@ func TestGet_GitHubAppPlatform(t *testing.T) {
 
 	store := tests.NewMockStore[[]byte]()
 	seedSecret(store, "repo-cred", map[string][]byte{
-		"type":            []byte(credential.TypeGitHubAppPlatform),
+		"type":            []byte(provider.TypeGitHubAppPlatform),
 		"installation-id": []byte("67890"),
 	})
 
-	reader := credential.NewReader(platformApp)
+	reader := provider.NewReader(platformApp)
 	cred, err := reader.Get(t.Context(), store, "repo-cred")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if _, ok := cred.(*credential.GitHubAppPlatform); !ok {
-		t.Fatalf("expected *credential.GitHubAppPlatform, got %T", cred)
+	if _, ok := cred.(*provider.GitHubAppPlatform); !ok {
+		t.Fatalf("expected *provider.GitHubAppPlatform, got %T", cred)
 	}
 }
 
 func TestGet_SecretNotFound(t *testing.T) {
 	store := tests.NewMockStore[[]byte]()
 
-	reader := credential.NewReader(nil)
+	reader := provider.NewReader(nil)
 	_, err := reader.Get(t.Context(), store, "nonexistent")
 	if err == nil {
 		t.Fatal("expected error for missing secret")
@@ -131,7 +131,7 @@ func TestGet_MissingType(t *testing.T) {
 		"token": []byte("ghp_abc123"),
 	})
 
-	reader := credential.NewReader(nil)
+	reader := provider.NewReader(nil)
 	_, err := reader.Get(t.Context(), store, "repo-cred")
 	if err == nil {
 		t.Fatal("expected error for missing type key")
@@ -144,7 +144,7 @@ func TestGet_UnknownType(t *testing.T) {
 		"type": []byte("unknown"),
 	})
 
-	reader := credential.NewReader(nil)
+	reader := provider.NewReader(nil)
 	_, err := reader.Get(t.Context(), store, "repo-cred")
 	if err == nil {
 		t.Fatal("expected error for unknown type")

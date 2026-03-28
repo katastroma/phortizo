@@ -1,5 +1,5 @@
 //revive:disable:package-comments
-package credential
+package provider
 
 import (
 	"context"
@@ -10,6 +10,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	githttp "github.com/go-git/go-git/v5/plumbing/transport/http"
 
+	"github.com/katastroma/phortizo/internal/credential"
 	gh "github.com/katastroma/phortizo/internal/github"
 	"github.com/katastroma/phortizo/internal/github/apps"
 )
@@ -32,7 +33,9 @@ func NewGitHubAppPlatform(platformApp *apps.App, installationID int64) *GitHubAp
 // GitHubAppPlatformFromSecret deserializes a GitHubAppPlatform from Secret
 // data. The platform App is provided externally since the Secret only stores
 // the installation ID.
-func GitHubAppPlatformFromSecret(data map[string][]byte, platformApp *apps.App) (Authenticator, error) {
+func GitHubAppPlatformFromSecret(
+	data map[string][]byte, platformApp *apps.App,
+) (credential.Authenticator, error) {
 	rawID, ok := data["installation-id"]
 	if !ok {
 		return nil, fmt.Errorf("missing key %q", "installation-id")
