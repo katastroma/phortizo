@@ -199,22 +199,22 @@ func main() {
 	healthServer := grpc_health.New(log, ghService)
 	healthpb.RegisterHealthServer(grpcServer, healthServer)
 
-	// Trace querier — connects to Tempo for replay support
-	var tracer tracing.Tracer
-	if tempoAddr := os.Getenv("TEMPO_ADDRESS"); tempoAddr != "" {
-		tempoConn, err := grpc.NewClient(
-			tempoAddr,
-			grpc.WithTransportCredentials(insecure.NewCredentials()),
-		)
-		if err != nil {
-			log.Error("connecting to tempo", "address", tempoAddr, "error", err)
-			os.Exit(1)
-		}
-		defer tempoConn.Close()
-
-		qc := tempopb.NewQuerierClient(tempoConn)
-		tracer = tempoTracer.New(qc)
+	// Tracer — connects to Tempo for replay support
+	tempoAddr := os.Getenv("TEMPO_ADDRESS")
+	if tempoAddr == "" {
+		log.Error("TEMPO_ADDRESS is required")
+		os.Exit(1)
 	}
+
+	tempoConn, err := grpc.NewClient(tempoAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		log.Error("connecting to tempo", "address", tempoAddr, "error", err)
+		os.Exit(1)
+	}
+	defer tempoConn.Close()
+
+	qc := tempopb.NewQuerierClient(tempoConn)
+	tracer := tempoTracer.New(qc)
 
 	retrieverServer := retriever.New(
 		log, tracer, k8sClient,
