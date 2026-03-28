@@ -14,19 +14,9 @@ import (
 	"fmt"
 	"strconv"
 	"time"
+
+	"github.com/katastroma/phortizo/internal/object"
 )
-
-// Annotatable is something with annotations.
-type Annotatable interface {
-	GetAnnotations() map[string]string
-	SetAnnotations(map[string]string)
-}
-
-// ObjectStore reads and updates annotatable objects.
-type ObjectStore interface {
-	Get(ctx context.Context, name string) (Annotatable, error)
-	Update(ctx context.Context, obj Annotatable) error
-}
 
 const (
 	// IDAnnotation identifies which processing instance currently owns the object
@@ -59,12 +49,12 @@ func (s *State) ReplayCount() int {
 // via resourceVersion to prevent races.
 func Acquire(
 	ctx context.Context,
-	store ObjectStore,
+	s object.Store,
 	name string,
 	leaseID string,
 	replayCount int,
 ) error {
-	obj, err := store.Get(ctx, name)
+	obj, err := s.Get(ctx, name)
 	if err != nil {
 		return fmt.Errorf("reading %s: %w", name, err)
 	}
@@ -79,7 +69,7 @@ func Acquire(
 	annotations[ReplayCountAnnotation] = strconv.Itoa(replayCount)
 	obj.SetAnnotations(annotations)
 
-	if err = store.Update(ctx, obj); err != nil {
+	if err = s.Update(ctx, obj); err != nil {
 		return fmt.Errorf("acquiring lease on %s: %w", name, err)
 	}
 
@@ -87,8 +77,8 @@ func Acquire(
 }
 
 // Read reads the current lease state from an object.
-func Read(ctx context.Context, store ObjectStore, name string) (*State, error) {
-	obj, err := store.Get(ctx, name)
+func Read(ctx context.Context, s object.Store, name string) (*State, error) {
+	obj, err := s.Get(ctx, name)
 	if err != nil {
 		return nil, fmt.Errorf("reading %s: %w", name, err)
 	}
@@ -109,8 +99,8 @@ func Read(ctx context.Context, store ObjectStore, name string) (*State, error) {
 }
 
 // Release clears the lease annotations on an object.
-func Release(ctx context.Context, store ObjectStore, name string) error {
-	obj, err := store.Get(ctx, name)
+func Release(ctx context.Context, s object.Store, name string) error {
+	obj, err := s.Get(ctx, name)
 	if err != nil {
 		return fmt.Errorf("reading %s: %w", name, err)
 	}
@@ -121,7 +111,7 @@ func Release(ctx context.Context, store ObjectStore, name string) error {
 	delete(annotations, ReplayCountAnnotation)
 	obj.SetAnnotations(annotations)
 
-	if err = store.Update(ctx, obj); err != nil {
+	if err = s.Update(ctx, obj); err != nil {
 		return fmt.Errorf("releasing lease on %s: %w", name, err)
 	}
 
@@ -129,8 +119,8 @@ func Release(ctx context.Context, store ObjectStore, name string) error {
 }
 
 // HeldBy checks if the given lease ID currently holds the lease.
-func HeldBy(ctx context.Context, store ObjectStore, name string, leaseID string) (bool, error) {
-	l, err := Read(ctx, store, name)
+func HeldBy(ctx context.Context, s object.Store, name string, leaseID string) (bool, error) {
+	l, err := Read(ctx, s, name)
 	if err != nil {
 		return false, err
 	}

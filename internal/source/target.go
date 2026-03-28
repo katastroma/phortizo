@@ -52,21 +52,12 @@ func TargetFromConfigMap(data map[string]string) (Target, error) {
 		overrides = []byte(raw)
 	}
 
-	return Target{
-		RepoURL:   repoURL,
-		Ref:       ref,
-		Path:      path,
-		Overrides: overrides,
-	}, nil
+	return Target{RepoURL: repoURL, Ref: ref, Path: path, Overrides: overrides}, nil
 }
 
 // MarshalConfigMap serializes the WatchTarget to ConfigMap data.
 func (t Target) MarshalConfigMap() map[string]string {
-	data := map[string]string{
-		"repo-url": t.RepoURL,
-		"ref":      t.Ref,
-		"path":     t.Path,
-	}
+	data := map[string]string{"repo-url": t.RepoURL, "ref": t.Ref, "path": t.Path}
 
 	if len(t.Overrides) > 0 {
 		data["overrides"] = string(t.Overrides)

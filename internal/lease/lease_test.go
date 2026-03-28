@@ -1,55 +1,17 @@
 package lease_test
 
 import (
-	"context"
 	"fmt"
 	"testing"
 	"time"
 
 	"github.com/katastroma/phortizo/internal/lease"
+	"github.com/katastroma/phortizo/internal/tests"
 )
 
-type mockObject struct {
-	annotations map[string]string
-}
-
-func (m *mockObject) GetAnnotations() map[string]string {
-	return m.annotations
-}
-
-func (m *mockObject) SetAnnotations(a map[string]string) {
-	m.annotations = a
-}
-
-type mockStore struct {
-	objects   map[string]*mockObject
-	updateErr error
-}
-
-func newMockStore() *mockStore {
-	return &mockStore{objects: make(map[string]*mockObject)}
-}
-
-func (s *mockStore) add(name string, obj *mockObject) {
-	s.objects[name] = obj
-}
-
-func (s *mockStore) Get(_ context.Context, name string) (lease.Annotatable, error) {
-	obj, ok := s.objects[name]
-	if !ok {
-		return nil, fmt.Errorf("not found: %s", name)
-	}
-
-	return obj, nil
-}
-
-func (s *mockStore) Update(_ context.Context, _ lease.Annotatable) error {
-	return s.updateErr
-}
-
 func TestAcquire(t *testing.T) {
-	store := newMockStore()
-	store.add("wt-1", &mockObject{})
+	store := tests.NewMockStore()
+	store.Add("wt-1", tests.NewMockObject(nil))
 
 	if err := lease.Acquire(t.Context(), store, "wt-1", "span-abc", 0); err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -70,8 +32,8 @@ func TestAcquire(t *testing.T) {
 }
 
 func TestAcquire_WithReplayCount(t *testing.T) {
-	store := newMockStore()
-	store.add("wt-1", &mockObject{})
+	store := tests.NewMockStore()
+	store.Add("wt-1", tests.NewMockObject(nil))
 
 	if err := lease.Acquire(t.Context(), store, "wt-1", "span-abc", 3); err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -88,7 +50,7 @@ func TestAcquire_WithReplayCount(t *testing.T) {
 }
 
 func TestAcquire_NotFound(t *testing.T) {
-	store := newMockStore()
+	store := tests.NewMockStore()
 
 	if err := lease.Acquire(t.Context(), store, "nonexistent", "span-abc", 0); err == nil {
 		t.Fatal("expected error for missing object")
@@ -96,9 +58,9 @@ func TestAcquire_NotFound(t *testing.T) {
 }
 
 func TestAcquire_UpdateError(t *testing.T) {
-	store := newMockStore()
-	store.add("wt-1", &mockObject{})
-	store.updateErr = fmt.Errorf("update denied")
+	store := tests.NewMockStore()
+	store.Add("wt-1", tests.NewMockObject(nil))
+	store.UpdateErr = fmt.Errorf("update denied")
 
 	if err := lease.Acquire(t.Context(), store, "wt-1", "span-abc", 0); err == nil {
 		t.Fatal("expected error from failing update")
@@ -106,8 +68,8 @@ func TestAcquire_UpdateError(t *testing.T) {
 }
 
 func TestRead_NoAnnotations(t *testing.T) {
-	store := newMockStore()
-	store.add("wt-1", &mockObject{})
+	store := tests.NewMockStore()
+	store.Add("wt-1", tests.NewMockObject(nil))
 
 	state, err := lease.Read(t.Context(), store, "wt-1")
 	if err != nil {
@@ -120,7 +82,7 @@ func TestRead_NoAnnotations(t *testing.T) {
 }
 
 func TestRead_NotFound(t *testing.T) {
-	store := newMockStore()
+	store := tests.NewMockStore()
 
 	if _, err := lease.Read(t.Context(), store, "nonexistent"); err == nil {
 		t.Fatal("expected error for missing object")
@@ -128,13 +90,11 @@ func TestRead_NotFound(t *testing.T) {
 }
 
 func TestRead_MalformedTimestamp(t *testing.T) {
-	store := newMockStore()
-	store.add("wt-1", &mockObject{
-		annotations: map[string]string{
-			lease.IDAnnotation:      "span-abc",
-			lease.StartedAnnotation: "not-a-timestamp",
-		},
-	})
+	store := tests.NewMockStore()
+	store.Add("wt-1", tests.NewMockObject(map[string]string{
+		lease.IDAnnotation:      "span-abc",
+		lease.StartedAnnotation: "not-a-timestamp",
+	}))
 
 	if _, err := lease.Read(t.Context(), store, "wt-1"); err == nil {
 		t.Fatal("expected error for malformed timestamp")
@@ -142,8 +102,8 @@ func TestRead_MalformedTimestamp(t *testing.T) {
 }
 
 func TestRelease(t *testing.T) {
-	store := newMockStore()
-	store.add("wt-1", &mockObject{})
+	store := tests.NewMockStore()
+	store.Add("wt-1", tests.NewMockObject(nil))
 
 	if err := lease.Acquire(t.Context(), store, "wt-1", "span-abc", 0); err != nil {
 		t.Fatalf("acquiring: %v", err)
@@ -164,7 +124,7 @@ func TestRelease(t *testing.T) {
 }
 
 func TestRelease_NotFound(t *testing.T) {
-	store := newMockStore()
+	store := tests.NewMockStore()
 
 	if err := lease.Release(t.Context(), store, "nonexistent"); err == nil {
 		t.Fatal("expected error for missing object")
@@ -172,9 +132,9 @@ func TestRelease_NotFound(t *testing.T) {
 }
 
 func TestRelease_UpdateError(t *testing.T) {
-	store := newMockStore()
-	store.add("wt-1", &mockObject{})
-	store.updateErr = fmt.Errorf("update denied")
+	store := tests.NewMockStore()
+	store.Add("wt-1", tests.NewMockObject(nil))
+	store.UpdateErr = fmt.Errorf("update denied")
 
 	if err := lease.Release(t.Context(), store, "wt-1"); err == nil {
 		t.Fatal("expected error from failing update")
@@ -182,8 +142,8 @@ func TestRelease_UpdateError(t *testing.T) {
 }
 
 func TestHeldBy(t *testing.T) {
-	store := newMockStore()
-	store.add("wt-1", &mockObject{})
+	store := tests.NewMockStore()
+	store.Add("wt-1", tests.NewMockObject(nil))
 
 	if err := lease.Acquire(t.Context(), store, "wt-1", "span-abc", 0); err != nil {
 		t.Fatalf("acquiring: %v", err)
@@ -200,8 +160,8 @@ func TestHeldBy(t *testing.T) {
 }
 
 func TestHeldBy_DifferentID(t *testing.T) {
-	store := newMockStore()
-	store.add("wt-1", &mockObject{})
+	store := tests.NewMockStore()
+	store.Add("wt-1", tests.NewMockObject(nil))
 
 	if err := lease.Acquire(t.Context(), store, "wt-1", "span-abc", 0); err != nil {
 		t.Fatalf("acquiring: %v", err)
@@ -218,7 +178,7 @@ func TestHeldBy_DifferentID(t *testing.T) {
 }
 
 func TestHeldBy_ReadError(t *testing.T) {
-	store := newMockStore()
+	store := tests.NewMockStore()
 
 	if _, err := lease.HeldBy(t.Context(), store, "nonexistent", "span-abc"); err == nil {
 		t.Fatal("expected error for missing object")
