@@ -9,14 +9,14 @@ import (
 	"github.com/katastroma/phortizo/internal/object"
 )
 
-// Deserializer converts raw Secret data into a credential.
+// Deserializer converts raw Secret data into a credential
 type Deserializer func(data map[string][]byte) (Authenticator, error)
 
 type reader struct {
 	deserializers map[string]Deserializer
 }
 
-// NewReader returns a Reader that deserializes credentials from a store.
+// NewReader returns a Reader that deserializes credentials from a store
 func NewReader(platformApp *apps.App) Reader {
 	return &reader{
 		deserializers: map[string]Deserializer{
@@ -31,8 +31,7 @@ func NewReader(platformApp *apps.App) Reader {
 	}
 }
 
-// Get reads a Secret by name from the store and returns the deserialized
-// credential.
+// Get reads a Secret by name from the store and returns the deserialized credential
 func (r *reader) Get(ctx context.Context, store object.Store[[]byte], name string) (Authenticator, error) {
 	resource, err := store.Get(ctx, name)
 	if err != nil {
