@@ -3,7 +3,7 @@
 GitHub source handler for [katastroma](https://github.com/katastroma).
 
 Receives GitHub webhooks, verifies HMAC signatures, matches push events against
-registered watch targets, clones the source, detects the renderer type, and
+registered source targets, clones the source, detects the renderer type, and
 streams the source to the appropriate renderer.
 
 Implements the [naukleros](https://github.com/katastroma/naukleros)
@@ -13,31 +13,31 @@ Implements the [naukleros](https://github.com/katastroma/naukleros)
 
 ### Retrieve
 
-1. Resolve tenant namespace and watch target ID from request
-2. Resolve watch target from request workspace and watch target ID
-3. Run match pipeline for watch target
+1. Resolve tenant namespace and source target ID from request
+2. Resolve source target from namespace and source target ID
+3. Start event (type `manual`) and process the source target
 
 ### Webhook
 
 1. Receive webhook at `POST /webhook/{namespace}`
 2. Acquire stored secret from tenant namespace
 3. Validate payload and verify signature against stored secret
-4. Parse push event and list watch targets
-5. Match push event paths against watch targets
+4. Parse push event and list source targets
+5. Match push event paths against source targets
 6. If no matches, skip
-7. For each watch target, run match pipeline
+7. For each source target, process the source target
 
 ### Replay
 
-1. Acquire watch target attributes from requested replay event ID.
-2. Resolve watch targets from watch target attributes
-3. For each watch target, check if lease is active, skip if so
-4. For each watch target, run match pipeline
+1. Acquire source target attributes from requested replay event ID.
+2. Resolve source targets from source target attributes
+3. For each source target, check if lease is active, skip if so
+4. For each source target, process the source target
 
-## For Each Watch Target
+## For Each Source Target
 
 1. Acquire
-   [watch target lease](https://katastroma.github.io/docs/event-driven#watch-target-leasing)
+   [source target lease](https://katastroma.github.io/docs/event-driven#source-target-leasing)
 2. Resolve tenant credentials
 3. Clone repository (shallow, in-memory)
 4. Detect renderer type (Helm, Kustomize, or raw YAML)
@@ -64,7 +64,7 @@ Implements the [naukleros](https://github.com/katastroma/naukleros)
 | `GITHUB_APP_CLIENT_ID`       | Platform GitHub App client ID.                                               |
 | `GITHUB_APP_INSTALLATION_ID` | Platform GitHub App installation ID. Required for health checks.             |
 | `GITHUB_APP_PRIVATE_KEY`     | PEM-encoded private key for the platform GitHub App.                         |
-| `TEMPO_ADDRESS`              | gRPC address of Tempo. Required for watch target acquisition during replays. |
+| `TEMPO_ADDRESS`              | gRPC address of Tempo. Used for source target reconstruction during replays. |
 
 ### Renderers
 
@@ -80,7 +80,7 @@ Implements the [naukleros](https://github.com/katastroma/naukleros)
 | --------------------- | ------- | --------------------------------------------------------------------- |
 | `SERVICE_VERSION`     | `dev`   | Service version reported to the OTel resource.                        |
 | `PORT`                | `8080`  | HTTP server port. Serves `/healthz` and `/webhook/{namespace}`.       |
-| `LEASE_STALE_AFTER`   | `10m`   | Duration after which a watch target lease is considered stale.        |
+| `LEASE_STALE_AFTER`   | `10m`   | Duration after which a source target lease is considered stale.       |
 | `MAX_REPLAY_ATTEMPTS` | `3`     | Maximum number of replay attempts per event before permanent failure. |
 
 ### OTel (from grpc-foundation)
@@ -119,7 +119,7 @@ The `watch_target` span (child of the event span) carries:
 
 | Attribute               | Description                               |
 | ----------------------- | ----------------------------------------- |
-| `watch_target.name`     | ConfigMap name of the watch target.       |
+| `watch_target.name`     | ConfigMap name of the source target.      |
 | `watch_target.repo_url` | Repository clone URL.                     |
 | `watch_target.ref`      | Git ref (e.g., `refs/heads/main`).        |
 | `watch_target.path`     | Path within the repository being watched. |
