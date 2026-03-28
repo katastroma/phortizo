@@ -3,6 +3,7 @@ package webhook
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 
 	"github.com/google/go-github/v84/github"
@@ -38,9 +39,17 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	webhookSecret, err := secret.Read(ctx, h.k8sClient, namespace, SecretName, SecretKey)
+	webhookSecrets, err := secret.Read(ctx, h.k8sClient, namespace, SecretName)
 	if err != nil {
 		h.fail(ctx, w, "failed to retrieve secret", http.StatusNotFound, err, "tenant", namespace)
+		return
+	}
+
+	webhookSecret, found := webhookSecrets[SecretKey]
+	if !found {
+		msg := "secret key not found"
+		err = fmt.Errorf("missing key %q in secret %s/%s", SecretKey, namespace, SecretName)
+		h.fail(ctx, w, msg, http.StatusNotFound, err, "tenant", namespace)
 		return
 	}
 

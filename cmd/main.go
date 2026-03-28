@@ -35,7 +35,7 @@ import (
 	gh_transport "github.com/katastroma/phortizo/internal/github/transport"
 	grpc_health "github.com/katastroma/phortizo/internal/health/grpc"
 	http_health "github.com/katastroma/phortizo/internal/health/http"
-	k8s_secret "github.com/katastroma/phortizo/internal/k8s/secret"
+	"github.com/katastroma/phortizo/internal/credential"
 	"github.com/katastroma/phortizo/internal/pipeline"
 	"github.com/katastroma/phortizo/internal/renderer"
 	"github.com/katastroma/phortizo/internal/retriever"
@@ -110,7 +110,7 @@ func main() {
 	}
 
 	// Credential reader
-	credentialReader := k8s_secret.NewReader(k8sClient, gha)
+	credentialReader := credential.NewReader(k8sClient, gha)
 
 	// Renderer addresses
 	renderers := map[renderer.Type]string{

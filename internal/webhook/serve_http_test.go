@@ -135,6 +135,28 @@ func TestServeHTTP_WebhookSecretNotFound(t *testing.T) {
 	}
 }
 
+func TestServeHTTP_WebhookSecretMissingKey(t *testing.T) {
+	secretWithoutKey := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      webhook.SecretName,
+			Namespace: testNamespace,
+		},
+		Data: map[string][]byte{"wrong-key": []byte("value")},
+	}
+
+	k8s := fake.NewSimpleClientset(secretWithoutKey)
+	handler := webhook.New(slog.Default(), nil, k8s)
+
+	req := pushRequest(validPayload())
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNotFound {
+		t.Errorf("status = %d, want %d", rec.Code, http.StatusNotFound)
+	}
+}
+
 func TestServeHTTP_ValidationFailure_BodyReadError(t *testing.T) {
 	k8s := fake.NewSimpleClientset(webhookSecret(), watchTargetConfigMap())
 	handler := webhook.New(slog.Default(), nil, k8s)
