@@ -12,6 +12,7 @@ import (
 	pb "github.com/katastroma/naukleros"
 	"github.com/katastroma/phortizo/internal/k8s/configmap"
 	"github.com/katastroma/phortizo/internal/match"
+	"github.com/katastroma/phortizo/internal/source"
 	"github.com/katastroma/phortizo/internal/tracing"
 )
 
@@ -52,7 +53,8 @@ func (r *Retriever) Retrieve(ctx context.Context, req *pb.RetrieveRequest) (*pb.
 
 	r.log.InfoContext(ctx, "retrieve requested", "namespace", namespace, "watch_target", watchTargetID)
 
-	target, err := configmap.GetWatchTarget(ctx, r.k8sClient, namespace, watchTargetID)
+	store := configmap.NewStore(r.k8sClient, namespace)
+	target, err := source.Get(ctx, store, watchTargetID)
 	if err != nil {
 		return nil, fmt.Errorf("reading watch target %s/%s: %w", namespace, watchTargetID, err)
 	}

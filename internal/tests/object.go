@@ -48,6 +48,7 @@ func (m *MockObject) SetData(d map[string]string) { m.data = d }
 // MockStore allows mocking an Object store
 type MockStore struct {
 	objects   map[string]*MockObject
+	ListErr   error
 	UpdateErr error
 	PutErr    error
 }
@@ -55,6 +56,11 @@ type MockStore struct {
 // NewMockStore returns a mock object store
 func NewMockStore() *MockStore {
 	return &MockStore{objects: make(map[string]*MockObject)}
+}
+
+// New returns an empty MockObject with the given name.
+func (s *MockStore) New(name string) object.Resource {
+	return &MockObject{name: name}
 }
 
 // Add seeds an object in the store for testing.
@@ -74,6 +80,10 @@ func (s *MockStore) Get(_ context.Context, name string) (object.Resource, error)
 
 // List returns objects matching the given labels.
 func (s *MockStore) List(_ context.Context, labels map[string]string) ([]object.Resource, error) {
+	if s.ListErr != nil {
+		return nil, s.ListErr
+	}
+
 	var results []object.Resource
 	for _, obj := range s.objects {
 		match := true

@@ -22,6 +22,11 @@ func NewStore(client kubernetes.Interface, namespace string) *Store {
 	return &Store{client: client, namespace: namespace}
 }
 
+// New returns an empty ConfigMap Resource with the given name.
+func (s *Store) New(name string) object.Resource {
+	return NewResource(name)
+}
+
 // Get returns a ConfigMap wrapped as an object.Resource.
 func (s *Store) Get(ctx context.Context, name string) (object.Resource, error) {
 	cm, err := s.client.CoreV1().ConfigMaps(s.namespace).Get(ctx, name, metav1.GetOptions{})

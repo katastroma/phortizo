@@ -8,6 +8,7 @@ import (
 	"github.com/google/go-github/v84/github"
 	"github.com/katastroma/phortizo/internal/k8s/configmap"
 	"github.com/katastroma/phortizo/internal/k8s/secret"
+	"github.com/katastroma/phortizo/internal/source"
 	"github.com/katastroma/phortizo/internal/tracing"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
@@ -62,7 +63,8 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	watchTargets, err := configmap.ListWatchTargets(ctx, h.k8sClient, namespace)
+	store := configmap.NewStore(h.k8sClient, namespace)
+	watchTargets, err := source.List(ctx, store)
 	if err != nil {
 		h.fail(ctx, w, "failed to retrieve watch targets", http.StatusNotFound, err, "tenant", namespace)
 		return

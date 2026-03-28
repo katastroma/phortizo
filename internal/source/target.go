@@ -30,8 +30,8 @@ type Target struct {
 	CredentialSecret string
 }
 
-// TargetFromConfigMap deserializes a WatchTarget from ConfigMap data.
-func TargetFromConfigMap(data map[string]string) (Target, error) {
+// TargetFromResourceData deserializes a WatchTarget from ConfigMap data.
+func TargetFromResourceData(data map[string]string) (Target, error) {
 	repoURL, ok := data["repo-url"]
 	if !ok {
 		return Target{}, fmt.Errorf("missing key %q", "repo-url")
@@ -55,8 +55,8 @@ func TargetFromConfigMap(data map[string]string) (Target, error) {
 	return Target{RepoURL: repoURL, Ref: ref, Path: path, Overrides: overrides}, nil
 }
 
-// MarshalConfigMap serializes the WatchTarget to ConfigMap data.
-func (t Target) MarshalConfigMap() map[string]string {
+// MarshalData serializes the Target to Resource data.
+func (t Target) MarshalData() map[string]string {
 	data := map[string]string{"repo-url": t.RepoURL, "ref": t.Ref, "path": t.Path}
 
 	if len(t.Overrides) > 0 {

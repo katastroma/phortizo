@@ -7,14 +7,14 @@ import (
 	"github.com/katastroma/phortizo/internal/source"
 )
 
-func TestWatchTargetFromConfigMap(t *testing.T) {
+func TestWatchTargetFromResource(t *testing.T) {
 	data := map[string]string{
 		"repo-url": "https://github.com/acme/app.git",
 		"ref":      "refs/heads/main",
 		"path":     "deploy/",
 	}
 
-	target, err := source.TargetFromConfigMap(data)
+	target, err := source.TargetFromResourceData(data)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -36,7 +36,7 @@ func TestWatchTargetFromConfigMap(t *testing.T) {
 	}
 }
 
-func TestWatchTargetFromConfigMap_WithOverrides(t *testing.T) {
+func TestWatchTargetFromResource_WithOverrides(t *testing.T) {
 	overrides := "image:\n  tag: v1.2.3\n"
 	data := map[string]string{
 		"repo-url":  "https://github.com/acme/app.git",
@@ -45,7 +45,7 @@ func TestWatchTargetFromConfigMap_WithOverrides(t *testing.T) {
 		"overrides": overrides,
 	}
 
-	target, err := source.TargetFromConfigMap(data)
+	target, err := source.TargetFromResourceData(data)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -55,41 +55,41 @@ func TestWatchTargetFromConfigMap_WithOverrides(t *testing.T) {
 	}
 }
 
-func TestWatchTargetFromConfigMap_MissingRepoURL(t *testing.T) {
+func TestWatchTargetFromResource_MissingRepoURL(t *testing.T) {
 	data := map[string]string{"ref": "refs/heads/main", "path": "deploy/"}
 
-	_, err := source.TargetFromConfigMap(data)
+	_, err := source.TargetFromResourceData(data)
 	if err == nil {
 		t.Fatal("expected error for missing repo-url")
 	}
 }
 
-func TestWatchTargetFromConfigMap_MissingRef(t *testing.T) {
+func TestWatchTargetFromResource_MissingRef(t *testing.T) {
 	data := map[string]string{"repo-url": "https://github.com/acme/app.git", "path": "deploy/"}
 
-	_, err := source.TargetFromConfigMap(data)
+	_, err := source.TargetFromResourceData(data)
 	if err == nil {
 		t.Fatal("expected error for missing ref")
 	}
 }
 
-func TestWatchTargetFromConfigMap_MissingPath(t *testing.T) {
+func TestWatchTargetFromResource_MissingPath(t *testing.T) {
 	data := map[string]string{"repo-url": "https://github.com/acme/app.git", "ref": "refs/heads/main"}
 
-	_, err := source.TargetFromConfigMap(data)
+	_, err := source.TargetFromResourceData(data)
 	if err == nil {
 		t.Fatal("expected error for missing path")
 	}
 }
 
-func TestMarshalConfigMap(t *testing.T) {
+func TestMarshalData(t *testing.T) {
 	target := source.Target{
 		RepoURL: "https://github.com/acme/app.git",
 		Ref:     "refs/heads/main",
 		Path:    "deploy/",
 	}
 
-	data := target.MarshalConfigMap()
+	data := target.MarshalData()
 
 	if data["repo-url"] != "https://github.com/acme/app.git" {
 		t.Errorf("repo-url = %q, want %q", data["repo-url"], "https://github.com/acme/app.git")
@@ -108,7 +108,7 @@ func TestMarshalConfigMap(t *testing.T) {
 	}
 }
 
-func TestMarshalConfigMap_WithOverrides(t *testing.T) {
+func TestMarshalData_WithOverrides(t *testing.T) {
 	overrides := []byte("image:\n  tag: v1.2.3\n")
 	target := source.Target{
 		RepoURL:   "https://github.com/acme/app.git",
@@ -117,14 +117,14 @@ func TestMarshalConfigMap_WithOverrides(t *testing.T) {
 		Overrides: overrides,
 	}
 
-	data := target.MarshalConfigMap()
+	data := target.MarshalData()
 
 	if data["overrides"] != string(overrides) {
 		t.Errorf("overrides = %q, want %q", data["overrides"], overrides)
 	}
 }
 
-func TestMarshalConfigMap_RoundTrip(t *testing.T) {
+func TestMarshalData_RoundTrip(t *testing.T) {
 	original := source.Target{
 		RepoURL:   "https://github.com/acme/app.git",
 		Ref:       "refs/heads/main",
@@ -132,9 +132,9 @@ func TestMarshalConfigMap_RoundTrip(t *testing.T) {
 		Overrides: []byte("replicas: 3\n"),
 	}
 
-	data := original.MarshalConfigMap()
+	data := original.MarshalData()
 
-	restored, err := source.TargetFromConfigMap(data)
+	restored, err := source.TargetFromResourceData(data)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

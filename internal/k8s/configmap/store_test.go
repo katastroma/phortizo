@@ -195,6 +195,16 @@ func TestStore_Put_UpdateError(t *testing.T) {
 	}
 }
 
+func TestStore_New(t *testing.T) {
+	k8s := fake.NewSimpleClientset()
+	store := configmap.NewStore(k8s, "tenant-a")
+
+	r := store.New("my-resource")
+	if r.GetName() != "my-resource" {
+		t.Errorf("Name = %q, want %q", r.GetName(), "my-resource")
+	}
+}
+
 func labeledConfigMap(name, namespace string, labels map[string]string) *corev1.ConfigMap {
 	return &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{

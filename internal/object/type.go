@@ -1,5 +1,5 @@
 //revive:disable:package-comments
-package k8s
+package object
 
 const (
 	// TypeLabel is the label key used to identify ConfigMap types.

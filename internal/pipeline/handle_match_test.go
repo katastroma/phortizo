@@ -18,9 +18,9 @@ import (
 
 	"github.com/katastroma/phortizo/internal/credential"
 	"github.com/katastroma/phortizo/internal/git"
-	"github.com/katastroma/phortizo/internal/k8s"
 	"github.com/katastroma/phortizo/internal/k8s/configmap"
 	"github.com/katastroma/phortizo/internal/lease"
+	"github.com/katastroma/phortizo/internal/object"
 	"github.com/katastroma/phortizo/internal/pipeline"
 	"github.com/katastroma/phortizo/internal/renderer"
 	"github.com/katastroma/phortizo/internal/source"
@@ -94,7 +94,7 @@ func watchTargetCM() *corev1.ConfigMap {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "wt-1",
 			Namespace: "tenant-a",
-			Labels:    map[string]string{k8s.TypeLabel: source.TypeLabel},
+			Labels:    map[string]string{object.TypeLabel: source.TypeLabel},
 		},
 		Data: map[string]string{
 			"repo-url": "https://github.com/acme/app.git",

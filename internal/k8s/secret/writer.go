@@ -35,13 +35,11 @@ func (w *Writer) Put(ctx context.Context, namespace, name string, data map[strin
 		return nil
 	}
 
-	_, err = secrets.Create(ctx, &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-		},
-		Data: data,
-	}, metav1.CreateOptions{})
+	_, err = secrets.Create(
+		ctx,
+		&corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace}, Data: data},
+		metav1.CreateOptions{},
+	)
 	if err != nil {
 		return fmt.Errorf("creating secret %s/%s: %w", namespace, name, err)
 	}

@@ -10,11 +10,7 @@ import (
 )
 
 // Read reads the webhook HMAC secret from a Secret in the tenant namespace.
-func Read(
-	ctx context.Context,
-	client kubernetes.Interface,
-	namespace, name, key string,
-) ([]byte, error) {
+func Read(ctx context.Context, client kubernetes.Interface, namespace, name, key string) ([]byte, error) {
 	s, err := client.CoreV1().Secrets(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("reading secret %s/%s: %w", namespace, name, err)
