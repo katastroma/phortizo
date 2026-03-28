@@ -12,7 +12,7 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 
 	pb "github.com/katastroma/naukleros"
-	"github.com/katastroma/phortizo/internal/k8s/configmap"
+	"github.com/katastroma/phortizo/internal/k8s"
 	"github.com/katastroma/phortizo/internal/source"
 	"github.com/katastroma/phortizo/internal/tracing"
 )
@@ -31,7 +31,7 @@ func retrieveWatchTargetCM() *corev1.ConfigMap {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "wt-1",
 			Namespace: "tenant-a",
-			Labels:    map[string]string{configmap.TypeLabel: source.TypeLabel},
+			Labels:    map[string]string{k8s.TypeLabel: source.TypeLabel},
 		},
 		Data: map[string]string{
 			"repo-url": "https://github.com/acme/app.git",

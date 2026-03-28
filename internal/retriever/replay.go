@@ -11,6 +11,7 @@ import (
 
 	pb "github.com/katastroma/naukleros"
 	"github.com/katastroma/phortizo/internal/k8s/configmap"
+	"github.com/katastroma/phortizo/internal/lease"
 	"github.com/katastroma/phortizo/internal/source"
 	"github.com/katastroma/phortizo/internal/tracing"
 )
@@ -57,21 +58,22 @@ func (r *Retriever) replayTarget(
 	eventID, namespace string,
 	target *source.Target,
 ) error {
-	lease, err := configmap.ReadLease(ctx, r.k8sClient, namespace, target.Name)
+	store := configmap.NewStore(r.k8sClient, namespace)
+	leaseState, err := lease.Read(ctx, store, target.Name)
 	if err != nil {
 		return fmt.Errorf("reading lease for %s/%s: %w", namespace, target.Name, err)
 	}
 
-	if lease.IsLeaseActive(r.leaseStaleAfter) {
+	if leaseState.IsLeaseActive(r.leaseStaleAfter) {
 		r.log.InfoContext(ctx, "active lease, skipping replay",
 			"event_id", eventID,
 			"watch_target", target.Name,
-			"active_watch_target_lease_id", lease.WatchTargetLeaseID,
+			"active_watch_target_lease_id", leaseState.ID,
 		)
 		return nil
 	}
 
-	replayCount := lease.ReplayCount + 1
+	replayCount := leaseState.ReplayCount() + 1
 	if replayCount > r.maxReplayAttemps {
 		r.log.ErrorContext(ctx, "max replay attempts exceeded",
 			"event_id", eventID,

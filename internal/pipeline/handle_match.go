@@ -9,6 +9,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/katastroma/phortizo/internal/k8s/configmap"
+	"github.com/katastroma/phortizo/internal/lease"
 	"github.com/katastroma/phortizo/internal/renderer"
 	"github.com/katastroma/phortizo/internal/source"
 	"github.com/katastroma/phortizo/internal/tracing"
@@ -44,8 +45,9 @@ func (r *Runner) HandleMatch(
 	defer span.End()
 
 	watchTargetLeaseID := span.SpanContext().SpanID().String()
+	store := configmap.NewStore(r.k8sClient, namespace)
 
-	err := configmap.AcquireLease(ctx, r.k8sClient, namespace, m.Name, watchTargetLeaseID, replayCount)
+	err := lease.Acquire(ctx, store, m.Name, watchTargetLeaseID, replayCount)
 	if err != nil {
 		r.fail(ctx, span, namespace, "lease acquisition failed", err)
 		return
@@ -71,12 +73,11 @@ func (r *Runner) HandleMatch(
 		return
 	}
 
-	holds, err := configmap.HoldsLease(ctx, r.k8sClient, namespace, m.Name, watchTargetLeaseID)
+	holds, err := lease.HeldBy(ctx, store, m.Name, watchTargetLeaseID)
 	if err != nil {
 		r.fail(ctx, span, namespace, "lease check failed", err)
 		return
 	}
-
 	if !holds {
 		r.log.InfoContext(ctx, "lease lost, abandoning processing", "tenant", namespace, "watch_target_lease_id", watchTargetLeaseID)
 		return

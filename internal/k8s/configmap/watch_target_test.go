@@ -10,6 +10,7 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 	clienttesting "k8s.io/client-go/testing"
 
+	"github.com/katastroma/phortizo/internal/k8s"
 	"github.com/katastroma/phortizo/internal/k8s/configmap"
 	"github.com/katastroma/phortizo/internal/source"
 )
@@ -19,7 +20,7 @@ func watchTargetConfigMap(name, namespace, credentialSecret string, data map[str
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
-			Labels:    map[string]string{configmap.TypeLabel: source.TypeLabel},
+			Labels:    map[string]string{k8s.TypeLabel: source.TypeLabel},
 		},
 		Data: data,
 	}
@@ -194,7 +195,7 @@ func TestListWatchTargets_DeserializeError(t *testing.T) {
 }
 
 func TestPutWatchTarget_Create(t *testing.T) {
-	k8s := fake.NewSimpleClientset()
+	k8sClient := fake.NewSimpleClientset()
 
 	target := source.Target{
 		RepoURL:          "https://github.com/acme/app.git",
@@ -203,12 +204,12 @@ func TestPutWatchTarget_Create(t *testing.T) {
 		CredentialSecret: "my-cred",
 	}
 
-	err := configmap.PutWatchTarget(t.Context(), k8s, "tenant-a", "wt-1", target)
+	err := configmap.PutWatchTarget(t.Context(), k8sClient, "tenant-a", "wt-1", target)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	cm, err := k8s.CoreV1().ConfigMaps("tenant-a").Get(t.Context(), "wt-1", metav1.GetOptions{})
+	cm, err := k8sClient.CoreV1().ConfigMaps("tenant-a").Get(t.Context(), "wt-1", metav1.GetOptions{})
 	if err != nil {
 		t.Fatalf("configmap not created: %v", err)
 	}
@@ -217,8 +218,8 @@ func TestPutWatchTarget_Create(t *testing.T) {
 		t.Errorf("repo-url = %q, want %q", cm.Data["repo-url"], "https://github.com/acme/app.git")
 	}
 
-	if cm.Labels[configmap.TypeLabel] != source.TypeLabel {
-		t.Errorf("label = %q, want %q", cm.Labels[configmap.TypeLabel], source.TypeLabel)
+	if cm.Labels[k8s.TypeLabel] != source.TypeLabel {
+		t.Errorf("label = %q, want %q", cm.Labels[k8s.TypeLabel], source.TypeLabel)
 	}
 
 	if cm.Annotations[source.CredentialSecretAnnotation] != "my-cred" {

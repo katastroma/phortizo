@@ -20,7 +20,7 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 	clienttesting "k8s.io/client-go/testing"
 
-	"github.com/katastroma/phortizo/internal/k8s/configmap"
+	"github.com/katastroma/phortizo/internal/k8s"
 	"github.com/katastroma/phortizo/internal/source"
 	"github.com/katastroma/phortizo/internal/webhook"
 )
@@ -68,7 +68,7 @@ func watchTargetConfigMap() *corev1.ConfigMap {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "wt-1",
 			Namespace: testNamespace,
-			Labels:    map[string]string{configmap.TypeLabel: source.TypeLabel},
+			Labels:    map[string]string{k8s.TypeLabel: source.TypeLabel},
 		},
 		Data: map[string]string{
 			"repo-url": "https://github.com/acme/app.git",

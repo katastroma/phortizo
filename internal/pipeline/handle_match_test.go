@@ -18,7 +18,9 @@ import (
 
 	"github.com/katastroma/phortizo/internal/credential"
 	"github.com/katastroma/phortizo/internal/git"
+	"github.com/katastroma/phortizo/internal/k8s"
 	"github.com/katastroma/phortizo/internal/k8s/configmap"
+	"github.com/katastroma/phortizo/internal/lease"
 	"github.com/katastroma/phortizo/internal/pipeline"
 	"github.com/katastroma/phortizo/internal/renderer"
 	"github.com/katastroma/phortizo/internal/source"
@@ -92,7 +94,7 @@ func watchTargetCM() *corev1.ConfigMap {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "wt-1",
 			Namespace: "tenant-a",
-			Labels:    map[string]string{configmap.TypeLabel: source.TypeLabel},
+			Labels:    map[string]string{k8s.TypeLabel: source.TypeLabel},
 		},
 		Data: map[string]string{
 			"repo-url": "https://github.com/acme/app.git",
@@ -258,10 +260,13 @@ type leaseStealingCloner struct {
 }
 
 func (c *leaseStealingCloner) Clone(
-	ctx context.Context, _, _ string, _ transport.AuthMethod,
+	ctx context.Context,
+	_, _ string,
+	_ transport.AuthMethod,
 ) (billy.Filesystem, error) {
 	// After the clone "succeeds", another run steals the lease
-	err := configmap.AcquireLease(ctx, c.k8sClient, "tenant-a", "wt-1", "different-run", 0)
+	store := configmap.NewStore(c.k8sClient, "tenant-a")
+	err := lease.Acquire(ctx, store, "wt-1", "different-run", 0)
 	if err != nil {
 		return nil, fmt.Errorf("stealing lease: %w", err)
 	}

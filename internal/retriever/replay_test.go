@@ -14,7 +14,8 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 
 	pb "github.com/katastroma/naukleros"
-	"github.com/katastroma/phortizo/internal/k8s/configmap"
+	"github.com/katastroma/phortizo/internal/k8s"
+	"github.com/katastroma/phortizo/internal/lease"
 	"github.com/katastroma/phortizo/internal/source"
 	"github.com/katastroma/phortizo/internal/tracing"
 )
@@ -56,9 +57,7 @@ func watchTargetCM() *corev1.ConfigMap {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "wt-1",
 			Namespace: "tenant-a",
-			Labels: map[string]string{
-				configmap.TypeLabel: source.TypeLabel,
-			},
+			Labels:    map[string]string{k8s.TypeLabel: source.TypeLabel},
 		},
 		Data: map[string]string{
 			"repo-url": "https://github.com/acme/app.git",
@@ -106,9 +105,9 @@ func TestReplay(t *testing.T) {
 func TestReplay_ActiveLease(t *testing.T) {
 	cm := watchTargetCM()
 	cm.Annotations = map[string]string{
-		configmap.WatchTargetLeaseIDAnnotation:          "other-lease",
-		configmap.WatchTargetLeaseStartedAnnotation:     time.Now().UTC().Format(time.RFC3339),
-		configmap.WatchTargetLeaseReplayCountAnnotation: "0",
+		lease.IDAnnotation:          "other-lease",
+		lease.StartedAnnotation:     time.Now().UTC().Format(time.RFC3339),
+		lease.ReplayCountAnnotation: "0",
 	}
 	k8s := fake.NewSimpleClientset(cm)
 	runner := &mockHandler{}
@@ -132,9 +131,9 @@ func TestReplay_StaleLease(t *testing.T) {
 	cm := watchTargetCM()
 	staleTime := time.Now().Add(-20 * time.Minute)
 	cm.Annotations = map[string]string{
-		configmap.WatchTargetLeaseIDAnnotation:          "old-lease",
-		configmap.WatchTargetLeaseStartedAnnotation:     staleTime.UTC().Format(time.RFC3339),
-		configmap.WatchTargetLeaseReplayCountAnnotation: "0",
+		lease.IDAnnotation:          "old-lease",
+		lease.StartedAnnotation:     staleTime.UTC().Format(time.RFC3339),
+		lease.ReplayCountAnnotation: "0",
 	}
 	k8s := fake.NewSimpleClientset(cm)
 	runner := &mockHandler{}
@@ -158,9 +157,9 @@ func TestReplay_MaxReplayAttempts(t *testing.T) {
 	cm := watchTargetCM()
 	staleTime := time.Now().Add(-20 * time.Minute)
 	cm.Annotations = map[string]string{
-		configmap.WatchTargetLeaseIDAnnotation:          "old-lease",
-		configmap.WatchTargetLeaseStartedAnnotation:     staleTime.UTC().Format(time.RFC3339),
-		configmap.WatchTargetLeaseReplayCountAnnotation: "3",
+		lease.IDAnnotation:          "old-lease",
+		lease.StartedAnnotation:     staleTime.UTC().Format(time.RFC3339),
+		lease.ReplayCountAnnotation: "3",
 	}
 	k8s := fake.NewSimpleClientset(cm)
 	handler := New(slog.Default(), &stubTracer{trace: replayTrace()}, nil, k8s, 10*time.Minute, 3)

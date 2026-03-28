@@ -5,15 +5,11 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/katastroma/phortizo/internal/k8s"
 	"github.com/katastroma/phortizo/internal/source"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-)
-
-const (
-	// TypeLabel is the label key used to identify ConfigMap types.
-	TypeLabel = "katastroma.org/type"
 )
 
 // GetWatchTarget reads a single watch target ConfigMap by name.
@@ -29,7 +25,7 @@ func GetWatchTarget(ctx context.Context, client kubernetes.Interface, namespace,
 // ListWatchTargets lists all watch target ConfigMaps in the given namespace
 // and returns the deserialized watch targets.
 func ListWatchTargets(ctx context.Context, client kubernetes.Interface, namespace string) ([]*source.Target, error) {
-	selector := fmt.Sprintf("%s=%s", TypeLabel, source.TypeLabel)
+	selector := fmt.Sprintf("%s=%s", k8s.TypeLabel, source.TypeLabel)
 	list, err := client.CoreV1().ConfigMaps(namespace).List(ctx, metav1.ListOptions{
 		LabelSelector: selector,
 	})
@@ -72,7 +68,7 @@ func PutWatchTarget(
 	configmaps := client.CoreV1().ConfigMaps(namespace)
 	data := target.MarshalConfigMap()
 	annotations := buildAnnotations(target.CredentialSecret)
-	labels := map[string]string{TypeLabel: source.TypeLabel}
+	labels := map[string]string{k8s.TypeLabel: source.TypeLabel}
 
 	existing, err := configmaps.Get(ctx, name, metav1.GetOptions{})
 	if err == nil {
