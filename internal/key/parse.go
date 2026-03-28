@@ -4,15 +4,24 @@ package key
 import (
 	"crypto/rsa"
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/pem"
 	"fmt"
 )
 
-// ParsePrivateKey parses a PEM-encoded PKCS1 private key.
-func ParsePrivateKey(pemBytes []byte) (*rsa.PrivateKey, error) {
-	block, _ := pem.Decode(pemBytes)
+// ParsePrivateKey parses a PKCS1 private key from PEM or base64-encoded PEM.
+func ParsePrivateKey(raw []byte) (*rsa.PrivateKey, error) {
+	block, _ := pem.Decode(raw)
 	if block == nil {
-		return nil, fmt.Errorf("no PEM block found in private key")
+		decoded, err := base64.StdEncoding.DecodeString(string(raw))
+		if err != nil {
+			return nil, fmt.Errorf("input is neither PEM nor valid base64")
+		}
+
+		block, _ = pem.Decode(decoded)
+		if block == nil {
+			return nil, fmt.Errorf("no PEM block found after base64 decoding")
+		}
 	}
 
 	key, err := x509.ParsePKCS1PrivateKey(block.Bytes)
