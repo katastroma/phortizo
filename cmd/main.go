@@ -43,7 +43,6 @@ import (
 	"github.com/katastroma/phortizo/internal/object"
 	"github.com/katastroma/phortizo/internal/renderer"
 	"github.com/katastroma/phortizo/internal/retriever"
-	"github.com/katastroma/phortizo/internal/tracing"
 	tempoTracer "github.com/katastroma/phortizo/internal/tracing/tempo"
 	"github.com/katastroma/phortizo/internal/webhook"
 )
