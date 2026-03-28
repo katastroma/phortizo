@@ -39,13 +39,14 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	webhookSecrets, err := secret.Read(ctx, h.k8sClient, namespace, SecretName)
+	secretStore := secret.NewStore(h.k8sClient, namespace)
+	resource, err := secretStore.Get(ctx, SecretName)
 	if err != nil {
 		h.fail(ctx, w, "failed to retrieve secret", http.StatusNotFound, err, "tenant", namespace)
 		return
 	}
 
-	webhookSecret, found := webhookSecrets[SecretKey]
+	webhookSecret, found := resource.GetData()[SecretKey]
 	if !found {
 		msg := "secret key not found"
 		err = fmt.Errorf("missing key %q in secret %s/%s", SecretKey, namespace, SecretName)

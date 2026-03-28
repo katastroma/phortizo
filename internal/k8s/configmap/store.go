@@ -23,12 +23,12 @@ func NewStore(client kubernetes.Interface, namespace string) *Store {
 }
 
 // New returns an empty ConfigMap Resource with the given name.
-func (s *Store) New(name string) object.Resource {
+func (s *Store) New(name string) object.Resource[string] {
 	return NewResource(name)
 }
 
-// Get returns a ConfigMap wrapped as an object.Resource.
-func (s *Store) Get(ctx context.Context, name string) (object.Resource, error) {
+// Get returns a ConfigMap wrapped as an object.Resource[string].
+func (s *Store) Get(ctx context.Context, name string) (object.Resource[string], error) {
 	cm, err := s.client.CoreV1().ConfigMaps(s.namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
@@ -38,7 +38,7 @@ func (s *Store) Get(ctx context.Context, name string) (object.Resource, error) {
 }
 
 // List returns ConfigMaps matching the given labels.
-func (s *Store) List(ctx context.Context, labels map[string]string) ([]object.Resource, error) {
+func (s *Store) List(ctx context.Context, labels map[string]string) ([]object.Resource[string], error) {
 	opts := metav1.ListOptions{}
 	if len(labels) > 0 {
 		opts.LabelSelector = metav1.FormatLabelSelector(&metav1.LabelSelector{MatchLabels: labels})
@@ -49,7 +49,7 @@ func (s *Store) List(ctx context.Context, labels map[string]string) ([]object.Re
 		return nil, err
 	}
 
-	results := make([]object.Resource, 0, len(list.Items))
+	results := make([]object.Resource[string], 0, len(list.Items))
 	for _, cm := range list.Items {
 		results = append(results, &Resource{cm.DeepCopy()})
 	}
@@ -69,7 +69,7 @@ func (s *Store) Update(ctx context.Context, obj object.Annotatable) error {
 }
 
 // Put creates or updates a ConfigMap from a Resource.
-func (s *Store) Put(ctx context.Context, obj object.Resource) error {
+func (s *Store) Put(ctx context.Context, obj object.Resource[string]) error {
 	r, ok := obj.(*Resource)
 	if !ok {
 		return fmt.Errorf("expected *configmap.Resource")

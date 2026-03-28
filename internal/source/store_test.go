@@ -10,8 +10,8 @@ import (
 	"github.com/katastroma/phortizo/internal/tests"
 )
 
-func seedTarget(store *tests.MockStore, name string) {
-	obj := tests.NewMockObject(map[string]string{
+func seedTarget(store *tests.MockStore[string], name string) {
+	obj := tests.NewMockObject[string](map[string]string{
 		source.CredentialSecretAnnotation: "my-cred",
 	})
 	obj.SetName(name)
@@ -25,7 +25,7 @@ func seedTarget(store *tests.MockStore, name string) {
 }
 
 func TestTargetFromResource(t *testing.T) {
-	obj := tests.NewMockObject(map[string]string{
+	obj := tests.NewMockObject[string](map[string]string{
 		source.CredentialSecretAnnotation: "my-cred",
 	})
 	obj.SetName("wt-1")
@@ -54,7 +54,7 @@ func TestTargetFromResource(t *testing.T) {
 }
 
 func TestTargetFromResource_MissingData(t *testing.T) {
-	obj := tests.NewMockObject(nil)
+	obj := tests.NewMockObject[string](nil)
 	obj.SetData(map[string]string{"ref": "refs/heads/main"})
 
 	_, err := source.TargetFromResource(obj)
@@ -64,7 +64,7 @@ func TestTargetFromResource_MissingData(t *testing.T) {
 }
 
 func TestGet(t *testing.T) {
-	store := tests.NewMockStore()
+	store := tests.NewMockStore[string]()
 	seedTarget(store, "wt-1")
 
 	target, err := source.Get(t.Context(), store, "wt-1")
@@ -78,7 +78,7 @@ func TestGet(t *testing.T) {
 }
 
 func TestGet_NotFound(t *testing.T) {
-	store := tests.NewMockStore()
+	store := tests.NewMockStore[string]()
 
 	_, err := source.Get(t.Context(), store, "nonexistent")
 	if err == nil {
@@ -87,7 +87,7 @@ func TestGet_NotFound(t *testing.T) {
 }
 
 func TestList(t *testing.T) {
-	store := tests.NewMockStore()
+	store := tests.NewMockStore[string]()
 	seedTarget(store, "wt-1")
 	seedTarget(store, "wt-2")
 
@@ -102,7 +102,7 @@ func TestList(t *testing.T) {
 }
 
 func TestList_Empty(t *testing.T) {
-	store := tests.NewMockStore()
+	store := tests.NewMockStore[string]()
 
 	targets, err := source.List(t.Context(), store)
 	if err != nil {
@@ -115,7 +115,7 @@ func TestList_Empty(t *testing.T) {
 }
 
 func TestList_Error(t *testing.T) {
-	store := tests.NewMockStore()
+	store := tests.NewMockStore[string]()
 	store.ListErr = fmt.Errorf("list denied")
 
 	_, err := source.List(t.Context(), store)
@@ -125,7 +125,7 @@ func TestList_Error(t *testing.T) {
 }
 
 func TestPut_Create(t *testing.T) {
-	store := tests.NewMockStore()
+	store := tests.NewMockStore[string]()
 
 	target := &source.Target{
 		Name:             "wt-1",
@@ -154,7 +154,7 @@ func TestPut_Create(t *testing.T) {
 }
 
 func TestPut_Update(t *testing.T) {
-	store := tests.NewMockStore()
+	store := tests.NewMockStore[string]()
 	seedTarget(store, "wt-1")
 
 	target := &source.Target{
@@ -183,7 +183,7 @@ func TestPut_Update(t *testing.T) {
 }
 
 func TestPut_CreateNoCredential(t *testing.T) {
-	store := tests.NewMockStore()
+	store := tests.NewMockStore[string]()
 
 	target := &source.Target{
 		Name:    "wt-1",
@@ -207,7 +207,7 @@ func TestPut_CreateNoCredential(t *testing.T) {
 }
 
 func TestPut_StoreError(t *testing.T) {
-	store := tests.NewMockStore()
+	store := tests.NewMockStore[string]()
 	store.PutErr = fmt.Errorf("put denied")
 
 	target := &source.Target{

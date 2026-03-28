@@ -49,7 +49,7 @@ func (s *State) ReplayCount() int {
 // via resourceVersion to prevent races.
 func Acquire(
 	ctx context.Context,
-	s object.Store,
+	s object.Store[string],
 	name string,
 	leaseID string,
 	replayCount int,
@@ -77,7 +77,7 @@ func Acquire(
 }
 
 // Read reads the current lease state from an object.
-func Read(ctx context.Context, s object.Store, name string) (*State, error) {
+func Read(ctx context.Context, s object.Store[string], name string) (*State, error) {
 	obj, err := s.Get(ctx, name)
 	if err != nil {
 		return nil, fmt.Errorf("reading %s: %w", name, err)
@@ -99,7 +99,7 @@ func Read(ctx context.Context, s object.Store, name string) (*State, error) {
 }
 
 // Release clears the lease annotations on an object.
-func Release(ctx context.Context, s object.Store, name string) error {
+func Release(ctx context.Context, s object.Store[string], name string) error {
 	obj, err := s.Get(ctx, name)
 	if err != nil {
 		return fmt.Errorf("reading %s: %w", name, err)
@@ -119,7 +119,7 @@ func Release(ctx context.Context, s object.Store, name string) error {
 }
 
 // HeldBy checks if the given lease ID currently holds the lease.
-func HeldBy(ctx context.Context, s object.Store, name string, leaseID string) (bool, error) {
+func HeldBy(ctx context.Context, s object.Store[string], name string, leaseID string) (bool, error) {
 	l, err := Read(ctx, s, name)
 	if err != nil {
 		return false, err

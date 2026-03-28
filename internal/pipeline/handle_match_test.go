@@ -31,7 +31,7 @@ type mockCredentialReader struct {
 	err  error
 }
 
-func (m *mockCredentialReader) Get(context.Context, string, string) (credential.Authenticator, error) {
+func (m *mockCredentialReader) Get(context.Context, object.Store[[]byte], string) (credential.Authenticator, error) {
 	return m.cred, m.err
 }
 

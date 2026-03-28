@@ -10,7 +10,7 @@ import (
 )
 
 // TargetFromResource converts an object.Resource to a *Target.
-func TargetFromResource(r object.Resource) (*Target, error) {
+func TargetFromResource(r object.Resource[string]) (*Target, error) {
 	target, err := TargetFromResourceData(r.GetData())
 	if err != nil {
 		return nil, err
@@ -22,7 +22,7 @@ func TargetFromResource(r object.Resource) (*Target, error) {
 }
 
 // Get reads a single target by name from the store.
-func Get(ctx context.Context, store object.Store, name string) (*Target, error) {
+func Get(ctx context.Context, store object.Store[string], name string) (*Target, error) {
 	r, err := store.Get(ctx, name)
 	if err != nil {
 		return nil, fmt.Errorf("reading %s: %w", name, err)
@@ -32,7 +32,7 @@ func Get(ctx context.Context, store object.Store, name string) (*Target, error) 
 }
 
 // List returns all targets from the store.
-func List(ctx context.Context, store object.Store) ([]*Target, error) {
+func List(ctx context.Context, store object.Store[string]) ([]*Target, error) {
 	resources, err := store.List(ctx, map[string]string{object.TypeLabel: TypeLabel})
 	if err != nil {
 		return nil, err
@@ -42,7 +42,7 @@ func List(ctx context.Context, store object.Store) ([]*Target, error) {
 }
 
 // Put writes a target to the store.
-func Put(ctx context.Context, store object.Store, target *Target) error {
+func Put(ctx context.Context, store object.Store[string], target *Target) error {
 	r, err := store.Get(ctx, target.Name)
 	if err != nil {
 		r = store.New(target.Name)

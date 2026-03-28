@@ -1,5 +1,5 @@
 //revive:disable:package-comments
-package configmap_test
+package secret_test
 
 import (
 	"fmt"
@@ -11,34 +11,34 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 	clienttesting "k8s.io/client-go/testing"
 
-	"github.com/katastroma/phortizo/internal/k8s/configmap"
+	"github.com/katastroma/phortizo/internal/k8s/secret"
 	"github.com/katastroma/phortizo/internal/object"
 )
 
-type notAConfigMap struct{}
+type notASecret struct{}
 
-func (n *notAConfigMap) GetName() string                    { return "" }
-func (n *notAConfigMap) SetName(_ string)                   {}
-func (n *notAConfigMap) GetAnnotations() map[string]string  { return nil }
-func (n *notAConfigMap) SetAnnotations(_ map[string]string) {}
-func (n *notAConfigMap) GetLabels() map[string]string       { return nil }
-func (n *notAConfigMap) SetLabels(_ map[string]string)      {}
-func (n *notAConfigMap) GetData() map[string]string         { return nil }
-func (n *notAConfigMap) SetData(_ map[string]string)        {}
+func (n *notASecret) GetName() string                      { return "" }
+func (n *notASecret) SetName(_ string)                     {}
+func (n *notASecret) GetAnnotations() map[string]string    { return nil }
+func (n *notASecret) SetAnnotations(_ map[string]string)   {}
+func (n *notASecret) GetLabels() map[string]string         { return nil }
+func (n *notASecret) SetLabels(_ map[string]string)        {}
+func (n *notASecret) GetData() map[string][]byte           { return nil }
+func (n *notASecret) SetData(_ map[string][]byte)          {}
 
-var _ object.Resource[string] = (*notAConfigMap)(nil)
+var _ object.Resource[[]byte] = (*notASecret)(nil)
 
-func testConfigMap() *corev1.ConfigMap {
-	return &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{Name: "cm-1", Namespace: "tenant-a"},
+func testSecret() *corev1.Secret {
+	return &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{Name: "sec-1", Namespace: "tenant-a"},
 	}
 }
 
 func TestStore_Get(t *testing.T) {
-	k8s := fake.NewSimpleClientset(testConfigMap())
-	store := configmap.NewStore(k8s, "tenant-a")
+	k8s := fake.NewSimpleClientset(testSecret())
+	store := secret.NewStore(k8s, "tenant-a")
 
-	obj, err := store.Get(t.Context(), "cm-1")
+	obj, err := store.Get(t.Context(), "sec-1")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -50,18 +50,18 @@ func TestStore_Get(t *testing.T) {
 
 func TestStore_Get_NotFound(t *testing.T) {
 	k8s := fake.NewSimpleClientset()
-	store := configmap.NewStore(k8s, "tenant-a")
+	store := secret.NewStore(k8s, "tenant-a")
 
 	if _, err := store.Get(t.Context(), "nonexistent"); err == nil {
-		t.Fatal("expected error for missing configmap")
+		t.Fatal("expected error for missing secret")
 	}
 }
 
 func TestStore_Update(t *testing.T) {
-	k8s := fake.NewSimpleClientset(testConfigMap())
-	store := configmap.NewStore(k8s, "tenant-a")
+	k8s := fake.NewSimpleClientset(testSecret())
+	store := secret.NewStore(k8s, "tenant-a")
 
-	obj, err := store.Get(t.Context(), "cm-1")
+	obj, err := store.Get(t.Context(), "sec-1")
 	if err != nil {
 		t.Fatalf("get: %v", err)
 	}
@@ -71,7 +71,7 @@ func TestStore_Update(t *testing.T) {
 		t.Fatalf("update: %v", err)
 	}
 
-	updated, err := store.Get(t.Context(), "cm-1")
+	updated, err := store.Get(t.Context(), "sec-1")
 	if err != nil {
 		t.Fatalf("re-read: %v", err)
 	}
@@ -83,25 +83,24 @@ func TestStore_Update(t *testing.T) {
 
 func TestStore_Update_WrongType(t *testing.T) {
 	k8s := fake.NewSimpleClientset()
-	store := configmap.NewStore(k8s, "tenant-a")
+	store := secret.NewStore(k8s, "tenant-a")
 
-	bad := &notAConfigMap{}
-	if err := store.Update(t.Context(), bad); err == nil {
+	if err := store.Update(t.Context(), &notASecret{}); err == nil {
 		t.Fatal("expected error for wrong type")
 	}
 }
 
 func TestStore_Update_Error(t *testing.T) {
-	k8s := fake.NewSimpleClientset(testConfigMap())
+	k8s := fake.NewSimpleClientset(testSecret())
 	k8s.PrependReactor(
-		"update", "configmaps",
+		"update", "secrets",
 		func(clienttesting.Action) (bool, runtime.Object, error) {
 			return true, nil, fmt.Errorf("update denied")
 		},
 	)
-	store := configmap.NewStore(k8s, "tenant-a")
+	store := secret.NewStore(k8s, "tenant-a")
 
-	obj, err := store.Get(t.Context(), "cm-1")
+	obj, err := store.Get(t.Context(), "sec-1")
 	if err != nil {
 		t.Fatalf("get: %v", err)
 	}
@@ -113,52 +112,52 @@ func TestStore_Update_Error(t *testing.T) {
 
 func TestStore_Put_Create(t *testing.T) {
 	k8s := fake.NewSimpleClientset()
-	store := configmap.NewStore(k8s, "tenant-a")
+	store := secret.NewStore(k8s, "tenant-a")
 
-	r := configmap.NewResource("my-config")
-	r.SetData(map[string]string{"key": "value"})
+	r := secret.NewResource("my-secret")
+	r.SetData(map[string][]byte{"token": []byte("ghp_abc123")})
 	r.SetLabels(map[string]string{"type": "test"})
 
 	if err := store.Put(t.Context(), r); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	obj, err := store.Get(t.Context(), "my-config")
+	obj, err := store.Get(t.Context(), "my-secret")
 	if err != nil {
 		t.Fatalf("re-read: %v", err)
 	}
 
-	if obj.GetData()["key"] != "value" {
-		t.Errorf("key = %q, want %q", obj.GetData()["key"], "value")
+	if string(obj.GetData()["token"]) != "ghp_abc123" {
+		t.Errorf("token = %q, want %q", obj.GetData()["token"], "ghp_abc123")
 	}
 }
 
 func TestStore_Put_Update(t *testing.T) {
-	k8s := fake.NewSimpleClientset(testConfigMap())
-	store := configmap.NewStore(k8s, "tenant-a")
+	k8s := fake.NewSimpleClientset(testSecret())
+	store := secret.NewStore(k8s, "tenant-a")
 
-	r := configmap.NewResource("cm-1")
-	r.SetData(map[string]string{"key": "updated"})
+	r := secret.NewResource("sec-1")
+	r.SetData(map[string][]byte{"token": []byte("updated")})
 
 	if err := store.Put(t.Context(), r); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	obj, err := store.Get(t.Context(), "cm-1")
+	obj, err := store.Get(t.Context(), "sec-1")
 	if err != nil {
 		t.Fatalf("re-read: %v", err)
 	}
 
-	if obj.GetData()["key"] != "updated" {
-		t.Errorf("key = %q, want %q", obj.GetData()["key"], "updated")
+	if string(obj.GetData()["token"]) != "updated" {
+		t.Errorf("token = %q, want %q", obj.GetData()["token"], "updated")
 	}
 }
 
 func TestStore_Put_WrongType(t *testing.T) {
 	k8s := fake.NewSimpleClientset()
-	store := configmap.NewStore(k8s, "tenant-a")
+	store := secret.NewStore(k8s, "tenant-a")
 
-	if err := store.Put(t.Context(), &notAConfigMap{}); err == nil {
+	if err := store.Put(t.Context(), &notASecret{}); err == nil {
 		t.Fatal("expected error for wrong type")
 	}
 }
@@ -166,30 +165,30 @@ func TestStore_Put_WrongType(t *testing.T) {
 func TestStore_Put_CreateError(t *testing.T) {
 	k8s := fake.NewSimpleClientset()
 	k8s.PrependReactor(
-		"create", "configmaps",
+		"create", "secrets",
 		func(clienttesting.Action) (bool, runtime.Object, error) {
 			return true, nil, fmt.Errorf("create denied")
 		},
 	)
-	store := configmap.NewStore(k8s, "tenant-a")
+	store := secret.NewStore(k8s, "tenant-a")
 
-	r := configmap.NewResource("my-config")
+	r := secret.NewResource("my-secret")
 	if err := store.Put(t.Context(), r); err == nil {
 		t.Fatal("expected error from failing create")
 	}
 }
 
 func TestStore_Put_UpdateError(t *testing.T) {
-	k8s := fake.NewSimpleClientset(testConfigMap())
+	k8s := fake.NewSimpleClientset(testSecret())
 	k8s.PrependReactor(
-		"update", "configmaps",
+		"update", "secrets",
 		func(clienttesting.Action) (bool, runtime.Object, error) {
 			return true, nil, fmt.Errorf("update denied")
 		},
 	)
-	store := configmap.NewStore(k8s, "tenant-a")
+	store := secret.NewStore(k8s, "tenant-a")
 
-	r := configmap.NewResource("cm-1")
+	r := secret.NewResource("sec-1")
 	if err := store.Put(t.Context(), r); err == nil {
 		t.Fatal("expected error from failing update")
 	}
@@ -197,7 +196,7 @@ func TestStore_Put_UpdateError(t *testing.T) {
 
 func TestStore_New(t *testing.T) {
 	k8s := fake.NewSimpleClientset()
-	store := configmap.NewStore(k8s, "tenant-a")
+	store := secret.NewStore(k8s, "tenant-a")
 
 	r := store.New("my-resource")
 	if r.GetName() != "my-resource" {
@@ -205,8 +204,8 @@ func TestStore_New(t *testing.T) {
 	}
 }
 
-func labeledConfigMap(name, namespace string, labels map[string]string) *corev1.ConfigMap {
-	return &corev1.ConfigMap{
+func labeledSecret(name, namespace string, labels map[string]string) *corev1.Secret {
+	return &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
@@ -216,13 +215,13 @@ func labeledConfigMap(name, namespace string, labels map[string]string) *corev1.
 }
 
 func TestStore_List(t *testing.T) {
-	typeLabel := map[string]string{"type": "target"}
+	typeLabel := map[string]string{"type": "credential"}
 	k8s := fake.NewSimpleClientset(
-		labeledConfigMap("a", "tenant-a", typeLabel),
-		labeledConfigMap("b", "tenant-a", typeLabel),
-		labeledConfigMap("c", "tenant-a", map[string]string{"type": "other"}),
+		labeledSecret("a", "tenant-a", typeLabel),
+		labeledSecret("b", "tenant-a", typeLabel),
+		labeledSecret("c", "tenant-a", map[string]string{"type": "other"}),
 	)
-	store := configmap.NewStore(k8s, "tenant-a")
+	store := secret.NewStore(k8s, "tenant-a")
 
 	results, err := store.List(t.Context(), typeLabel)
 	if err != nil {
@@ -236,9 +235,9 @@ func TestStore_List(t *testing.T) {
 
 func TestStore_List_Empty(t *testing.T) {
 	k8s := fake.NewSimpleClientset()
-	store := configmap.NewStore(k8s, "tenant-a")
+	store := secret.NewStore(k8s, "tenant-a")
 
-	results, err := store.List(t.Context(), map[string]string{"type": "target"})
+	results, err := store.List(t.Context(), map[string]string{"type": "credential"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -251,12 +250,12 @@ func TestStore_List_Empty(t *testing.T) {
 func TestStore_List_Error(t *testing.T) {
 	k8s := fake.NewSimpleClientset()
 	k8s.PrependReactor(
-		"list", "configmaps",
+		"list", "secrets",
 		func(clienttesting.Action) (bool, runtime.Object, error) {
 			return true, nil, fmt.Errorf("list denied")
 		},
 	)
-	store := configmap.NewStore(k8s, "tenant-a")
+	store := secret.NewStore(k8s, "tenant-a")
 
 	_, err := store.List(t.Context(), nil)
 	if err == nil {

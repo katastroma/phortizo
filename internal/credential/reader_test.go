@@ -9,6 +9,7 @@ import (
 
 	"github.com/katastroma/phortizo/internal/credential"
 	"github.com/katastroma/phortizo/internal/github/apps"
+	"github.com/katastroma/phortizo/internal/k8s/secret"
 	"github.com/katastroma/phortizo/internal/tests"
 )
 
@@ -21,8 +22,9 @@ func TestGet_GitHubToken(t *testing.T) {
 		},
 	})
 
-	reader := credential.NewReader(k8s, nil)
-	cred, err := reader.Get(t.Context(), "tenant-a", "repo-cred")
+	store := secret.NewStore(k8s, "tenant-a")
+	reader := credential.NewReader(nil)
+	cred, err := reader.Get(t.Context(), store, "repo-cred")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -42,8 +44,9 @@ func TestGet_BasicAuth(t *testing.T) {
 		},
 	})
 
-	reader := credential.NewReader(k8s, nil)
-	cred, err := reader.Get(t.Context(), "tenant-a", "repo-cred")
+	store := secret.NewStore(k8s, "tenant-a")
+	reader := credential.NewReader(nil)
+	cred, err := reader.Get(t.Context(), store, "repo-cred")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -62,8 +65,9 @@ func TestGet_SSHKey(t *testing.T) {
 		},
 	})
 
-	reader := credential.NewReader(k8s, nil)
-	cred, err := reader.Get(t.Context(), "tenant-a", "repo-cred")
+	store := secret.NewStore(k8s, "tenant-a")
+	reader := credential.NewReader(nil)
+	cred, err := reader.Get(t.Context(), store, "repo-cred")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -86,8 +90,9 @@ func TestGet_GitHubAppTenant(t *testing.T) {
 		},
 	})
 
-	reader := credential.NewReader(k8s, nil)
-	cred, err := reader.Get(t.Context(), "tenant-a", "repo-cred")
+	store := secret.NewStore(k8s, "tenant-a")
+	reader := credential.NewReader(nil)
+	cred, err := reader.Get(t.Context(), store, "repo-cred")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -112,8 +117,9 @@ func TestGet_GitHubAppPlatform(t *testing.T) {
 		},
 	})
 
-	reader := credential.NewReader(k8s, platformApp)
-	cred, err := reader.Get(t.Context(), "tenant-a", "repo-cred")
+	store := secret.NewStore(k8s, "tenant-a")
+	reader := credential.NewReader(platformApp)
+	cred, err := reader.Get(t.Context(), store, "repo-cred")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -125,9 +131,10 @@ func TestGet_GitHubAppPlatform(t *testing.T) {
 
 func TestGet_SecretNotFound(t *testing.T) {
 	k8s := fake.NewSimpleClientset()
+	store := secret.NewStore(k8s, "tenant-a")
 
-	reader := credential.NewReader(k8s, nil)
-	_, err := reader.Get(t.Context(), "tenant-a", "nonexistent")
+	reader := credential.NewReader(nil)
+	_, err := reader.Get(t.Context(), store, "nonexistent")
 	if err == nil {
 		t.Fatal("expected error for missing secret")
 	}
@@ -139,8 +146,9 @@ func TestGet_MissingType(t *testing.T) {
 		Data:       map[string][]byte{"token": []byte("ghp_abc123")},
 	})
 
-	reader := credential.NewReader(k8s, nil)
-	_, err := reader.Get(t.Context(), "tenant-a", "repo-cred")
+	store := secret.NewStore(k8s, "tenant-a")
+	reader := credential.NewReader(nil)
+	_, err := reader.Get(t.Context(), store, "repo-cred")
 	if err == nil {
 		t.Fatal("expected error for missing type key")
 	}
@@ -152,8 +160,9 @@ func TestGet_UnknownType(t *testing.T) {
 		Data:       map[string][]byte{"type": []byte("unknown")},
 	})
 
-	reader := credential.NewReader(k8s, nil)
-	_, err := reader.Get(t.Context(), "tenant-a", "repo-cred")
+	store := secret.NewStore(k8s, "tenant-a")
+	reader := credential.NewReader(nil)
+	_, err := reader.Get(t.Context(), store, "repo-cred")
 	if err == nil {
 		t.Fatal("expected error for unknown type")
 	}

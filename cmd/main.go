@@ -110,7 +110,7 @@ func main() {
 	}
 
 	// Credential reader
-	credentialReader := credential.NewReader(k8sClient, gha)
+	credentialReader := credential.NewReader(gha)
 
 	// Renderer addresses
 	renderers := map[renderer.Type]string{

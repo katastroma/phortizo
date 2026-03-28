@@ -10,8 +10,8 @@ import (
 )
 
 func TestAcquire(t *testing.T) {
-	store := tests.NewMockStore()
-	store.Add("wt-1", tests.NewMockObject(nil))
+	store := tests.NewMockStore[string]()
+	store.Add("wt-1", tests.NewMockObject[string](nil))
 
 	if err := lease.Acquire(t.Context(), store, "wt-1", "span-abc", 0); err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -32,8 +32,8 @@ func TestAcquire(t *testing.T) {
 }
 
 func TestAcquire_WithReplayCount(t *testing.T) {
-	store := tests.NewMockStore()
-	store.Add("wt-1", tests.NewMockObject(nil))
+	store := tests.NewMockStore[string]()
+	store.Add("wt-1", tests.NewMockObject[string](nil))
 
 	if err := lease.Acquire(t.Context(), store, "wt-1", "span-abc", 3); err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -50,7 +50,7 @@ func TestAcquire_WithReplayCount(t *testing.T) {
 }
 
 func TestAcquire_NotFound(t *testing.T) {
-	store := tests.NewMockStore()
+	store := tests.NewMockStore[string]()
 
 	if err := lease.Acquire(t.Context(), store, "nonexistent", "span-abc", 0); err == nil {
 		t.Fatal("expected error for missing object")
@@ -58,8 +58,8 @@ func TestAcquire_NotFound(t *testing.T) {
 }
 
 func TestAcquire_UpdateError(t *testing.T) {
-	store := tests.NewMockStore()
-	store.Add("wt-1", tests.NewMockObject(nil))
+	store := tests.NewMockStore[string]()
+	store.Add("wt-1", tests.NewMockObject[string](nil))
 	store.UpdateErr = fmt.Errorf("update denied")
 
 	if err := lease.Acquire(t.Context(), store, "wt-1", "span-abc", 0); err == nil {
@@ -68,8 +68,8 @@ func TestAcquire_UpdateError(t *testing.T) {
 }
 
 func TestRead_NoAnnotations(t *testing.T) {
-	store := tests.NewMockStore()
-	store.Add("wt-1", tests.NewMockObject(nil))
+	store := tests.NewMockStore[string]()
+	store.Add("wt-1", tests.NewMockObject[string](nil))
 
 	state, err := lease.Read(t.Context(), store, "wt-1")
 	if err != nil {
@@ -82,7 +82,7 @@ func TestRead_NoAnnotations(t *testing.T) {
 }
 
 func TestRead_NotFound(t *testing.T) {
-	store := tests.NewMockStore()
+	store := tests.NewMockStore[string]()
 
 	if _, err := lease.Read(t.Context(), store, "nonexistent"); err == nil {
 		t.Fatal("expected error for missing object")
@@ -90,8 +90,8 @@ func TestRead_NotFound(t *testing.T) {
 }
 
 func TestRead_MalformedTimestamp(t *testing.T) {
-	store := tests.NewMockStore()
-	store.Add("wt-1", tests.NewMockObject(map[string]string{
+	store := tests.NewMockStore[string]()
+	store.Add("wt-1", tests.NewMockObject[string](map[string]string{
 		lease.IDAnnotation:      "span-abc",
 		lease.StartedAnnotation: "not-a-timestamp",
 	}))
@@ -102,8 +102,8 @@ func TestRead_MalformedTimestamp(t *testing.T) {
 }
 
 func TestRelease(t *testing.T) {
-	store := tests.NewMockStore()
-	store.Add("wt-1", tests.NewMockObject(nil))
+	store := tests.NewMockStore[string]()
+	store.Add("wt-1", tests.NewMockObject[string](nil))
 
 	if err := lease.Acquire(t.Context(), store, "wt-1", "span-abc", 0); err != nil {
 		t.Fatalf("acquiring: %v", err)
@@ -124,7 +124,7 @@ func TestRelease(t *testing.T) {
 }
 
 func TestRelease_NotFound(t *testing.T) {
-	store := tests.NewMockStore()
+	store := tests.NewMockStore[string]()
 
 	if err := lease.Release(t.Context(), store, "nonexistent"); err == nil {
 		t.Fatal("expected error for missing object")
@@ -132,8 +132,8 @@ func TestRelease_NotFound(t *testing.T) {
 }
 
 func TestRelease_UpdateError(t *testing.T) {
-	store := tests.NewMockStore()
-	store.Add("wt-1", tests.NewMockObject(nil))
+	store := tests.NewMockStore[string]()
+	store.Add("wt-1", tests.NewMockObject[string](nil))
 	store.UpdateErr = fmt.Errorf("update denied")
 
 	if err := lease.Release(t.Context(), store, "wt-1"); err == nil {
@@ -142,8 +142,8 @@ func TestRelease_UpdateError(t *testing.T) {
 }
 
 func TestHeldBy(t *testing.T) {
-	store := tests.NewMockStore()
-	store.Add("wt-1", tests.NewMockObject(nil))
+	store := tests.NewMockStore[string]()
+	store.Add("wt-1", tests.NewMockObject[string](nil))
 
 	if err := lease.Acquire(t.Context(), store, "wt-1", "span-abc", 0); err != nil {
 		t.Fatalf("acquiring: %v", err)
@@ -160,8 +160,8 @@ func TestHeldBy(t *testing.T) {
 }
 
 func TestHeldBy_DifferentID(t *testing.T) {
-	store := tests.NewMockStore()
-	store.Add("wt-1", tests.NewMockObject(nil))
+	store := tests.NewMockStore[string]()
+	store.Add("wt-1", tests.NewMockObject[string](nil))
 
 	if err := lease.Acquire(t.Context(), store, "wt-1", "span-abc", 0); err != nil {
 		t.Fatalf("acquiring: %v", err)
@@ -178,7 +178,7 @@ func TestHeldBy_DifferentID(t *testing.T) {
 }
 
 func TestHeldBy_ReadError(t *testing.T) {
-	store := tests.NewMockStore()
+	store := tests.NewMockStore[string]()
 
 	if _, err := lease.HeldBy(t.Context(), store, "nonexistent", "span-abc"); err == nil {
 		t.Fatal("expected error for missing object")
