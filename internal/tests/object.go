@@ -72,6 +72,26 @@ func (s *MockStore) Get(_ context.Context, name string) (object.Resource, error)
 	return obj, nil
 }
 
+// List returns objects matching the given labels.
+func (s *MockStore) List(_ context.Context, labels map[string]string) ([]object.Resource, error) {
+	var results []object.Resource
+	for _, obj := range s.objects {
+		match := true
+		for k, v := range labels {
+			if obj.GetLabels()[k] != v {
+				match = false
+				break
+			}
+		}
+
+		if match {
+			results = append(results, obj)
+		}
+	}
+
+	return results, nil
+}
+
 // Update an object in the store
 func (s *MockStore) Update(_ context.Context, _ object.Annotatable) error {
 	return s.UpdateErr

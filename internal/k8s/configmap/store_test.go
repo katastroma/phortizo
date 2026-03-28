@@ -194,3 +194,62 @@ func TestStore_Put_UpdateError(t *testing.T) {
 		t.Fatal("expected error from failing update")
 	}
 }
+
+func labeledConfigMap(name, namespace string, labels map[string]string) *corev1.ConfigMap {
+	return &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+			Labels:    labels,
+		},
+	}
+}
+
+func TestStore_List(t *testing.T) {
+	typeLabel := map[string]string{"type": "target"}
+	k8s := fake.NewSimpleClientset(
+		labeledConfigMap("a", "tenant-a", typeLabel),
+		labeledConfigMap("b", "tenant-a", typeLabel),
+		labeledConfigMap("c", "tenant-a", map[string]string{"type": "other"}),
+	)
+	store := configmap.NewStore(k8s, "tenant-a")
+
+	results, err := store.List(t.Context(), typeLabel)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(results) != 2 {
+		t.Fatalf("expected 2 results, got %d", len(results))
+	}
+}
+
+func TestStore_List_Empty(t *testing.T) {
+	k8s := fake.NewSimpleClientset()
+	store := configmap.NewStore(k8s, "tenant-a")
+
+	results, err := store.List(t.Context(), map[string]string{"type": "target"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(results) != 0 {
+		t.Errorf("expected 0 results, got %d", len(results))
+	}
+}
+
+func TestStore_List_Error(t *testing.T) {
+	k8s := fake.NewSimpleClientset()
+	k8s.PrependReactor(
+		"list", "configmaps",
+		func(clienttesting.Action) (bool, runtime.Object, error) {
+			return true, nil, fmt.Errorf("list denied")
+		},
+	)
+	store := configmap.NewStore(k8s, "tenant-a")
+
+	_, err := store.List(t.Context(), nil)
+	if err == nil {
+		t.Fatal("expected error from failing list")
+	}
+}

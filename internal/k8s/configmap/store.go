@@ -32,6 +32,26 @@ func (s *Store) Get(ctx context.Context, name string) (object.Resource, error) {
 	return &Resource{cm}, nil
 }
 
+// List returns ConfigMaps matching the given labels.
+func (s *Store) List(ctx context.Context, labels map[string]string) ([]object.Resource, error) {
+	opts := metav1.ListOptions{}
+	if len(labels) > 0 {
+		opts.LabelSelector = metav1.FormatLabelSelector(&metav1.LabelSelector{MatchLabels: labels})
+	}
+
+	list, err := s.client.CoreV1().ConfigMaps(s.namespace).List(ctx, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	results := make([]object.Resource, 0, len(list.Items))
+	for _, cm := range list.Items {
+		results = append(results, &Resource{cm.DeepCopy()})
+	}
+
+	return results, nil
+}
+
 // Update persists annotation changes on a ConfigMap.
 func (s *Store) Update(ctx context.Context, obj object.Annotatable) error {
 	r, ok := obj.(*Resource)
