@@ -11,7 +11,7 @@ import (
 )
 
 // Handler receives GitHub push webhooks, verifies their signature, matches
-// watch targets, and dispatches matched targets for processing.
+// source targets, and dispatches matched targets for processing.
 type Handler struct {
 	log            *slog.Logger
 	k8sClient      kubernetes.Interface

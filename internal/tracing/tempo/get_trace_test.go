@@ -24,15 +24,15 @@ func TestGetTrace(t *testing.T) {
 							},
 						},
 						{
-							Name: "watch_target",
+							Name: "source_target",
 							Attributes: []*commonv1.KeyValue{
-								{Key: "watch_target.name", Value: &commonv1.AnyValue{Value: &commonv1.AnyValue_StringValue{StringValue: "wt-1"}}},
+								{Key: "source_target.name", Value: &commonv1.AnyValue{Value: &commonv1.AnyValue_StringValue{StringValue: "wt-1"}}},
 							},
 						},
 						{
-							Name: "watch_target",
+							Name: "source_target",
 							Attributes: []*commonv1.KeyValue{
-								{Key: "watch_target.name", Value: &commonv1.AnyValue{Value: &commonv1.AnyValue_StringValue{StringValue: "wt-2"}}},
+								{Key: "source_target.name", Value: &commonv1.AnyValue{Value: &commonv1.AnyValue_StringValue{StringValue: "wt-2"}}},
 							},
 						},
 					},
@@ -56,17 +56,17 @@ func TestGetTrace(t *testing.T) {
 		t.Errorf("tenant = %q, want %q", events[0]["tenant"], "tenant-a")
 	}
 
-	targets := trace["watch_target"]
+	targets := trace["source_target"]
 	if len(targets) != 2 {
-		t.Fatalf("expected 2 watch_target spans, got %d", len(targets))
+		t.Fatalf("expected 2 source_target spans, got %d", len(targets))
 	}
 
-	if targets[0]["watch_target.name"] != "wt-1" {
-		t.Errorf("first target = %q, want %q", targets[0]["watch_target.name"], "wt-1")
+	if targets[0]["source_target.name"] != "wt-1" {
+		t.Errorf("first target = %q, want %q", targets[0]["source_target.name"], "wt-1")
 	}
 
-	if targets[1]["watch_target.name"] != "wt-2" {
-		t.Errorf("second target = %q, want %q", targets[1]["watch_target.name"], "wt-2")
+	if targets[1]["source_target.name"] != "wt-2" {
+		t.Errorf("second target = %q, want %q", targets[1]["source_target.name"], "wt-2")
 	}
 }
 

@@ -38,8 +38,8 @@ func (r *Retriever) Replay(ctx context.Context, req *pb.ReplayRequest) (*pb.Repl
 
 	ctx, otelTracer := tracing.StartEvent(ctx, tracing.EventTypeReplay, namespace)
 
-	for _, attrs := range t[tracing.WatchTargetSpanName] {
-		target, err := watchTargetFromAttributes(attrs, eventID)
+	for _, attrs := range t[tracing.SourceTargetSpanName] {
+		target, err := sourceTargetFromAttributes(attrs, eventID)
 		if err != nil {
 			return nil, err
 		}
@@ -67,8 +67,8 @@ func (r *Retriever) replayTarget(
 	if leaseState.IsLeaseActive(r.leaseStaleAfter) {
 		r.log.InfoContext(ctx, "active lease, skipping replay",
 			"event_id", eventID,
-			"watch_target", target.Name,
-			"active_watch_target_lease_id", leaseState.ID,
+			"source_target", target.Name,
+			"active_source_target_lease_id", leaseState.ID,
 		)
 		return nil
 	}
@@ -77,12 +77,12 @@ func (r *Retriever) replayTarget(
 	if replayCount > r.maxReplayAttemps {
 		r.log.ErrorContext(ctx, "max replay attempts exceeded",
 			"event_id", eventID,
-			"watch_target", target.Name,
+			"source_target", target.Name,
 			"replay_count", replayCount,
 			"max", r.maxReplayAttemps,
 		)
 		return status.Errorf(codes.FailedPrecondition,
-			"max replay attempts (%d) exceeded for watch target %s in event %s",
+			"max replay attempts (%d) exceeded for source target %s in event %s",
 			r.maxReplayAttemps, target.Name, eventID)
 	}
 
@@ -95,25 +95,25 @@ func (r *Retriever) replayTarget(
 	return nil
 }
 
-func watchTargetFromAttributes(attrs tracing.Attributes, eventID string) (*source.Target, error) {
-	name, ok := attrs[tracing.WatchTargetNameAttribute]
+func sourceTargetFromAttributes(attrs tracing.Attributes, eventID string) (*source.Target, error) {
+	name, ok := attrs[tracing.SourceTargetNameAttribute]
 	if !ok {
-		return nil, fmt.Errorf("missing attribute %q in event %s", tracing.WatchTargetNameAttribute, eventID)
+		return nil, fmt.Errorf("missing attribute %q in event %s", tracing.SourceTargetNameAttribute, eventID)
 	}
 
-	repoURL, ok := attrs[tracing.WatchTargetRepoURLAttribute]
+	repoURL, ok := attrs[tracing.SourceTargetRepoURLAttribute]
 	if !ok {
-		return nil, fmt.Errorf("missing attribute %q in event %s", tracing.WatchTargetRepoURLAttribute, eventID)
+		return nil, fmt.Errorf("missing attribute %q in event %s", tracing.SourceTargetRepoURLAttribute, eventID)
 	}
 
-	ref, ok := attrs[tracing.WatchTargetRefAttribute]
+	ref, ok := attrs[tracing.SourceTargetRefAttribute]
 	if !ok {
-		return nil, fmt.Errorf("missing attribute %q in event %s", tracing.WatchTargetRefAttribute, eventID)
+		return nil, fmt.Errorf("missing attribute %q in event %s", tracing.SourceTargetRefAttribute, eventID)
 	}
 
-	path, ok := attrs[tracing.WatchTargetPathAttribute]
+	path, ok := attrs[tracing.SourceTargetPathAttribute]
 	if !ok {
-		return nil, fmt.Errorf("missing attribute %q in event %s", tracing.WatchTargetPathAttribute, eventID)
+		return nil, fmt.Errorf("missing attribute %q in event %s", tracing.SourceTargetPathAttribute, eventID)
 	}
 
 	return &source.Target{Name: name, RepoURL: repoURL, Ref: ref, Path: path}, nil

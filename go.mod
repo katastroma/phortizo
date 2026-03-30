@@ -11,7 +11,7 @@ require (
 	github.com/google/go-github/v84 v84.0.0
 	github.com/grafana/tempo v1.5.0
 	github.com/katastroma/keleustes v0.4.2
-	github.com/katastroma/naukleros v0.4.3
+	github.com/katastroma/naukleros v0.4.4
 	go.opentelemetry.io/otel v1.42.0
 	go.opentelemetry.io/otel/trace v1.42.0
 	google.golang.org/grpc v1.79.3

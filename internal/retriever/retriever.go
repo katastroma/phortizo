@@ -65,14 +65,14 @@ func New(
 // Retrieve handles manual source retrieval dispatch
 func (r *Retriever) Retrieve(ctx context.Context, req *pb.RetrieveRequest) (*pb.RetrieveResponse, error) {
 	namespace := req.GetNamespace()
-	watchTargetID := req.GetWatchTargetId()
+	sourceTargetID := req.GetSourceTargetId()
 
-	r.log.InfoContext(ctx, "retrieve requested", "namespace", namespace, "watch_target", watchTargetID)
+	r.log.InfoContext(ctx, "retrieve requested", "namespace", namespace, "source_target", sourceTargetID)
 
 	store := configmap.NewStore(r.k8sClient, namespace)
-	target, err := source.Get(ctx, store, watchTargetID)
+	target, err := source.Get(ctx, store, sourceTargetID)
 	if err != nil {
-		return nil, fmt.Errorf("reading watch target %s/%s: %w", namespace, watchTargetID, err)
+		return nil, fmt.Errorf("reading source target %s/%s: %w", namespace, sourceTargetID, err)
 	}
 
 	ctx, tracer := tracing.StartEvent(ctx, tracing.EventTypeManual, namespace)

@@ -7,7 +7,7 @@ import (
 	"github.com/katastroma/phortizo/internal/source"
 )
 
-func TestWatchTargetFromResource(t *testing.T) {
+func TestSourceTargetFromResource(t *testing.T) {
 	data := map[string]string{
 		"repo-url": "https://github.com/acme/app.git",
 		"ref":      "refs/heads/main",
@@ -36,7 +36,7 @@ func TestWatchTargetFromResource(t *testing.T) {
 	}
 }
 
-func TestWatchTargetFromResource_WithOverrides(t *testing.T) {
+func TestSourceTargetFromResource_WithOverrides(t *testing.T) {
 	overrides := "image:\n  tag: v1.2.3\n"
 	data := map[string]string{
 		"repo-url":  "https://github.com/acme/app.git",
@@ -55,7 +55,7 @@ func TestWatchTargetFromResource_WithOverrides(t *testing.T) {
 	}
 }
 
-func TestWatchTargetFromResource_MissingRepoURL(t *testing.T) {
+func TestSourceTargetFromResource_MissingRepoURL(t *testing.T) {
 	data := map[string]string{"ref": "refs/heads/main", "path": "deploy/"}
 
 	_, err := source.TargetFromResourceData(data)
@@ -64,7 +64,7 @@ func TestWatchTargetFromResource_MissingRepoURL(t *testing.T) {
 	}
 }
 
-func TestWatchTargetFromResource_MissingRef(t *testing.T) {
+func TestSourceTargetFromResource_MissingRef(t *testing.T) {
 	data := map[string]string{"repo-url": "https://github.com/acme/app.git", "path": "deploy/"}
 
 	_, err := source.TargetFromResourceData(data)
@@ -73,7 +73,7 @@ func TestWatchTargetFromResource_MissingRef(t *testing.T) {
 	}
 }
 
-func TestWatchTargetFromResource_MissingPath(t *testing.T) {
+func TestSourceTargetFromResource_MissingPath(t *testing.T) {
 	data := map[string]string{"repo-url": "https://github.com/acme/app.git", "ref": "refs/heads/main"}
 
 	_, err := source.TargetFromResourceData(data)

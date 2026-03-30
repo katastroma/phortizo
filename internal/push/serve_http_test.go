@@ -66,7 +66,7 @@ func webhookSecret() *corev1.Secret {
 	}
 }
 
-func watchTargetConfigMap() *corev1.ConfigMap {
+func sourceTargetConfigMap() *corev1.ConfigMap {
 	return &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "wt-1",
@@ -132,7 +132,7 @@ func TestServeHTTP_MissingNamespace(t *testing.T) {
 	}
 }
 
-func TestServeHTTP_WatchTargetsError(t *testing.T) {
+func TestServeHTTP_SourceTargetsError(t *testing.T) {
 	k8s := fake.NewSimpleClientset(webhookSecret())
 	k8s.PrependReactor(
 		"list", "configmaps",
@@ -153,7 +153,7 @@ func TestServeHTTP_WatchTargetsError(t *testing.T) {
 }
 
 func TestServeHTTP_WebhookSecretNotFound(t *testing.T) {
-	k8s := fake.NewSimpleClientset(watchTargetConfigMap())
+	k8s := fake.NewSimpleClientset(sourceTargetConfigMap())
 	handler := newTestHandler(t, k8s)
 
 	req := pushRequest(validPayload())
@@ -189,7 +189,7 @@ func TestServeHTTP_WebhookSecretMissingKey(t *testing.T) {
 }
 
 func TestServeHTTP_ValidationFailure_BodyReadError(t *testing.T) {
-	k8s := fake.NewSimpleClientset(webhookSecret(), watchTargetConfigMap())
+	k8s := fake.NewSimpleClientset(webhookSecret(), sourceTargetConfigMap())
 	handler := newTestHandler(t, k8s)
 
 	req := httptest.NewRequest(http.MethodPost, "/webhook/{namespace}", &errorReader{})
@@ -207,7 +207,7 @@ func TestServeHTTP_ValidationFailure_BodyReadError(t *testing.T) {
 }
 
 func TestServeHTTP_ValidationFailure_BadSignature(t *testing.T) {
-	k8s := fake.NewSimpleClientset(webhookSecret(), watchTargetConfigMap())
+	k8s := fake.NewSimpleClientset(webhookSecret(), sourceTargetConfigMap())
 	handler := newTestHandler(t, k8s)
 
 	req := pushRequest(validPayload())
@@ -222,7 +222,7 @@ func TestServeHTTP_ValidationFailure_BadSignature(t *testing.T) {
 }
 
 func TestServeHTTP_InvalidPayload(t *testing.T) {
-	k8s := fake.NewSimpleClientset(webhookSecret(), watchTargetConfigMap())
+	k8s := fake.NewSimpleClientset(webhookSecret(), sourceTargetConfigMap())
 	handler := newTestHandler(t, k8s)
 
 	body := []byte("not json")
@@ -237,7 +237,7 @@ func TestServeHTTP_InvalidPayload(t *testing.T) {
 }
 
 func TestServeHTTP_NoMatch(t *testing.T) {
-	k8s := fake.NewSimpleClientset(webhookSecret(), watchTargetConfigMap())
+	k8s := fake.NewSimpleClientset(webhookSecret(), sourceTargetConfigMap())
 	handler := newTestHandler(t, k8s)
 
 	body := []byte(`{
@@ -256,7 +256,7 @@ func TestServeHTTP_NoMatch(t *testing.T) {
 }
 
 func TestServeHTTP_NonPushEvent(t *testing.T) {
-	k8s := fake.NewSimpleClientset(webhookSecret(), watchTargetConfigMap())
+	k8s := fake.NewSimpleClientset(webhookSecret(), sourceTargetConfigMap())
 	handler := newTestHandler(t, k8s)
 
 	body := []byte(`{"action": "opened"}`)
@@ -272,7 +272,7 @@ func TestServeHTTP_NonPushEvent(t *testing.T) {
 }
 
 func TestServeHTTP_Match(t *testing.T) {
-	k8s := fake.NewSimpleClientset(webhookSecret(), watchTargetConfigMap())
+	k8s := fake.NewSimpleClientset(webhookSecret(), sourceTargetConfigMap())
 
 	var processed int
 	acquire, resolve, clone, lookup, verify, _ := noopHandler(t)

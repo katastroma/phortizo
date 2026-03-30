@@ -71,18 +71,18 @@ func (r *processRecorder) noopClosures(t *testing.T) (
 func replayTrace() tracing.Trace {
 	return tracing.Trace{
 		tracing.EventSpanName: {{tracing.TenantAttribute: "tenant-a"}},
-		tracing.WatchTargetSpanName: {
+		tracing.SourceTargetSpanName: {
 			{
-				tracing.WatchTargetNameAttribute:    "wt-1",
-				tracing.WatchTargetRepoURLAttribute: "https://github.com/acme/app.git",
-				tracing.WatchTargetRefAttribute:     "refs/heads/main",
-				tracing.WatchTargetPathAttribute:    "deploy/",
+				tracing.SourceTargetNameAttribute:    "wt-1",
+				tracing.SourceTargetRepoURLAttribute: "https://github.com/acme/app.git",
+				tracing.SourceTargetRefAttribute:     "refs/heads/main",
+				tracing.SourceTargetPathAttribute:    "deploy/",
 			},
 		},
 	}
 }
 
-func watchTargetCM() *corev1.ConfigMap {
+func sourceTargetCM() *corev1.ConfigMap {
 	return &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "wt-1",
@@ -98,7 +98,7 @@ func watchTargetCM() *corev1.ConfigMap {
 }
 
 func TestReplay(t *testing.T) {
-	k8s := fake.NewSimpleClientset(watchTargetCM())
+	k8s := fake.NewSimpleClientset(sourceTargetCM())
 	rec := &processRecorder{}
 	acquire, resolve, clone, lookup, verify, stream := rec.noopClosures(t)
 
@@ -131,7 +131,7 @@ func TestReplay(t *testing.T) {
 }
 
 func TestReplay_ActiveLease(t *testing.T) {
-	cm := watchTargetCM()
+	cm := sourceTargetCM()
 	cm.Annotations = map[string]string{
 		lease.IDAnnotation:          "other-lease",
 		lease.StartedAnnotation:     time.Now().UTC().Format(time.RFC3339),
@@ -162,7 +162,7 @@ func TestReplay_ActiveLease(t *testing.T) {
 }
 
 func TestReplay_StaleLease(t *testing.T) {
-	cm := watchTargetCM()
+	cm := sourceTargetCM()
 	staleTime := time.Now().Add(-20 * time.Minute)
 	cm.Annotations = map[string]string{
 		lease.IDAnnotation:          "old-lease",
@@ -194,7 +194,7 @@ func TestReplay_StaleLease(t *testing.T) {
 }
 
 func TestReplay_MaxReplayAttempts(t *testing.T) {
-	cm := watchTargetCM()
+	cm := sourceTargetCM()
 	staleTime := time.Now().Add(-20 * time.Minute)
 	cm.Annotations = map[string]string{
 		lease.IDAnnotation:          "old-lease",
@@ -229,7 +229,7 @@ func TestReplay_TraceQueryError(t *testing.T) {
 }
 
 func TestReplay_NoEventSpan(t *testing.T) {
-	tr := tracing.Trace{tracing.WatchTargetSpanName: {{tracing.WatchTargetNameAttribute: "wt-1"}}}
+	tr := tracing.Trace{tracing.SourceTargetSpanName: {{tracing.SourceTargetNameAttribute: "wt-1"}}}
 	handler := New(
 		slog.Default(), &stubTracer{trace: tr}, nil,
 		10*time.Minute, 3,
@@ -243,8 +243,8 @@ func TestReplay_NoEventSpan(t *testing.T) {
 
 func TestReplay_MissingTenant(t *testing.T) {
 	tr := tracing.Trace{
-		tracing.EventSpanName:       {{}},
-		tracing.WatchTargetSpanName: {{tracing.WatchTargetNameAttribute: "wt-1"}},
+		tracing.EventSpanName:        {{}},
+		tracing.SourceTargetSpanName: {{tracing.SourceTargetNameAttribute: "wt-1"}},
 	}
 	handler := New(
 		slog.Default(), &stubTracer{trace: tr}, nil,
@@ -259,10 +259,10 @@ func TestReplay_MissingTenant(t *testing.T) {
 
 func TestReplay_MissingName(t *testing.T) {
 	tr := tracing.Trace{
-		tracing.EventSpanName:       {{tracing.TenantAttribute: "tenant-a"}},
-		tracing.WatchTargetSpanName: {{}},
+		tracing.EventSpanName:        {{tracing.TenantAttribute: "tenant-a"}},
+		tracing.SourceTargetSpanName: {{}},
 	}
-	k8s := fake.NewSimpleClientset(watchTargetCM())
+	k8s := fake.NewSimpleClientset(sourceTargetCM())
 	handler := New(
 		slog.Default(), &stubTracer{trace: tr}, k8s,
 		10*time.Minute, 3,
@@ -276,10 +276,10 @@ func TestReplay_MissingName(t *testing.T) {
 
 func TestReplay_MissingRepoURL(t *testing.T) {
 	tr := tracing.Trace{
-		tracing.EventSpanName:       {{tracing.TenantAttribute: "tenant-a"}},
-		tracing.WatchTargetSpanName: {{tracing.WatchTargetNameAttribute: "wt-1"}},
+		tracing.EventSpanName:        {{tracing.TenantAttribute: "tenant-a"}},
+		tracing.SourceTargetSpanName: {{tracing.SourceTargetNameAttribute: "wt-1"}},
 	}
-	k8s := fake.NewSimpleClientset(watchTargetCM())
+	k8s := fake.NewSimpleClientset(sourceTargetCM())
 	handler := New(
 		slog.Default(), &stubTracer{trace: tr}, k8s,
 		10*time.Minute, 3,
@@ -294,14 +294,14 @@ func TestReplay_MissingRepoURL(t *testing.T) {
 func TestReplay_MissingRef(t *testing.T) {
 	tr := tracing.Trace{
 		tracing.EventSpanName: {{tracing.TenantAttribute: "tenant-a"}},
-		tracing.WatchTargetSpanName: {
+		tracing.SourceTargetSpanName: {
 			{
-				tracing.WatchTargetNameAttribute:    "wt-1",
-				tracing.WatchTargetRepoURLAttribute: "https://github.com/acme/app.git",
+				tracing.SourceTargetNameAttribute:    "wt-1",
+				tracing.SourceTargetRepoURLAttribute: "https://github.com/acme/app.git",
 			},
 		},
 	}
-	k8s := fake.NewSimpleClientset(watchTargetCM())
+	k8s := fake.NewSimpleClientset(sourceTargetCM())
 	handler := New(
 		slog.Default(), &stubTracer{trace: tr}, k8s,
 		10*time.Minute, 3,
@@ -316,15 +316,15 @@ func TestReplay_MissingRef(t *testing.T) {
 func TestReplay_MissingPath(t *testing.T) {
 	tr := tracing.Trace{
 		tracing.EventSpanName: {{tracing.TenantAttribute: "tenant-a"}},
-		tracing.WatchTargetSpanName: {
+		tracing.SourceTargetSpanName: {
 			{
-				tracing.WatchTargetNameAttribute:    "wt-1",
-				tracing.WatchTargetRepoURLAttribute: "https://github.com/acme/app.git",
-				tracing.WatchTargetRefAttribute:     "refs/heads/main",
+				tracing.SourceTargetNameAttribute:    "wt-1",
+				tracing.SourceTargetRepoURLAttribute: "https://github.com/acme/app.git",
+				tracing.SourceTargetRefAttribute:     "refs/heads/main",
 			},
 		},
 	}
-	k8s := fake.NewSimpleClientset(watchTargetCM())
+	k8s := fake.NewSimpleClientset(sourceTargetCM())
 	handler := New(
 		slog.Default(), &stubTracer{trace: tr}, k8s,
 		10*time.Minute, 3,

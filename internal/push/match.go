@@ -9,7 +9,7 @@ import (
 	"github.com/katastroma/phortizo/internal/source"
 )
 
-// match watch targets with the given push event.
+// match source targets with the given push event.
 //
 // A target matches when its repo URL and ref equal the event's, and at least one
 // changed path has the target's path as a prefix.

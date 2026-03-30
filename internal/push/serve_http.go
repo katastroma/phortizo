@@ -75,15 +75,15 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	store := configmap.NewStore(h.k8sClient, namespace)
-	watchTargets, err := source.List(ctx, store)
+	sourceTargets, err := source.List(ctx, store)
 	if err != nil {
-		h.fail(ctx, w, "failed to retrieve watch targets", http.StatusNotFound, err, "tenant", namespace)
+		h.fail(ctx, w, "failed to retrieve source targets", http.StatusNotFound, err, "tenant", namespace)
 		return
 	}
 
-	matched := match(watchTargets, pushEvent)
+	matched := match(sourceTargets, pushEvent)
 	if len(matched) == 0 {
-		h.log.InfoContext(ctx, "no watch targets found for event")
+		h.log.InfoContext(ctx, "no source targets found for event")
 		w.WriteHeader(http.StatusOK)
 		return
 	}

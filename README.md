@@ -115,11 +115,11 @@ The root event span carries:
 | `github.delivery_id` | GitHub webhook delivery GUID (webhook events only).        |
 | `github.head_commit` | Head commit SHA from the push event (webhook events only). |
 
-The `watch_target` span (child of the event span) carries:
+The `source_target` span (child of the event span) carries:
 
-| Attribute               | Description                               |
-| ----------------------- | ----------------------------------------- |
-| `watch_target.name`     | ConfigMap name of the source target.      |
-| `watch_target.repo_url` | Repository clone URL.                     |
-| `watch_target.ref`      | Git ref (e.g., `refs/heads/main`).        |
-| `watch_target.path`     | Path within the repository being watched. |
+| Attribute                | Description                               |
+| ------------------------ | ----------------------------------------- |
+| `source_target.name`     | ConfigMap name of the source target.      |
+| `source_target.repo_url` | Repository clone URL.                     |
+| `source_target.ref`      | Git ref (e.g., `refs/heads/main`).        |
+| `source_target.path`     | Path within the repository being watched. |

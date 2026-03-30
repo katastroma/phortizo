@@ -33,25 +33,25 @@ const (
 	// TenantAttribute is the span attribute key for the tenant namespace.
 	TenantAttribute = "tenant"
 
-	// WatchTargetSpanName is the span name for watch target processing.
-	WatchTargetSpanName = "watch_target"
+	// SourceTargetSpanName is the span name for source target processing.
+	SourceTargetSpanName = "source_target"
 
-	// WatchTargetNameAttribute is the span attribute key for the ConfigMap name.
-	WatchTargetNameAttribute = "watch_target.name"
+	// SourceTargetNameAttribute is the span attribute key for the ConfigMap name.
+	SourceTargetNameAttribute = "source_target.name"
 
-	// WatchTargetRepoURLAttribute is the span attribute key for the repository URL.
-	WatchTargetRepoURLAttribute = "watch_target.repo_url"
+	// SourceTargetRepoURLAttribute is the span attribute key for the repository URL.
+	SourceTargetRepoURLAttribute = "source_target.repo_url"
 
-	// WatchTargetRefAttribute is the span attribute key for the git ref.
-	WatchTargetRefAttribute = "watch_target.ref"
+	// SourceTargetRefAttribute is the span attribute key for the git ref.
+	SourceTargetRefAttribute = "source_target.ref"
 
-	// WatchTargetPathAttribute is the span attribute key for the path.
-	WatchTargetPathAttribute = "watch_target.path"
+	// SourceTargetPathAttribute is the span attribute key for the path.
+	SourceTargetPathAttribute = "source_target.path"
 )
 
 // StartEvent creates a tracer, starts a root event span with the given type
 // and namespace, and returns the context and tracer. The tracer is used by
-// downstream watch target processors to create child spans.
+// downstream source target processors to create child spans.
 func StartEvent(ctx context.Context, eventType EventType, namespace string) (context.Context, trace.Tracer) {
 	tracer := otel.Tracer("phortizo")
 	ctx, _ = tracer.Start(ctx, EventSpanName, trace.WithAttributes(

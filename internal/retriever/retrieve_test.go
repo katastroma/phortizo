@@ -29,7 +29,7 @@ func (q *stubTracer) GetTrace(_ context.Context, _ string) (tracing.Trace, error
 	return q.trace, q.err
 }
 
-func retrieveWatchTargetCM() *corev1.ConfigMap {
+func retrieveSourceTargetCM() *corev1.ConfigMap {
 	return &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "wt-1",
@@ -45,7 +45,7 @@ func retrieveWatchTargetCM() *corev1.ConfigMap {
 }
 
 func TestRetrieve(t *testing.T) {
-	k8s := fake.NewSimpleClientset(retrieveWatchTargetCM())
+	k8s := fake.NewSimpleClientset(retrieveSourceTargetCM())
 
 	var processedNamespace string
 	var processedReplayCount int
@@ -72,8 +72,8 @@ func TestRetrieve(t *testing.T) {
 	)
 
 	resp, err := handler.Retrieve(t.Context(), &pb.RetrieveRequest{
-		Namespace:     "tenant-a",
-		WatchTargetId: "wt-1",
+		Namespace:      "tenant-a",
+		SourceTargetId: "st-1",
 	})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -87,8 +87,8 @@ func TestRetrieve(t *testing.T) {
 		t.Errorf("namespace = %q, want %q", processedNamespace, "tenant-a")
 	}
 
-	if processedTarget != "wt-1" {
-		t.Errorf("target = %q, want %q", processedTarget, "wt-1")
+	if processedTarget != "st-1" {
+		t.Errorf("target = %q, want %q", processedTarget, "st-1")
 	}
 
 	if processedReplayCount != 0 {
@@ -96,7 +96,7 @@ func TestRetrieve(t *testing.T) {
 	}
 }
 
-func TestRetrieve_WatchTargetNotFound(t *testing.T) {
+func TestRetrieve_SourceTargetNotFound(t *testing.T) {
 	k8s := fake.NewSimpleClientset()
 	handler := New(
 		slog.Default(), nil, k8s,
@@ -105,10 +105,10 @@ func TestRetrieve_WatchTargetNotFound(t *testing.T) {
 	)
 
 	_, err := handler.Retrieve(t.Context(), &pb.RetrieveRequest{
-		Namespace:     "tenant-a",
-		WatchTargetId: "nonexistent",
+		Namespace:      "tenant-a",
+		SourceTargetId: "nonexistent",
 	})
 	if err == nil {
-		t.Fatal("expected error for missing watch target")
+		t.Fatal("expected error for missing source target")
 	}
 }

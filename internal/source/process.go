@@ -27,7 +27,7 @@ func fail(
 	span.RecordError(err)
 }
 
-// Process executes the watch target pipeline steps in order.
+// Process executes the source target pipeline steps in order.
 func (t *Target) Process(
 	ctx context.Context,
 	log *slog.Logger,
@@ -41,11 +41,11 @@ func (t *Target) Process(
 	verifyLease func(ctx context.Context, namespace, name, leaseID string) (bool, error),
 	stream func(ctx context.Context, fs billy.Filesystem, path, addr string) error,
 ) {
-	ctx, span := tracer.Start(ctx, tracing.WatchTargetSpanName, trace.WithAttributes(
-		attribute.String(tracing.WatchTargetNameAttribute, t.Name),
-		attribute.String(tracing.WatchTargetRepoURLAttribute, t.RepoURL),
-		attribute.String(tracing.WatchTargetRefAttribute, t.Ref),
-		attribute.String(tracing.WatchTargetPathAttribute, t.Path),
+	ctx, span := tracer.Start(ctx, tracing.SourceTargetSpanName, trace.WithAttributes(
+		attribute.String(tracing.SourceTargetNameAttribute, t.Name),
+		attribute.String(tracing.SourceTargetRepoURLAttribute, t.RepoURL),
+		attribute.String(tracing.SourceTargetRefAttribute, t.Ref),
+		attribute.String(tracing.SourceTargetPathAttribute, t.Path),
 	))
 	defer span.End()
 
@@ -83,7 +83,7 @@ func (t *Target) Process(
 	if !holds {
 		log.InfoContext(ctx, "lease lost, abandoning processing",
 			"tenant", namespace,
-			"watch_target_lease_id", leaseID,
+			"source_target_lease_id", leaseID,
 		)
 		return
 	}

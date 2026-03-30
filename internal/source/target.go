@@ -4,8 +4,8 @@ package source
 import "fmt"
 
 const (
-	// TypeLabel is the label value for watch target ConfigMaps.
-	TypeLabel = "watch-target"
+	// TypeLabel is the label value for source target ConfigMaps.
+	TypeLabel = "source-target"
 
 	// CredentialSecretAnnotation is the annotation key pointing to the
 	// credential Secret name in the same namespace.
@@ -30,7 +30,7 @@ type Target struct {
 	CredentialSecret string
 }
 
-// TargetFromResourceData deserializes a WatchTarget from ConfigMap data.
+// TargetFromResourceData deserializes a SourceTarget from ConfigMap data.
 func TargetFromResourceData(data map[string]string) (Target, error) {
 	repoURL, ok := data["repo-url"]
 	if !ok {

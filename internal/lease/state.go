@@ -4,7 +4,7 @@
 // for leader election and distributed locking. We use annotations instead
 // because our objects have external lifecycles. Their lifecycles are managed by
 // tenant onboarding, not the processor. Storing lease state as annotations
-// avoids creating and garbage-collecting a separate Lease resource per watch
+// avoids creating and garbage-collecting a separate Lease resource per source
 // target per processing instance. The object's resourceVersion provides
 // optimistic concurrency for free.
 package lease
