@@ -2,6 +2,15 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## 0.6.0 - 2026-03-30
+#### Features
+- renderer now handles renderer detection - (84e9dfe) - Nathan Blair
+#### Bug Fixes
+- make render paths relative to root - (ddae360) - Nathan Blair
+- use tar archive to stream data out to renderer - (c192e80) - Nathan Blair
+
+- - -
+
 ## 0.5.3 - 2026-03-30
 #### Bug Fixes
 - use new source target phrasing - (d9fa706) - Nathan Blair
