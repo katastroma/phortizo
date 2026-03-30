@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"github.com/go-git/go-billy/v5"
 	"github.com/go-git/go-billy/v5/util"
@@ -65,7 +66,7 @@ func archiveToPipe(result chan<- error, pw *io.PipeWriter, fs billy.Filesystem, 
 // writeTar writes the filesystem tree at root into w as a tar archive.
 func writeTar(w io.Writer, fs billy.Filesystem, root string) error {
 	tw := tar.NewWriter(w)
-	a := &archiver{tw: tw, fs: fs}
+	a := &archiver{tw: tw, fs: fs, root: root}
 
 	if err := util.Walk(fs, root, a.add); err != nil {
 		return err
@@ -74,10 +75,12 @@ func writeTar(w io.Writer, fs billy.Filesystem, root string) error {
 	return tw.Close()
 }
 
-// archiver writes filesystem entries as tar archive entries.
+// archiver writes filesystem entries as tar archive entries with paths
+// relative to root.
 type archiver struct {
-	tw *tar.Writer
-	fs billy.Filesystem
+	tw   *tar.Writer
+	fs   billy.Filesystem
+	root string
 }
 
 // add is a billy walk function that writes a single file as a tar entry.
@@ -93,7 +96,7 @@ func (a *archiver) add(path string, info os.FileInfo, err error) error {
 	if headerErr != nil {
 		return fmt.Errorf("building tar header for %s: %w", path, headerErr)
 	}
-	header.Name = path
+	header.Name = strings.TrimPrefix(path, a.root+"/")
 
 	if headerErr = a.tw.WriteHeader(header); headerErr != nil {
 		return fmt.Errorf("writing tar header for %s: %w", path, headerErr)

@@ -68,9 +68,9 @@ func TestStream(t *testing.T) {
 	}
 
 	files := extractTar(t, ms)
-	content, ok := files["deploy/values.yaml"]
+	content, ok := files["values.yaml"]
 	if !ok {
-		t.Fatal("expected deploy/values.yaml in tar archive")
+		t.Fatal("expected values.yaml in tar archive")
 	}
 	if content != "key: value" {
 		t.Errorf("expected %q, got %q", "key: value", content)
@@ -93,11 +93,11 @@ func TestStream_MultipleFiles(t *testing.T) {
 	if len(files) != 2 {
 		t.Errorf("expected 2 files in tar, got %d", len(files))
 	}
-	if files["deploy/a.yaml"] != "a" {
-		t.Errorf("expected %q for a.yaml, got %q", "a", files["deploy/a.yaml"])
+	if files["a.yaml"] != "a" {
+		t.Errorf("expected %q for a.yaml, got %q", "a", files["a.yaml"])
 	}
-	if files["deploy/b.yaml"] != "b" {
-		t.Errorf("expected %q for b.yaml, got %q", "b", files["deploy/b.yaml"])
+	if files["b.yaml"] != "b" {
+		t.Errorf("expected %q for b.yaml, got %q", "b", files["b.yaml"])
 	}
 }
 
@@ -188,6 +188,27 @@ func TestStream_EmptyDirectory(t *testing.T) {
 	}
 }
 
+func TestStream_RootPath(t *testing.T) {
+	fs := memfs.New()
+	createTestFile(t, fs, "values.yaml", "key: value")
+
+	ms := &tests.MockRenderStream{}
+	client := &tests.MockRendererClient{Stream: ms}
+
+	if err := stream(t.Context(), client, fs, "."); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	files := extractTar(t, ms)
+	content, ok := files["values.yaml"]
+	if !ok {
+		t.Fatal("expected values.yaml in tar archive")
+	}
+	if content != "key: value" {
+		t.Errorf("expected %q, got %q", "key: value", content)
+	}
+}
+
 func TestWriteTar(t *testing.T) {
 	fs := memfs.New()
 	createTestFile(t, fs, "root/a.yaml", "hello")
@@ -214,8 +235,8 @@ func TestWriteTar(t *testing.T) {
 		files[header.Name] = string(content)
 	}
 
-	if files["root/a.yaml"] != "hello" {
-		t.Errorf("expected %q, got %q", "hello", files["root/a.yaml"])
+	if files["a.yaml"] != "hello" {
+		t.Errorf("expected %q, got %q", "hello", files["a.yaml"])
 	}
 }
 
@@ -230,7 +251,7 @@ func TestWriteTar_CloseError(t *testing.T) {
 
 func TestArchiver_Add_WalkError(t *testing.T) {
 	tw := tar.NewWriter(&bytes.Buffer{})
-	a := &archiver{tw: tw, fs: memfs.New()}
+	a := &archiver{tw: tw, fs: memfs.New(), root: "."}
 
 	walkErr := fmt.Errorf("walk error")
 	if err := a.add("path", nil, walkErr); err != walkErr {
@@ -240,7 +261,7 @@ func TestArchiver_Add_WalkError(t *testing.T) {
 
 func TestArchiver_Add_HeaderError(t *testing.T) {
 	tw := tar.NewWriter(&bytes.Buffer{})
-	a := &archiver{tw: tw, fs: memfs.New()}
+	a := &archiver{tw: tw, fs: memfs.New(), root: "."}
 
 	if err := a.add("irregular", tests.IrregularFileInfo{}, nil); err == nil {
 		t.Fatal("expected error for irregular file type")
@@ -257,7 +278,7 @@ func TestArchiver_Add_WriteHeaderError(t *testing.T) {
 		t.Fatalf("stat: %v", err)
 	}
 
-	a := &archiver{tw: tw, fs: fs}
+	a := &archiver{tw: tw, fs: fs, root: "."}
 	if err := a.add("test.yaml", info, nil); err == nil {
 		t.Fatal("expected error when write header fails")
 	}
