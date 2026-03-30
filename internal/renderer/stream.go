@@ -2,7 +2,9 @@
 package renderer
 
 import (
+	"archive/tar"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -13,28 +15,73 @@ import (
 	pb "github.com/katastroma/keleustes"
 )
 
+// chunkSize is the byte size of each RenderRequest message. This is a
+// practical choice — large enough to amortize per-message overhead, small
+// enough to keep memory pressure low. gRPC's default max message size is
+// 4 MiB; this value is well under that limit.
+const chunkSize = 32 * 1024
+
 // stream opens a Render stream on the client and sends the source content
-// from the filesystem at root. It closes the send side when done.
+// from the filesystem at root as a tar archive. It closes the send side
+// when done.
 func stream(ctx context.Context, client pb.RendererServiceClient, fs billy.Filesystem, root string) error {
-	stream, err := client.Render(ctx)
+	s, err := client.Render(ctx)
 	if err != nil {
 		return fmt.Errorf("opening render stream: %w", err)
 	}
 
-	w := &walker{fs: fs, stream: stream}
-	if err := util.Walk(fs, root, w.send); err != nil {
-		return fmt.Errorf("streaming source: %w", err)
+	pr, pw := io.Pipe()
+
+	writeErr := make(chan error, 1)
+	go archiveToPipe(writeErr, pw, fs, root)
+
+	sendErr := sendChunks(s, pr)
+	pr.Close()
+	archiveErr := <-writeErr
+
+	if archiveErr != nil && !errors.Is(archiveErr, io.ErrClosedPipe) {
+		return fmt.Errorf("streaming source: %w", archiveErr)
+	}
+	if sendErr != nil {
+		return sendErr
 	}
 
-	return stream.CloseSend()
+	return s.CloseSend()
 }
 
-type walker struct {
-	fs     billy.Filesystem
-	stream pb.RendererService_RenderClient
+// archiveToPipe writes a tar archive of the filesystem to the pipe and
+// reports any error on the result channel.
+func archiveToPipe(result chan<- error, pw *io.PipeWriter, fs billy.Filesystem, root string) {
+	err := writeTar(pw, fs, root)
+	result <- err
+
+	if err != nil {
+		pw.CloseWithError(err)
+	} else {
+		pw.Close()
+	}
 }
 
-func (w *walker) send(path string, info os.FileInfo, err error) error {
+// writeTar writes the filesystem tree at root into w as a tar archive.
+func writeTar(w io.Writer, fs billy.Filesystem, root string) error {
+	tw := tar.NewWriter(w)
+	a := &archiver{tw: tw, fs: fs}
+
+	if err := util.Walk(fs, root, a.add); err != nil {
+		return err
+	}
+
+	return tw.Close()
+}
+
+// archiver writes filesystem entries as tar archive entries.
+type archiver struct {
+	tw *tar.Writer
+	fs billy.Filesystem
+}
+
+// add is a billy walk function that writes a single file as a tar entry.
+func (a *archiver) add(path string, info os.FileInfo, err error) error {
 	if err != nil {
 		return err
 	}
@@ -42,25 +89,50 @@ func (w *walker) send(path string, info os.FileInfo, err error) error {
 		return nil
 	}
 
-	f, err := w.fs.Open(path)
-	if err != nil {
-		return fmt.Errorf("opening %s: %w", path, err)
+	header, headerErr := tar.FileInfoHeader(info, "")
+	if headerErr != nil {
+		return fmt.Errorf("building tar header for %s: %w", path, headerErr)
+	}
+	header.Name = path
+
+	if headerErr = a.tw.WriteHeader(header); headerErr != nil {
+		return fmt.Errorf("writing tar header for %s: %w", path, headerErr)
+	}
+
+	f, openErr := a.fs.Open(path)
+	if openErr != nil {
+		return fmt.Errorf("opening %s: %w", path, openErr)
 	}
 	defer f.Close()
 
-	buf := make([]byte, 32*1024)
+	if _, copyErr := io.Copy(a.tw, f); copyErr != nil {
+		return fmt.Errorf("writing %s to tar: %w", path, copyErr)
+	}
+
+	return nil
+}
+
+// sendChunks reads from r in chunkSize pieces and sends each as a
+// RenderRequest on the stream.
+func sendChunks(s pb.RendererService_RenderClient, r io.Reader) error {
+	buf := make([]byte, chunkSize)
+
 	for {
-		n, err := f.Read(buf)
+		n, err := r.Read(buf)
 		if n > 0 {
-			if sendErr := w.stream.Send(&pb.RenderRequest{Data: buf[:n]}); sendErr != nil {
-				return fmt.Errorf("sending %s: %w", path, sendErr)
+			// Copy to decouple from the reused read buffer.
+			data := make([]byte, n)
+			copy(data, buf[:n])
+
+			if sendErr := s.Send(&pb.RenderRequest{Data: data}); sendErr != nil {
+				return fmt.Errorf("sending chunk: %w", sendErr)
 			}
 		}
 		if err == io.EOF {
 			return nil
 		}
 		if err != nil {
-			return fmt.Errorf("reading %s: %w", path, err)
+			return fmt.Errorf("reading tar: %w", err)
 		}
 	}
 }
