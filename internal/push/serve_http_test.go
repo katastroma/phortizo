@@ -1,4 +1,4 @@
-package webhook_test
+package push_test
 
 import (
 	"bytes"
@@ -24,8 +24,8 @@ import (
 	clienttesting "k8s.io/client-go/testing"
 
 	"github.com/katastroma/phortizo/internal/object"
+	"github.com/katastroma/phortizo/internal/push"
 	"github.com/katastroma/phortizo/internal/source"
-	"github.com/katastroma/phortizo/internal/webhook"
 )
 
 const testNamespace = "tenant-a"
@@ -57,11 +57,11 @@ func pushRequest(body []byte) *http.Request {
 func webhookSecret() *corev1.Secret {
 	return &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      webhook.SecretName,
+			Name:      push.SecretName,
 			Namespace: testNamespace,
 		},
 		Data: map[string][]byte{
-			webhook.SecretKey: []byte(testSecret),
+			push.SecretKey: []byte(testSecret),
 		},
 	}
 }
@@ -112,11 +112,11 @@ func noopHandler(t *testing.T) (
 		func(_ context.Context, _ billy.Filesystem, _, _ string) error { return nil }
 }
 
-func newTestHandler(t *testing.T, k8s *fake.Clientset) *webhook.Handler {
+func newTestHandler(t *testing.T, k8s *fake.Clientset) *push.Handler {
 	t.Helper()
 
 	acquire, resolve, clone, lookup, verify, stream := noopHandler(t)
-	return webhook.New(slog.Default(), k8s, acquire, resolve, clone, lookup, verify, stream)
+	return push.New(slog.Default(), k8s, acquire, resolve, clone, lookup, verify, stream)
 }
 
 func TestServeHTTP_MissingNamespace(t *testing.T) {
@@ -169,7 +169,7 @@ func TestServeHTTP_WebhookSecretNotFound(t *testing.T) {
 func TestServeHTTP_WebhookSecretMissingKey(t *testing.T) {
 	secretWithoutKey := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      webhook.SecretName,
+			Name:      push.SecretName,
 			Namespace: testNamespace,
 		},
 		Data: map[string][]byte{"wrong-key": []byte("value")},
@@ -281,7 +281,7 @@ func TestServeHTTP_Match(t *testing.T) {
 		return nil
 	}
 
-	handler := webhook.New(slog.Default(), k8s, acquire, resolve, clone, lookup, verify, countingStream)
+	handler := push.New(slog.Default(), k8s, acquire, resolve, clone, lookup, verify, countingStream)
 
 	body := validPayload()
 	req := pushRequest(body)

@@ -1,5 +1,5 @@
 //revive:disable:package-comments
-package webhook
+package push
 
 const (
 	// SecretKey is the data key for the HMAC webhook secret.

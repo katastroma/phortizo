@@ -13,7 +13,6 @@ import (
 
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 
-	"git.sonicoriginal.software/grpc-foundation/logging"
 	foundationotel "git.sonicoriginal.software/grpc-foundation/otel"
 	"git.sonicoriginal.software/grpc-foundation/server"
 
@@ -41,28 +40,21 @@ import (
 	"github.com/katastroma/phortizo/internal/k8s/secret"
 	"github.com/katastroma/phortizo/internal/lease"
 	"github.com/katastroma/phortizo/internal/object"
+	"github.com/katastroma/phortizo/internal/push"
 	"github.com/katastroma/phortizo/internal/renderer"
 	"github.com/katastroma/phortizo/internal/retriever"
 	tempoTracer "github.com/katastroma/phortizo/internal/tracing/tempo"
-	"github.com/katastroma/phortizo/internal/webhook"
 )
 
 func main() {
 	mainCtx := context.Background()
-	log := logging.New("phortizo")
 
-	// OTel tracing, metrics, logging
-	version := os.Getenv("SERVICE_VERSION")
-	if version == "" {
-		version = "dev"
-	}
-
-	providers, err := foundationotel.Init(mainCtx, "phortizo", version)
+	log, shutdown, err := foundationotel.Init(mainCtx, "phortizo")
 	if err != nil {
-		log.Error("otel init failed", "error", err)
+		fmt.Fprintf(os.Stderr, "failed to initialize otel: %v\n", err)
 		os.Exit(1)
 	}
-	defer providers.Shutdown(mainCtx)
+	defer shutdown(mainCtx)
 
 	// GitHub App
 	clientID := os.Getenv("GITHUB_APP_CLIENT_ID")
@@ -175,7 +167,7 @@ func main() {
 	streamToRenderer := renderer.StreamFunc(rendererConns)
 
 	// HTTP server
-	webhookHandler := webhook.New(
+	pushHandler := push.New(
 		log, k8sClient,
 		acquireLease, resolveAuth, gitClient.Clone, lookupRenderer,
 		verifyLease, streamToRenderer,
@@ -183,7 +175,7 @@ func main() {
 
 	mux := http.NewServeMux()
 	mux.Handle("GET /healthz", http_health.New(log, ghService))
-	mux.Handle("POST /webhook/{namespace}", webhookHandler)
+	mux.Handle("POST /push/{namespace}", pushHandler)
 
 	httpPort := os.Getenv("PORT")
 	if httpPort == "" {
@@ -251,7 +243,7 @@ func main() {
 		}
 	})
 
-	server.HandleGracefulShutdown(sigNotifyContext, stop, log, grpcServer, providers, 10*time.Second)
+	server.HandleGracefulShutdown(sigNotifyContext, stop, log, grpcServer, 10*time.Second)
 
 	shutdownCtx, shutdownCancel := context.WithTimeout(mainCtx, 10*time.Second)
 	defer shutdownCancel()

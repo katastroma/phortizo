@@ -1,5 +1,5 @@
 //revive:disable:package-comments
-package webhook
+package push
 
 import (
 	"context"
