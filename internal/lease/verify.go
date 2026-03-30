@@ -7,10 +7,11 @@ import (
 	"github.com/katastroma/phortizo/internal/object"
 )
 
-// VerifyFunc returns a closure that checks whether a lease is still held by the given ID
-func VerifyFunc(
-	newStore func(string) object.Store[string],
-) func(ctx context.Context, namespace, name, leaseID string) (bool, error) {
+// VerifyFunc checks whether a lease is still held by the given ID.
+type VerifyFunc func(ctx context.Context, namespace, name, leaseID string) (bool, error)
+
+// NewVerifyFunc returns a VerifyFunc that uses the given store factory.
+func NewVerifyFunc(newStore object.StoreFactory[string]) VerifyFunc {
 	return func(ctx context.Context, namespace, name, leaseID string) (bool, error) {
 		return HeldBy(ctx, newStore(namespace), name, leaseID)
 	}

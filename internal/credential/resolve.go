@@ -10,12 +10,14 @@ import (
 	"github.com/katastroma/phortizo/internal/object"
 )
 
-// ResolveFunc returns a closure that resolves git transport authentication for
-// a named credential secret. Returns nil auth for empty secret names (public
-// repositories).
-func ResolveFunc(
-	reader Reader, httpClient *http.Client, newStore func(string) object.Store[[]byte],
-) func(ctx context.Context, namespace, credentialSecret string) (transport.AuthMethod, error) {
+// ResolveFunc resolves git transport authentication for a named credential
+// secret. Returns nil auth for empty secret names (public repositories).
+type ResolveFunc func(ctx context.Context, namespace, credentialSecret string) (transport.AuthMethod, error)
+
+// NewResolveFunc returns a ResolveFunc that uses the given reader and store factory.
+func NewResolveFunc(
+	reader Reader, httpClient *http.Client, newStore object.StoreFactory[[]byte],
+) ResolveFunc {
 	return func(ctx context.Context, namespace, credentialSecret string) (transport.AuthMethod, error) {
 		if credentialSecret == "" {
 			return nil, nil

@@ -7,12 +7,14 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/go-git/go-billy/v5"
-	"github.com/go-git/go-git/v5/plumbing/transport"
 	"k8s.io/client-go/kubernetes"
 
 	pb "github.com/katastroma/naukleros"
+	"github.com/katastroma/phortizo/internal/credential"
+	"github.com/katastroma/phortizo/internal/git"
 	"github.com/katastroma/phortizo/internal/k8s/configmap"
+	"github.com/katastroma/phortizo/internal/lease"
+	"github.com/katastroma/phortizo/internal/renderer"
 	"github.com/katastroma/phortizo/internal/source"
 	"github.com/katastroma/phortizo/internal/tracing"
 )
@@ -25,12 +27,11 @@ type Retriever struct {
 	k8sClient        kubernetes.Interface
 	leaseStaleAfter  time.Duration
 	maxReplayAttemps int
-	acquireLease     func(ctx context.Context, namespace, name, leaseID string, replayCount int) error
-	resolveAuth      func(ctx context.Context, namespace, credentialSecret string) (transport.AuthMethod, error)
-	clone            func(ctx context.Context, url, ref string, auth transport.AuthMethod) (billy.Filesystem, error)
-	lookupRenderer   func(fs billy.Filesystem, path string) (string, error)
-	verifyLease      func(ctx context.Context, namespace, name, leaseID string) (bool, error)
-	stream           func(ctx context.Context, fs billy.Filesystem, path, addr string) error
+	acquireLease     lease.AcquireFunc
+	resolveAuth      credential.ResolveFunc
+	clone            git.CloneFunc
+	verifyLease      lease.VerifyFunc
+	stream           renderer.StreamFunc
 }
 
 // New creates a RetrieverService handler
@@ -40,12 +41,11 @@ func New(
 	k8sClient kubernetes.Interface,
 	leaseStaleAfter time.Duration,
 	maxReplayAttempts int,
-	acquireLease func(ctx context.Context, namespace, name, leaseID string, replayCount int) error,
-	resolveAuth func(ctx context.Context, namespace, credentialSecret string) (transport.AuthMethod, error),
-	clone func(ctx context.Context, url, ref string, auth transport.AuthMethod) (billy.Filesystem, error),
-	lookupRenderer func(fs billy.Filesystem, path string) (string, error),
-	verifyLease func(ctx context.Context, namespace, name, leaseID string) (bool, error),
-	stream func(ctx context.Context, fs billy.Filesystem, path, addr string) error,
+	acquireLease lease.AcquireFunc,
+	resolveAuth credential.ResolveFunc,
+	clone git.CloneFunc,
+	verifyLease lease.VerifyFunc,
+	stream renderer.StreamFunc,
 ) *Retriever {
 	return &Retriever{
 		log:              log,
@@ -56,7 +56,6 @@ func New(
 		acquireLease:     acquireLease,
 		resolveAuth:      resolveAuth,
 		clone:            clone,
-		lookupRenderer:   lookupRenderer,
 		verifyLease:      verifyLease,
 		stream:           stream,
 	}
@@ -78,7 +77,7 @@ func (r *Retriever) Retrieve(ctx context.Context, req *pb.RetrieveRequest) (*pb.
 	ctx, tracer := tracing.StartEvent(ctx, tracing.EventTypeManual, namespace)
 	target.Process(
 		ctx, r.log, tracer, namespace, 0,
-		r.acquireLease, r.resolveAuth, r.clone, r.lookupRenderer,
+		r.acquireLease, r.resolveAuth, r.clone,
 		r.verifyLease, r.stream,
 	)
 

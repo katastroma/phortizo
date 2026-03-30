@@ -17,14 +17,14 @@ import (
 
 type notASecret struct{}
 
-func (n *notASecret) GetName() string                      { return "" }
-func (n *notASecret) SetName(_ string)                     {}
-func (n *notASecret) GetAnnotations() map[string]string    { return nil }
-func (n *notASecret) SetAnnotations(_ map[string]string)   {}
-func (n *notASecret) GetLabels() map[string]string         { return nil }
-func (n *notASecret) SetLabels(_ map[string]string)        {}
-func (n *notASecret) GetData() map[string][]byte           { return nil }
-func (n *notASecret) SetData(_ map[string][]byte)          {}
+func (n *notASecret) GetName() string                    { return "" }
+func (n *notASecret) SetName(_ string)                   {}
+func (n *notASecret) GetAnnotations() map[string]string  { return nil }
+func (n *notASecret) SetAnnotations(_ map[string]string) {}
+func (n *notASecret) GetLabels() map[string]string       { return nil }
+func (n *notASecret) SetLabels(_ map[string]string)      {}
+func (n *notASecret) GetData() map[string][]byte         { return nil }
+func (n *notASecret) SetData(_ map[string][]byte)        {}
 
 var _ object.Resource[[]byte] = (*notASecret)(nil)
 

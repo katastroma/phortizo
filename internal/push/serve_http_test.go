@@ -96,9 +96,8 @@ func noopHandler(t *testing.T) (
 	func(context.Context, string, string, string, int) error,
 	func(context.Context, string, string) (transport.AuthMethod, error),
 	func(context.Context, string, string, transport.AuthMethod) (billy.Filesystem, error),
-	func(billy.Filesystem, string) (string, error),
 	func(context.Context, string, string, string) (bool, error),
-	func(context.Context, billy.Filesystem, string, string) error,
+	func(context.Context, billy.Filesystem, string) error,
 ) {
 	t.Helper()
 
@@ -107,16 +106,15 @@ func noopHandler(t *testing.T) (
 	return func(_ context.Context, _, _, _ string, _ int) error { return nil },
 		func(_ context.Context, _, _ string) (transport.AuthMethod, error) { return nil, nil },
 		func(_ context.Context, _, _ string, _ transport.AuthMethod) (billy.Filesystem, error) { return fs, nil },
-		func(_ billy.Filesystem, _ string) (string, error) { return "helm-renderer:8080", nil },
 		func(_ context.Context, _, _, _ string) (bool, error) { return true, nil },
-		func(_ context.Context, _ billy.Filesystem, _, _ string) error { return nil }
+		func(_ context.Context, _ billy.Filesystem, _ string) error { return nil }
 }
 
 func newTestHandler(t *testing.T, k8s *fake.Clientset) *push.Handler {
 	t.Helper()
 
-	acquire, resolve, clone, lookup, verify, stream := noopHandler(t)
-	return push.New(slog.Default(), k8s, acquire, resolve, clone, lookup, verify, stream)
+	acquire, resolve, clone, verify, stream := noopHandler(t)
+	return push.New(slog.Default(), k8s, acquire, resolve, clone, verify, stream)
 }
 
 func TestServeHTTP_MissingNamespace(t *testing.T) {
@@ -275,13 +273,13 @@ func TestServeHTTP_Match(t *testing.T) {
 	k8s := fake.NewSimpleClientset(webhookSecret(), sourceTargetConfigMap())
 
 	var processed int
-	acquire, resolve, clone, lookup, verify, _ := noopHandler(t)
-	countingStream := func(_ context.Context, _ billy.Filesystem, _, _ string) error {
+	acquire, resolve, clone, verify, _ := noopHandler(t)
+	countingStream := func(_ context.Context, _ billy.Filesystem, _ string) error {
 		processed++
 		return nil
 	}
 
-	handler := push.New(slog.Default(), k8s, acquire, resolve, clone, lookup, verify, countingStream)
+	handler := push.New(slog.Default(), k8s, acquire, resolve, clone, verify, countingStream)
 
 	body := validPayload()
 	req := pushRequest(body)

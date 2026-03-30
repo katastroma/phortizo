@@ -10,10 +10,11 @@ import (
 	"github.com/katastroma/phortizo/internal/object"
 )
 
-// AcquireFunc returns a closure that acquires a lease on a named object in the given namespace
-func AcquireFunc(
-	newStore func(string) object.Store[string],
-) func(ctx context.Context, namespace, name, leaseID string, replayCount int) error {
+// AcquireFunc acquires a lease on a named object in a namespace.
+type AcquireFunc func(ctx context.Context, namespace, name, leaseID string, replayCount int) error
+
+// NewAcquireFunc returns an AcquireFunc that uses the given store factory.
+func NewAcquireFunc(newStore object.StoreFactory[string]) AcquireFunc {
 	return func(ctx context.Context, namespace, name, leaseID string, replayCount int) error {
 		return Acquire(ctx, newStore(namespace), name, leaseID, replayCount)
 	}

@@ -101,7 +101,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	for _, target := range matched {
 		target.Process(
 			ctx, h.log, tracer, namespace, 0,
-			h.acquireLease, h.resolveAuth, h.clone, h.lookupRenderer,
+			h.acquireLease, h.resolveAuth, h.clone,
 			h.verifyLease, h.stream,
 		)
 	}

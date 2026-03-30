@@ -32,7 +32,7 @@ func (q *stubTracer) GetTrace(_ context.Context, _ string) (tracing.Trace, error
 func retrieveSourceTargetCM() *corev1.ConfigMap {
 	return &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "wt-1",
+			Name:      "st-1",
 			Namespace: "tenant-a",
 			Labels:    map[string]string{object.TypeLabel: source.TypeLabel},
 		},
@@ -61,14 +61,13 @@ func TestRetrieve(t *testing.T) {
 	cloneFn := func(_ context.Context, _, _ string, _ transport.AuthMethod) (billy.Filesystem, error) {
 		return helmFS(t), nil
 	}
-	lookupFn := func(_ billy.Filesystem, _ string) (string, error) { return "helm-renderer:8080", nil }
 	verifyFn := func(_ context.Context, _, _, _ string) (bool, error) { return true, nil }
-	streamFn := func(_ context.Context, _ billy.Filesystem, _, _ string) error { return nil }
+	streamFn := func(_ context.Context, _ billy.Filesystem, _ string) error { return nil }
 
 	handler := New(
 		slog.Default(), nil, k8s,
 		10*time.Minute, 3,
-		acquireFn, resolveFn, cloneFn, lookupFn, verifyFn, streamFn,
+		acquireFn, resolveFn, cloneFn, verifyFn, streamFn,
 	)
 
 	resp, err := handler.Retrieve(t.Context(), &pb.RetrieveRequest{
@@ -101,7 +100,7 @@ func TestRetrieve_SourceTargetNotFound(t *testing.T) {
 	handler := New(
 		slog.Default(), nil, k8s,
 		10*time.Minute, 3,
-		nil, nil, nil, nil, nil, nil,
+		nil, nil, nil, nil, nil,
 	)
 
 	_, err := handler.Retrieve(t.Context(), &pb.RetrieveRequest{

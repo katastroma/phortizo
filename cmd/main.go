@@ -19,8 +19,7 @@ import (
 	"github.com/grafana/tempo/pkg/tempopb"
 	pb "github.com/katastroma/naukleros"
 
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
+	foundationclient "git.sonicoriginal.software/grpc-foundation/client"
 
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -107,12 +106,19 @@ func main() {
 	// Credential reader
 	credentialReader := provider.NewReader(gha)
 
-	// Renderer addresses
-	renderers := map[renderer.Type]string{
-		renderer.Helm:      os.Getenv("RENDERER_HELM"),
-		renderer.Kustomize: os.Getenv("RENDERER_KUSTOMIZE"),
-		renderer.Raw:       os.Getenv("RENDERER_RAW"),
+	// Renderer connection
+	rendererAddr := os.Getenv("RENDERER_ADDR")
+	if rendererAddr == "" {
+		log.Error("RENDERER_ADDR is required")
+		os.Exit(1)
 	}
+
+	rendererConn, err := foundationclient.New(rendererAddr, log, nil, nil)
+	if err != nil {
+		log.Error("connecting to renderer", "address", rendererAddr, "error", err)
+		os.Exit(1)
+	}
+	defer rendererConn.Close()
 
 	// Lease configuration
 	leaseStaleAfter := 10 * time.Minute
@@ -141,35 +147,16 @@ func main() {
 		return secret.NewStore(k8sClient, ns)
 	}
 
-	acquireLease := lease.AcquireFunc(newConfigMapStore)
-	resolveAuth := credential.ResolveFunc(credentialReader, http.DefaultClient, newSecretStore)
+	acquireLease := lease.NewAcquireFunc(newConfigMapStore)
+	resolveAuth := credential.NewResolveFunc(credentialReader, http.DefaultClient, newSecretStore)
 	gitClient := git.Client{}
-	lookupRenderer := renderer.LookupFunc(renderers)
-	verifyLease := lease.VerifyFunc(newConfigMapStore)
-
-	// Renderer gRPC connections
-	rendererConns := make(map[string]grpc.ClientConnInterface, len(renderers))
-	for rendererType, addr := range renderers {
-		if addr == "" {
-			continue
-		}
-
-		conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
-		if err != nil {
-			log.Error("connecting to renderer", "type", string(rendererType), "address", addr, "error", err)
-			os.Exit(1)
-		}
-		defer conn.Close()
-
-		rendererConns[addr] = conn
-	}
-
-	streamToRenderer := renderer.StreamFunc(rendererConns)
+	verifyLease := lease.NewVerifyFunc(newConfigMapStore)
+	streamToRenderer := renderer.NewStreamFunc(rendererConn)
 
 	// HTTP server
 	pushHandler := push.New(
 		log, k8sClient,
-		acquireLease, resolveAuth, gitClient.Clone, lookupRenderer,
+		acquireLease, resolveAuth, gitClient.Clone,
 		verifyLease, streamToRenderer,
 	)
 
@@ -197,7 +184,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	tempoConn, err := grpc.NewClient(tempoAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	tempoConn, err := foundationclient.New(tempoAddr, log, nil, nil)
 	if err != nil {
 		log.Error("connecting to tempo", "address", tempoAddr, "error", err)
 		os.Exit(1)
@@ -210,7 +197,7 @@ func main() {
 	retrieverServer := retriever.New(
 		log, tracer, k8sClient,
 		leaseStaleAfter, maxReplayAttempts,
-		acquireLease, resolveAuth, gitClient.Clone, lookupRenderer,
+		acquireLease, resolveAuth, gitClient.Clone,
 		verifyLease, streamToRenderer,
 	)
 	pb.RegisterRetrieverServiceServer(grpcServer, retrieverServer)

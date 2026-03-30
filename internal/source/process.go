@@ -5,11 +5,13 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/go-git/go-billy/v5"
-	"github.com/go-git/go-git/v5/plumbing/transport"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 
+	"github.com/katastroma/phortizo/internal/credential"
+	"github.com/katastroma/phortizo/internal/git"
+	"github.com/katastroma/phortizo/internal/lease"
+	"github.com/katastroma/phortizo/internal/renderer"
 	"github.com/katastroma/phortizo/internal/tracing"
 )
 
@@ -34,12 +36,11 @@ func (t *Target) Process(
 	tracer trace.Tracer,
 	namespace string,
 	replayCount int,
-	acquireLease func(ctx context.Context, namespace, name, leaseID string, replayCount int) error,
-	resolveAuth func(ctx context.Context, namespace, credentialSecret string) (transport.AuthMethod, error),
-	clone func(ctx context.Context, url, ref string, auth transport.AuthMethod) (billy.Filesystem, error),
-	lookupRenderer func(fs billy.Filesystem, path string) (string, error),
-	verifyLease func(ctx context.Context, namespace, name, leaseID string) (bool, error),
-	stream func(ctx context.Context, fs billy.Filesystem, path, addr string) error,
+	acquireLease lease.AcquireFunc,
+	resolveAuth credential.ResolveFunc,
+	clone git.CloneFunc,
+	verifyLease lease.VerifyFunc,
+	stream renderer.StreamFunc,
 ) {
 	ctx, span := tracer.Start(ctx, tracing.SourceTargetSpanName, trace.WithAttributes(
 		attribute.String(tracing.SourceTargetNameAttribute, t.Name),
@@ -68,12 +69,6 @@ func (t *Target) Process(
 		return
 	}
 
-	rendererAddr, err := lookupRenderer(fs, t.Path)
-	if err != nil {
-		fail(ctx, log, span, namespace, "renderer lookup failed", err)
-		return
-	}
-
 	holds, err := verifyLease(ctx, namespace, t.Name, leaseID)
 	if err != nil {
 		fail(ctx, log, span, namespace, "lease check failed", err)
@@ -88,7 +83,7 @@ func (t *Target) Process(
 		return
 	}
 
-	if err = stream(ctx, fs, t.Path, rendererAddr); err != nil {
+	if err = stream(ctx, fs, t.Path); err != nil {
 		fail(ctx, log, span, namespace, "streaming to renderer failed", err)
 		return
 	}

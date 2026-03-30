@@ -45,9 +45,8 @@ func (r *processRecorder) noopClosures(t *testing.T) (
 	func(context.Context, string, string, string, int) error,
 	func(context.Context, string, string) (transport.AuthMethod, error),
 	func(context.Context, string, string, transport.AuthMethod) (billy.Filesystem, error),
-	func(billy.Filesystem, string) (string, error),
 	func(context.Context, string, string, string) (bool, error),
-	func(context.Context, billy.Filesystem, string, string) error,
+	func(context.Context, billy.Filesystem, string) error,
 ) {
 	t.Helper()
 
@@ -60,9 +59,8 @@ func (r *processRecorder) noopClosures(t *testing.T) (
 		},
 		func(_ context.Context, _, _ string) (transport.AuthMethod, error) { return nil, nil },
 		func(_ context.Context, _, _ string, _ transport.AuthMethod) (billy.Filesystem, error) { return fs, nil },
-		func(_ billy.Filesystem, _ string) (string, error) { return "helm-renderer:8080", nil },
 		func(_ context.Context, _, _, _ string) (bool, error) { return true, nil },
-		func(_ context.Context, _ billy.Filesystem, _, _ string) error {
+		func(_ context.Context, _ billy.Filesystem, _ string) error {
 			r.calls++
 			return nil
 		}
@@ -100,12 +98,12 @@ func sourceTargetCM() *corev1.ConfigMap {
 func TestReplay(t *testing.T) {
 	k8s := fake.NewSimpleClientset(sourceTargetCM())
 	rec := &processRecorder{}
-	acquire, resolve, clone, lookup, verify, stream := rec.noopClosures(t)
+	acquire, resolve, clone, verify, stream := rec.noopClosures(t)
 
 	handler := New(
 		slog.Default(), &stubTracer{trace: replayTrace()}, k8s,
 		10*time.Minute, 3,
-		acquire, resolve, clone, lookup, verify, stream,
+		acquire, resolve, clone, verify, stream,
 	)
 
 	resp, err := handler.Replay(t.Context(), &pb.ReplayRequest{EventId: "trace-123"})
@@ -139,12 +137,12 @@ func TestReplay_ActiveLease(t *testing.T) {
 	}
 	k8s := fake.NewSimpleClientset(cm)
 	rec := &processRecorder{}
-	acquire, resolve, clone, lookup, verify, stream := rec.noopClosures(t)
+	acquire, resolve, clone, verify, stream := rec.noopClosures(t)
 
 	handler := New(
 		slog.Default(), &stubTracer{trace: replayTrace()}, k8s,
 		10*time.Minute, 3,
-		acquire, resolve, clone, lookup, verify, stream,
+		acquire, resolve, clone, verify, stream,
 	)
 
 	resp, err := handler.Replay(t.Context(), &pb.ReplayRequest{EventId: "trace-123"})
@@ -171,12 +169,12 @@ func TestReplay_StaleLease(t *testing.T) {
 	}
 	k8s := fake.NewSimpleClientset(cm)
 	rec := &processRecorder{}
-	acquire, resolve, clone, lookup, verify, stream := rec.noopClosures(t)
+	acquire, resolve, clone, verify, stream := rec.noopClosures(t)
 
 	handler := New(
 		slog.Default(), &stubTracer{trace: replayTrace()}, k8s,
 		10*time.Minute, 3,
-		acquire, resolve, clone, lookup, verify, stream,
+		acquire, resolve, clone, verify, stream,
 	)
 
 	resp, err := handler.Replay(t.Context(), &pb.ReplayRequest{EventId: "trace-123"})
@@ -206,7 +204,7 @@ func TestReplay_MaxReplayAttempts(t *testing.T) {
 	handler := New(
 		slog.Default(), &stubTracer{trace: replayTrace()}, k8s,
 		10*time.Minute, 3,
-		nil, nil, nil, nil, nil, nil,
+		nil, nil, nil, nil, nil,
 	)
 
 	_, err := handler.Replay(t.Context(), &pb.ReplayRequest{EventId: "trace-123"})
@@ -220,7 +218,7 @@ func TestReplay_TraceQueryError(t *testing.T) {
 	handler := New(
 		slog.Default(), st, nil,
 		10*time.Minute, 3,
-		nil, nil, nil, nil, nil, nil,
+		nil, nil, nil, nil, nil,
 	)
 
 	if _, err := handler.Replay(t.Context(), &pb.ReplayRequest{EventId: "trace-123"}); err == nil {
@@ -233,7 +231,7 @@ func TestReplay_NoEventSpan(t *testing.T) {
 	handler := New(
 		slog.Default(), &stubTracer{trace: tr}, nil,
 		10*time.Minute, 3,
-		nil, nil, nil, nil, nil, nil,
+		nil, nil, nil, nil, nil,
 	)
 
 	if _, err := handler.Replay(t.Context(), &pb.ReplayRequest{EventId: "trace-123"}); err == nil {
@@ -249,7 +247,7 @@ func TestReplay_MissingTenant(t *testing.T) {
 	handler := New(
 		slog.Default(), &stubTracer{trace: tr}, nil,
 		10*time.Minute, 3,
-		nil, nil, nil, nil, nil, nil,
+		nil, nil, nil, nil, nil,
 	)
 
 	if _, err := handler.Replay(t.Context(), &pb.ReplayRequest{EventId: "trace-123"}); err == nil {
@@ -266,7 +264,7 @@ func TestReplay_MissingName(t *testing.T) {
 	handler := New(
 		slog.Default(), &stubTracer{trace: tr}, k8s,
 		10*time.Minute, 3,
-		nil, nil, nil, nil, nil, nil,
+		nil, nil, nil, nil, nil,
 	)
 
 	if _, err := handler.Replay(t.Context(), &pb.ReplayRequest{EventId: "trace-123"}); err == nil {
@@ -283,7 +281,7 @@ func TestReplay_MissingRepoURL(t *testing.T) {
 	handler := New(
 		slog.Default(), &stubTracer{trace: tr}, k8s,
 		10*time.Minute, 3,
-		nil, nil, nil, nil, nil, nil,
+		nil, nil, nil, nil, nil,
 	)
 
 	if _, err := handler.Replay(t.Context(), &pb.ReplayRequest{EventId: "trace-123"}); err == nil {
@@ -305,7 +303,7 @@ func TestReplay_MissingRef(t *testing.T) {
 	handler := New(
 		slog.Default(), &stubTracer{trace: tr}, k8s,
 		10*time.Minute, 3,
-		nil, nil, nil, nil, nil, nil,
+		nil, nil, nil, nil, nil,
 	)
 
 	if _, err := handler.Replay(t.Context(), &pb.ReplayRequest{EventId: "trace-123"}); err == nil {
@@ -328,7 +326,7 @@ func TestReplay_MissingPath(t *testing.T) {
 	handler := New(
 		slog.Default(), &stubTracer{trace: tr}, k8s,
 		10*time.Minute, 3,
-		nil, nil, nil, nil, nil, nil,
+		nil, nil, nil, nil, nil,
 	)
 
 	if _, err := handler.Replay(t.Context(), &pb.ReplayRequest{EventId: "trace-123"}); err == nil {
@@ -341,7 +339,7 @@ func TestReplay_LeaseReadError(t *testing.T) {
 	handler := New(
 		slog.Default(), &stubTracer{trace: replayTrace()}, k8s,
 		10*time.Minute, 3,
-		nil, nil, nil, nil, nil, nil,
+		nil, nil, nil, nil, nil,
 	)
 
 	if _, err := handler.Replay(t.Context(), &pb.ReplayRequest{EventId: "trace-123"}); err == nil {

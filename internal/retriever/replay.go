@@ -88,7 +88,7 @@ func (r *Retriever) replayTarget(
 
 	target.Process(
 		ctx, r.log, otelTracer, namespace, replayCount,
-		r.acquireLease, r.resolveAuth, r.clone, r.lookupRenderer,
+		r.acquireLease, r.resolveAuth, r.clone,
 		r.verifyLease, r.stream,
 	)
 

@@ -3,6 +3,9 @@ package object
 
 import "context"
 
+// StoreFactory creates a Store scoped to the given namespace.
+type StoreFactory[T string | []byte] func(namespace string) Store[T]
+
 // Store reads, lists, creates, and updates objects.
 type Store[T string | []byte] interface {
 	New(name string) Resource[T]

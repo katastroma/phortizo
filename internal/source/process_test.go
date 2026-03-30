@@ -48,7 +48,7 @@ func succeedingVerify(_ context.Context, _, _, _ string) (bool, error) {
 	return true, nil
 }
 
-func succeedingStream(_ context.Context, _ billy.Filesystem, _, _ string) error {
+func succeedingStream(_ context.Context, _ billy.Filesystem, _ string) error {
 	return nil
 }
 
@@ -60,13 +60,10 @@ func TestProcess_PublicRepo(t *testing.T) {
 	cloneFn := func(_ context.Context, _, _ string, _ transport.AuthMethod) (billy.Filesystem, error) {
 		return fs, nil
 	}
-	lookupFn := func(_ billy.Filesystem, _ string) (string, error) {
-		return "helm-renderer:8080", nil
-	}
 
 	testTarget("").Process(
 		ctx, slog.Default(), mock.Tracer("test"), "tenant-a", 0,
-		succeedingAcquire, succeedingResolve, cloneFn, lookupFn,
+		succeedingAcquire, succeedingResolve, cloneFn,
 		succeedingVerify, succeedingStream,
 	)
 }
@@ -79,13 +76,10 @@ func TestProcess_PrivateRepo(t *testing.T) {
 	cloneFn := func(_ context.Context, _, _ string, _ transport.AuthMethod) (billy.Filesystem, error) {
 		return fs, nil
 	}
-	lookupFn := func(_ billy.Filesystem, _ string) (string, error) {
-		return "helm-renderer:8080", nil
-	}
 
 	testTarget("my-cred").Process(
 		ctx, slog.Default(), mock.Tracer("test"), "tenant-a", 0,
-		succeedingAcquire, succeedingResolve, cloneFn, lookupFn,
+		succeedingAcquire, succeedingResolve, cloneFn,
 		succeedingVerify, succeedingStream,
 	)
 }
@@ -100,7 +94,7 @@ func TestProcess_LeaseAcquisitionError(t *testing.T) {
 
 	testTarget("").Process(
 		ctx, slog.Default(), mock.Tracer("test"), "tenant-a", 0,
-		failingAcquire, succeedingResolve, nil, nil, nil, nil,
+		failingAcquire, succeedingResolve, nil, nil, nil,
 	)
 }
 
@@ -114,7 +108,7 @@ func TestProcess_CredentialRetrievalError(t *testing.T) {
 
 	testTarget("my-cred").Process(
 		ctx, slog.Default(), mock.Tracer("test"), "tenant-a", 0,
-		succeedingAcquire, failingResolve, nil, nil, nil, nil,
+		succeedingAcquire, failingResolve, nil, nil, nil,
 	)
 }
 
@@ -128,25 +122,7 @@ func TestProcess_CloneError(t *testing.T) {
 
 	testTarget("").Process(
 		ctx, slog.Default(), mock.Tracer("test"), "tenant-a", 0,
-		succeedingAcquire, succeedingResolve, failingClone, nil, nil, nil,
-	)
-}
-
-func TestProcess_RendererNotConfigured(t *testing.T) {
-	fs := helmFS(t)
-	mock, ctx := mocktracer.New(t)
-	defer mock.Shutdown(t)
-
-	cloneFn := func(_ context.Context, _, _ string, _ transport.AuthMethod) (billy.Filesystem, error) {
-		return fs, nil
-	}
-	failingLookup := func(_ billy.Filesystem, _ string) (string, error) {
-		return "", fmt.Errorf("no renderer configured for type %q", "kustomize")
-	}
-
-	testTarget("").Process(
-		ctx, slog.Default(), mock.Tracer("test"), "tenant-a", 0,
-		succeedingAcquire, succeedingResolve, cloneFn, failingLookup, nil, nil,
+		succeedingAcquire, succeedingResolve, failingClone, nil, nil,
 	)
 }
 
@@ -158,16 +134,13 @@ func TestProcess_LeaseCheckError(t *testing.T) {
 	cloneFn := func(_ context.Context, _, _ string, _ transport.AuthMethod) (billy.Filesystem, error) {
 		return fs, nil
 	}
-	lookupFn := func(_ billy.Filesystem, _ string) (string, error) {
-		return "helm-renderer:8080", nil
-	}
 	failingVerify := func(_ context.Context, _, _, _ string) (bool, error) {
 		return false, fmt.Errorf("configmap not found")
 	}
 
 	testTarget("").Process(
 		ctx, slog.Default(), mock.Tracer("test"), "tenant-a", 0,
-		succeedingAcquire, succeedingResolve, cloneFn, lookupFn,
+		succeedingAcquire, succeedingResolve, cloneFn,
 		failingVerify, succeedingStream,
 	)
 }
@@ -180,16 +153,13 @@ func TestProcess_LeaseLost(t *testing.T) {
 	cloneFn := func(_ context.Context, _, _ string, _ transport.AuthMethod) (billy.Filesystem, error) {
 		return fs, nil
 	}
-	lookupFn := func(_ billy.Filesystem, _ string) (string, error) {
-		return "helm-renderer:8080", nil
-	}
 	lostVerify := func(_ context.Context, _, _, _ string) (bool, error) {
 		return false, nil
 	}
 
 	testTarget("").Process(
 		ctx, slog.Default(), mock.Tracer("test"), "tenant-a", 0,
-		succeedingAcquire, succeedingResolve, cloneFn, lookupFn,
+		succeedingAcquire, succeedingResolve, cloneFn,
 		lostVerify, succeedingStream,
 	)
 }
@@ -202,16 +172,13 @@ func TestProcess_StreamError(t *testing.T) {
 	cloneFn := func(_ context.Context, _, _ string, _ transport.AuthMethod) (billy.Filesystem, error) {
 		return fs, nil
 	}
-	lookupFn := func(_ billy.Filesystem, _ string) (string, error) {
-		return "helm-renderer:8080", nil
-	}
-	failingStream := func(_ context.Context, _ billy.Filesystem, _, _ string) error {
+	failingStream := func(_ context.Context, _ billy.Filesystem, _ string) error {
 		return fmt.Errorf("render failed")
 	}
 
 	testTarget("").Process(
 		ctx, slog.Default(), mock.Tracer("test"), "tenant-a", 0,
-		succeedingAcquire, succeedingResolve, cloneFn, lookupFn,
+		succeedingAcquire, succeedingResolve, cloneFn,
 		succeedingVerify, failingStream,
 	)
 }

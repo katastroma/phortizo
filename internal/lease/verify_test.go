@@ -18,7 +18,7 @@ func TestVerifyFunc(t *testing.T) {
 	}
 
 	newStore := func(_ string) object.Store[string] { return store }
-	verify := lease.VerifyFunc(newStore)
+	verify := lease.NewVerifyFunc(newStore)
 
 	holds, err := verify(t.Context(), "tenant-a", "wt-1", "span-abc")
 	if err != nil {
@@ -39,7 +39,7 @@ func TestVerifyFunc_DifferentID(t *testing.T) {
 	}
 
 	newStore := func(_ string) object.Store[string] { return store }
-	verify := lease.VerifyFunc(newStore)
+	verify := lease.NewVerifyFunc(newStore)
 
 	holds, err := verify(t.Context(), "tenant-a", "wt-1", "span-other")
 	if err != nil {
@@ -54,7 +54,7 @@ func TestVerifyFunc_DifferentID(t *testing.T) {
 func TestVerifyFunc_Error(t *testing.T) {
 	store := tests.NewMockStore[string]()
 	newStore := func(_ string) object.Store[string] { return store }
-	verify := lease.VerifyFunc(newStore)
+	verify := lease.NewVerifyFunc(newStore)
 
 	if _, err := verify(t.Context(), "tenant-a", "nonexistent", "span-abc"); err == nil {
 		t.Fatal("expected error for missing object")
@@ -77,7 +77,7 @@ func TestVerifyFunc_PassesNamespace(t *testing.T) {
 		calledNS = ns
 		return stores[ns]
 	}
-	verify := lease.VerifyFunc(newStore)
+	verify := lease.NewVerifyFunc(newStore)
 
 	holds, err := verify(t.Context(), "tenant-a", "wt-1", "span-abc")
 	if err != nil {
