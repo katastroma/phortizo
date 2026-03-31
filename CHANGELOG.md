@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## 0.6.2 - 2026-03-31
+#### Bug Fixes
+- use client-streaming - (8f0cb7b) - Nathan Blair
+
+- - -
+
 ## 0.6.1 - 2026-03-31
 #### Bug Fixes
 - FaF but correctly - (815578d) - Nathan Blair
