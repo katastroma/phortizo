@@ -13,6 +13,8 @@ import (
 	"github.com/go-git/go-billy/v5/util"
 	"github.com/go-git/go-git/v5/plumbing/transport"
 
+	"github.com/katastroma/keleustes"
+
 	"github.com/katastroma/phortizo/internal/source"
 )
 
@@ -49,7 +51,7 @@ func succeedingVerify(_ context.Context, _, _, _ string) (bool, error) {
 	return true, nil
 }
 
-func succeedingStream(_ context.Context, _ billy.Filesystem, _ string) error {
+func succeedingStream(_ context.Context, _ billy.Filesystem, _ string, _ keleustes.RendererType) error {
 	return nil
 }
 
@@ -239,7 +241,7 @@ func TestProcess_StreamError(t *testing.T) {
 	cloneFn := func(_ context.Context, _, _ string, _ transport.AuthMethod) (billy.Filesystem, error) {
 		return fs, nil
 	}
-	failingStream := func(_ context.Context, _ billy.Filesystem, _ string) error {
+	failingStream := func(_ context.Context, _ billy.Filesystem, _ string, _ keleustes.RendererType) error {
 		return fmt.Errorf("render failed")
 	}
 

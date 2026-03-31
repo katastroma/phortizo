@@ -12,11 +12,11 @@ import (
 )
 
 // StreamFunc streams source content to the renderer service.
-type StreamFunc func(ctx context.Context, fs billy.Filesystem, path string) error
+type StreamFunc func(ctx context.Context, fs billy.Filesystem, path string, rendererType pb.RendererType) error
 
 // NewStreamFunc returns a StreamFunc that streams via the given connection.
 func NewStreamFunc(log *slog.Logger, conn grpc.ClientConnInterface) StreamFunc {
-	return func(ctx context.Context, fs billy.Filesystem, path string) error {
-		return send(ctx, log, pb.NewRendererServiceClient(conn), fs, path)
+	return func(ctx context.Context, fs billy.Filesystem, path string, rendererType pb.RendererType) error {
+		return send(ctx, log, pb.NewRendererServiceClient(conn), fs, path, rendererType)
 	}
 }

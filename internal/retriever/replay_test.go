@@ -18,6 +18,8 @@ import (
 
 	pb "github.com/katastroma/naukleros"
 
+	keleustes "github.com/katastroma/keleustes"
+
 	"github.com/katastroma/phortizo/internal/lease"
 	"github.com/katastroma/phortizo/internal/object"
 	"github.com/katastroma/phortizo/internal/source"
@@ -46,7 +48,7 @@ func (r *processRecorder) noopClosures(t *testing.T) (
 	func(context.Context, string, string) (transport.AuthMethod, error),
 	func(context.Context, string, string, transport.AuthMethod) (billy.Filesystem, error),
 	func(context.Context, string, string, string) (bool, error),
-	func(context.Context, billy.Filesystem, string) error,
+	func(context.Context, billy.Filesystem, string, keleustes.RendererType) error,
 ) {
 	t.Helper()
 
@@ -60,7 +62,7 @@ func (r *processRecorder) noopClosures(t *testing.T) (
 		func(_ context.Context, _, _ string) (transport.AuthMethod, error) { return nil, nil },
 		func(_ context.Context, _, _ string, _ transport.AuthMethod) (billy.Filesystem, error) { return fs, nil },
 		func(_ context.Context, _, _, _ string) (bool, error) { return true, nil },
-		func(_ context.Context, _ billy.Filesystem, _ string) error {
+		func(_ context.Context, _ billy.Filesystem, _ string, _ keleustes.RendererType) error {
 			r.calls++
 			return nil
 		}

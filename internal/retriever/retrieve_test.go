@@ -13,6 +13,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 
+	"github.com/katastroma/keleustes"
 	pb "github.com/katastroma/naukleros"
 
 	"github.com/katastroma/phortizo/internal/object"
@@ -62,7 +63,7 @@ func TestRetrieve(t *testing.T) {
 		return helmFS(t), nil
 	}
 	verifyFn := func(_ context.Context, _, _, _ string) (bool, error) { return true, nil }
-	streamFn := func(_ context.Context, _ billy.Filesystem, _ string) error { return nil }
+	streamFn := func(_ context.Context, _ billy.Filesystem, _ string, _ keleustes.RendererType) error { return nil }
 
 	handler := New(
 		slog.Default(), nil, k8s,

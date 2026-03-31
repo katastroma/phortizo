@@ -13,9 +13,13 @@ import (
 
 	"github.com/go-git/go-billy/v5"
 	"github.com/go-git/go-billy/v5/util"
+	"google.golang.org/grpc/metadata"
 
 	pb "github.com/katastroma/keleustes"
 )
+
+// MetadataKey is the gRPC metadata key for the renderer type.
+const MetadataKey = "renderer-type"
 
 // chunkSize is the byte size of each RenderRequest message. This is a
 // practical choice — large enough to amortize per-message overhead, small
@@ -32,7 +36,9 @@ func send(
 	client pb.RendererServiceClient,
 	fs billy.Filesystem,
 	root string,
+	rendererType pb.RendererType,
 ) error {
+	ctx = metadata.AppendToOutgoingContext(ctx, MetadataKey, rendererType.String())
 	s, err := client.Render(ctx)
 	if err != nil {
 		return fmt.Errorf("opening render stream: %w", err)

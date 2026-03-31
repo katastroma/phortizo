@@ -114,6 +114,9 @@ func (t *Target) Process(
 	}
 	log.DebugContext(ctx, "source cloned")
 
+	rendererType := renderer.Detect(fs, t.Path)
+	log.InfoContext(ctx, "renderer detected", "renderer", rendererType.String())
+
 	log.DebugContext(ctx, "verifying lease")
 	holds, err := verifyLease(ctx, namespace, t.Name, leaseID)
 	if err != nil {
@@ -130,7 +133,7 @@ func (t *Target) Process(
 	}
 
 	log.DebugContext(ctx, "streaming to renderer")
-	if err = stream(ctx, fs, t.Path); err != nil {
+	if err = stream(ctx, fs, t.Path, rendererType); err != nil {
 		fail(ctx, log, span, namespace, "streaming to renderer failed", err)
 		return
 	}

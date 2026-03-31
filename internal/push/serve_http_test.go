@@ -23,6 +23,8 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 	clienttesting "k8s.io/client-go/testing"
 
+	"github.com/katastroma/keleustes"
+
 	"github.com/katastroma/phortizo/internal/object"
 	"github.com/katastroma/phortizo/internal/push"
 	"github.com/katastroma/phortizo/internal/source"
@@ -97,7 +99,7 @@ func noopHandler(t *testing.T) (
 	func(context.Context, string, string) (transport.AuthMethod, error),
 	func(context.Context, string, string, transport.AuthMethod) (billy.Filesystem, error),
 	func(context.Context, string, string, string) (bool, error),
-	func(context.Context, billy.Filesystem, string) error,
+	func(context.Context, billy.Filesystem, string, keleustes.RendererType) error,
 ) {
 	t.Helper()
 
@@ -107,7 +109,7 @@ func noopHandler(t *testing.T) (
 		func(_ context.Context, _, _ string) (transport.AuthMethod, error) { return nil, nil },
 		func(_ context.Context, _, _ string, _ transport.AuthMethod) (billy.Filesystem, error) { return fs, nil },
 		func(_ context.Context, _, _, _ string) (bool, error) { return true, nil },
-		func(_ context.Context, _ billy.Filesystem, _ string) error { return nil }
+		func(_ context.Context, _ billy.Filesystem, _ string, _ keleustes.RendererType) error { return nil }
 }
 
 func newTestHandler(t *testing.T, k8s *fake.Clientset) *push.Handler {
@@ -280,7 +282,7 @@ func TestServeHTTP_Match(t *testing.T) {
 
 	var processed int
 	acquire, resolve, clone, verify, _ := noopHandler(t)
-	countingStream := func(_ context.Context, _ billy.Filesystem, _ string) error {
+	countingStream := func(_ context.Context, _ billy.Filesystem, _ string, _ keleustes.RendererType) error {
 		processed++
 		return nil
 	}

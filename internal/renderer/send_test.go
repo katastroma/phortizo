@@ -12,6 +12,8 @@ import (
 	"github.com/go-git/go-billy/v5"
 	"github.com/go-git/go-billy/v5/memfs"
 
+	pb "github.com/katastroma/keleustes"
+
 	"github.com/katastroma/phortizo/internal/tests"
 )
 
@@ -65,7 +67,7 @@ func TestStream(t *testing.T) {
 	ms := &tests.MockRenderStream{}
 	client := &tests.MockRendererClient{Stream: ms}
 
-	if err := send(t.Context(), slog.Default(), client, fs, "deploy"); err != nil {
+	if err := send(t.Context(), slog.Default(), client, fs, "deploy", pb.RendererType_RENDERER_TYPE_PLAIN); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
@@ -87,7 +89,7 @@ func TestStream_MultipleFiles(t *testing.T) {
 	ms := &tests.MockRenderStream{}
 	client := &tests.MockRendererClient{Stream: ms}
 
-	if err := send(t.Context(), slog.Default(), client, fs, "deploy"); err != nil {
+	if err := send(t.Context(), slog.Default(), client, fs, "deploy", pb.RendererType_RENDERER_TYPE_PLAIN); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
@@ -107,7 +109,7 @@ func TestStream_RenderOpenError(t *testing.T) {
 	fs := memfs.New()
 	client := &tests.MockRendererClient{Err: fmt.Errorf("connection refused")}
 
-	if err := send(t.Context(), slog.Default(), client, fs, "deploy"); err == nil {
+	if err := send(t.Context(), slog.Default(), client, fs, "deploy", pb.RendererType_RENDERER_TYPE_PLAIN); err == nil {
 		t.Fatal("expected error when render stream fails to open")
 	}
 }
@@ -119,7 +121,7 @@ func TestStream_SendError(t *testing.T) {
 	ms := &tests.MockRenderStream{SendErr: fmt.Errorf("send failed")}
 	client := &tests.MockRendererClient{Stream: ms}
 
-	if err := send(t.Context(), slog.Default(), client, fs, "deploy"); err == nil {
+	if err := send(t.Context(), slog.Default(), client, fs, "deploy", pb.RendererType_RENDERER_TYPE_PLAIN); err == nil {
 		t.Fatal("expected error when send fails")
 	}
 }
@@ -131,7 +133,7 @@ func TestStream_CloseAndRecvError(t *testing.T) {
 	ms := &tests.MockRenderStream{CloseAndRecvErr: fmt.Errorf("renderer failed")}
 	client := &tests.MockRendererClient{Stream: ms}
 
-	if err := send(t.Context(), slog.Default(), client, fs, "deploy"); err == nil {
+	if err := send(t.Context(), slog.Default(), client, fs, "deploy", pb.RendererType_RENDERER_TYPE_PLAIN); err == nil {
 		t.Fatal("expected error when renderer fails")
 	}
 }
@@ -144,7 +146,7 @@ func TestStream_FileOpenError(t *testing.T) {
 	ms := &tests.MockRenderStream{}
 	client := &tests.MockRendererClient{Stream: ms}
 
-	if err := send(t.Context(), slog.Default(), client, fs, "deploy"); err == nil {
+	if err := send(t.Context(), slog.Default(), client, fs, "deploy", pb.RendererType_RENDERER_TYPE_PLAIN); err == nil {
 		t.Fatal("expected error when file open fails")
 	}
 }
@@ -157,7 +159,7 @@ func TestStream_FileReadError(t *testing.T) {
 	ms := &tests.MockRenderStream{}
 	client := &tests.MockRendererClient{Stream: ms}
 
-	if err := send(t.Context(), slog.Default(), client, fs, "deploy"); err == nil {
+	if err := send(t.Context(), slog.Default(), client, fs, "deploy", pb.RendererType_RENDERER_TYPE_PLAIN); err == nil {
 		t.Fatal("expected error when file read fails")
 	}
 }
@@ -168,7 +170,7 @@ func TestStream_WalkError(t *testing.T) {
 	ms := &tests.MockRenderStream{}
 	client := &tests.MockRendererClient{Stream: ms}
 
-	if err := send(t.Context(), slog.Default(), client, fs, "nonexistent"); err == nil {
+	if err := send(t.Context(), slog.Default(), client, fs, "nonexistent", pb.RendererType_RENDERER_TYPE_PLAIN); err == nil {
 		t.Fatal("expected error for nonexistent path")
 	}
 }
@@ -180,7 +182,7 @@ func TestStream_EmptyDirectory(t *testing.T) {
 	ms := &tests.MockRenderStream{}
 	client := &tests.MockRendererClient{Stream: ms}
 
-	if err := send(t.Context(), slog.Default(), client, fs, "empty"); err != nil {
+	if err := send(t.Context(), slog.Default(), client, fs, "empty", pb.RendererType_RENDERER_TYPE_PLAIN); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
@@ -197,7 +199,7 @@ func TestStream_RootPath(t *testing.T) {
 	ms := &tests.MockRenderStream{}
 	client := &tests.MockRendererClient{Stream: ms}
 
-	if err := send(t.Context(), slog.Default(), client, fs, "."); err != nil {
+	if err := send(t.Context(), slog.Default(), client, fs, ".", pb.RendererType_RENDERER_TYPE_PLAIN); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 

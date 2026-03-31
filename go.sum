@@ -113,8 +113,8 @@ github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99 h1:BQSFePA1RWJOl
 github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99/go.mod h1:1lJo3i6rXxKeerYnT8Nvf0QmHCRC1n8sfWVwXF2Frvo=
 github.com/json-iterator/go v1.1.12 h1:PV8peI4a0ysnczrg+LtxykD8LfKY9ML6u2jnxaEnrnM=
 github.com/json-iterator/go v1.1.12/go.mod h1:e30LSqwooZae/UwlEbR2852Gd8hjQvJoHmT4TnhNGBo=
-github.com/katastroma/keleustes v0.4.4 h1:Ns3LQj3cYS9xnOiuNyfMkBts8N5wzc9CfX8wppTwjd4=
-github.com/katastroma/keleustes v0.4.4/go.mod h1:DjGpxvWQ80+2/Xzwqc//IEsyrwTvCk9RN+a0S6C/e2A=
+github.com/katastroma/keleustes v0.4.5 h1:GoY0x0J8loQzRY7A93s0FXVETg3/RE2OuDIpIe1jLJA=
+github.com/katastroma/keleustes v0.4.5/go.mod h1:DjGpxvWQ80+2/Xzwqc//IEsyrwTvCk9RN+a0S6C/e2A=
 github.com/katastroma/naukleros v0.4.4 h1:/BQSLm5u4PaehXZKfWKCqUAKAKX1TRRGBZQJYyMLOlU=
 github.com/katastroma/naukleros v0.4.4/go.mod h1:QiUNQks3UmAcxcwYIHzbrJ6JT/TltlEuT0KZr0wO5Rk=
 github.com/kevinburke/ssh_config v1.6.0 h1:J1FBfmuVosPHf5GRdltRLhPJtJpTlMdKTBjRgTaQBFY=

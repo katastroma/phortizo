@@ -9,6 +9,7 @@ import (
 	"github.com/go-git/go-billy/v5/memfs"
 	"google.golang.org/grpc"
 
+	"github.com/katastroma/keleustes"
 	"github.com/katastroma/phortizo/internal/renderer"
 	"github.com/katastroma/phortizo/internal/tests"
 )
@@ -20,7 +21,7 @@ func TestNewStreamFunc(t *testing.T) {
 	}
 	streamFn := renderer.NewStreamFunc(slog.Default(), conn)
 
-	if err := streamFn(t.Context(), memfs.New(), "."); err != nil {
+	if err := streamFn(t.Context(), memfs.New(), ".", keleustes.RendererType_RENDERER_TYPE_PLAIN); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
@@ -33,7 +34,7 @@ func TestNewStreamFunc_StreamError(t *testing.T) {
 	}
 	streamFn := renderer.NewStreamFunc(slog.Default(), conn)
 
-	if err := streamFn(t.Context(), memfs.New(), "."); err == nil {
+	if err := streamFn(t.Context(), memfs.New(), ".", keleustes.RendererType_RENDERER_TYPE_PLAIN); err == nil {
 		t.Fatal("expected error when stream fails")
 	}
 }
