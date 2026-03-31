@@ -3,7 +3,6 @@ package tests
 
 import (
 	"context"
-	"io"
 
 	pb "github.com/katastroma/keleustes"
 	"google.golang.org/grpc"
@@ -32,8 +31,8 @@ type MockRenderStream struct {
 	Sent []*pb.RenderRequest
 	// SendErr is returned by Send when set.
 	SendErr error
-	// CloseSendErr is returned by CloseSend when set.
-	CloseSendErr error
+	// CloseAndRecvErr is returned by CloseAndRecv when set.
+	CloseAndRecvErr error
 	grpc.ClientStream
 }
 
@@ -46,14 +45,12 @@ func (s *MockRenderStream) Send(req *pb.RenderRequest) error {
 	return nil
 }
 
-// CloseSend returns the configured error.
-func (s *MockRenderStream) CloseSend() error {
-	return s.CloseSendErr
-}
-
-// Recv signals end of stream.
-func (s *MockRenderStream) Recv() (*pb.RenderResponse, error) {
-	return nil, io.EOF
+// CloseAndRecv returns the server's response or the configured error.
+func (s *MockRenderStream) CloseAndRecv() (*pb.RenderResponse, error) {
+	if s.CloseAndRecvErr != nil {
+		return nil, s.CloseAndRecvErr
+	}
+	return &pb.RenderResponse{}, nil
 }
 
 // Header returns empty metadata.
@@ -65,8 +62,11 @@ func (s *MockRenderStream) Trailer() metadata.MD { return nil }
 // Context returns a background context.
 func (s *MockRenderStream) Context() context.Context { return context.Background() }
 
-// SendMsg is a no-op satisfying grpc.ClientStream.
+// CloseSend is a no-op.
+func (s *MockRenderStream) CloseSend() error { return nil }
+
+// SendMsg is a no-op.
 func (s *MockRenderStream) SendMsg(_ any) error { return nil }
 
-// RecvMsg signals end of stream.
-func (s *MockRenderStream) RecvMsg(_ any) error { return io.EOF }
+// RecvMsg is a no-op.
+func (s *MockRenderStream) RecvMsg(_ any) error { return nil }

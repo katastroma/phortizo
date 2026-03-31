@@ -29,6 +29,7 @@ type MockClientStream struct {
 	SendMsgCount int
 	// SendMsgErr is returned by SendMsg when set.
 	SendMsgErr error
+	recvDone   bool
 }
 
 // SendMsg records a sent message.
@@ -41,8 +42,14 @@ func (s *MockClientStream) SendMsg(_ any) error {
 	return nil
 }
 
-// RecvMsg signals end of stream.
-func (s *MockClientStream) RecvMsg(_ any) error { return io.EOF }
+// RecvMsg returns nil on the first call (server response) then EOF.
+func (s *MockClientStream) RecvMsg(_ any) error {
+	if s.recvDone {
+		return io.EOF
+	}
+	s.recvDone = true
+	return nil
+}
 
 // CloseSend completes the send side.
 func (s *MockClientStream) CloseSend() error { return nil }

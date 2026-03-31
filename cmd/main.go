@@ -151,7 +151,7 @@ func main() {
 	resolveAuth := credential.NewResolveFunc(credentialReader, http.DefaultClient, newSecretStore)
 	gitClient := git.Client{}
 	verifyLease := lease.NewVerifyFunc(newConfigMapStore)
-	streamToRenderer := renderer.NewStreamFunc(rendererConn)
+	streamToRenderer := renderer.NewStreamFunc(log, rendererConn)
 
 	// HTTP server
 	pushHandler := push.New(
