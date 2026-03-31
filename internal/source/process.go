@@ -6,6 +6,7 @@ import (
 	"log/slog"
 
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/baggage"
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/katastroma/phortizo/internal/credential"
@@ -50,43 +51,88 @@ func (t *Target) Process(
 	))
 	defer span.End()
 
-	leaseID := span.SpanContext().SpanID().String()
-
-	if err := acquireLease(ctx, namespace, t.Name, leaseID, replayCount); err != nil {
-		fail(ctx, log, span, namespace, "lease acquisition failed", err)
+	tenantMember, err := baggage.NewMemberRaw(tracing.TenantAttribute, namespace)
+	if err != nil {
+		fail(ctx, log, span, namespace, "baggage member failed", err, tracing.TenantAttribute, namespace)
 		return
 	}
 
+	nameMember, err := baggage.NewMemberRaw(tracing.SourceTargetNameAttribute, t.Name)
+	if err != nil {
+		fail(ctx, log, span, namespace, "baggage member failed", err, tracing.SourceTargetNameAttribute, t.Name)
+		return
+	}
+
+	repoMember, err := baggage.NewMemberRaw(tracing.SourceTargetRepoURLAttribute, t.RepoURL)
+	if err != nil {
+		fail(ctx, log, span, namespace, "baggage member failed", err, tracing.SourceTargetRepoURLAttribute, t.RepoURL)
+		return
+	}
+
+	refMember, err := baggage.NewMemberRaw(tracing.SourceTargetRefAttribute, t.Ref)
+	if err != nil {
+		fail(ctx, log, span, namespace, "baggage member failed", err, tracing.SourceTargetRefAttribute, t.Ref)
+		return
+	}
+
+	pathMember, err := baggage.NewMemberRaw(tracing.SourceTargetPathAttribute, t.Path)
+	if err != nil {
+		fail(ctx, log, span, namespace, "baggage member failed", err, tracing.SourceTargetPathAttribute, t.Path)
+		return
+	}
+
+	bag, err := baggage.New(tenantMember, nameMember, repoMember, refMember, pathMember)
+	if err != nil {
+		fail(ctx, log, span, namespace, "baggage creation failed", err)
+		return
+	}
+
+	ctx = baggage.ContextWithBaggage(ctx, bag)
+
+	leaseID := span.SpanContext().SpanID().String()
+
+	log.DebugContext(ctx, "acquiring lease")
+	if err = acquireLease(ctx, namespace, t.Name, leaseID, replayCount); err != nil {
+		fail(ctx, log, span, namespace, "lease acquisition failed", err)
+		return
+	}
+	log.DebugContext(ctx, "lease acquired")
+
+	log.DebugContext(ctx, "resolving credentials")
 	authMethod, err := resolveAuth(ctx, namespace, t.CredentialSecret)
 	if err != nil {
 		fail(ctx, log, span, namespace, "authentication failed", err)
 		return
 	}
+	log.DebugContext(ctx, "credentials resolved")
 
+	log.DebugContext(ctx, "cloning source")
 	fs, err := clone(ctx, t.RepoURL, t.Ref, authMethod)
 	if err != nil {
 		fail(ctx, log, span, namespace, "clone failed", err)
 		return
 	}
+	log.DebugContext(ctx, "source cloned")
 
+	log.DebugContext(ctx, "verifying lease")
 	holds, err := verifyLease(ctx, namespace, t.Name, leaseID)
 	if err != nil {
 		fail(ctx, log, span, namespace, "lease check failed", err)
 		return
 	}
+	log.DebugContext(ctx, "lease verified")
 
 	if !holds {
 		log.InfoContext(ctx, "lease lost, abandoning processing",
-			"tenant", namespace,
 			"source_target_lease_id", leaseID,
 		)
 		return
 	}
 
+	log.DebugContext(ctx, "streaming to renderer")
 	if err = stream(ctx, fs, t.Path); err != nil {
 		fail(ctx, log, span, namespace, "streaming to renderer failed", err)
 		return
 	}
-
-	log.InfoContext(ctx, "source streamed to renderer", "tenant", namespace)
+	log.InfoContext(ctx, "source streamed to renderer")
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strings"
 	"testing"
 
 	mocktracer "git.sonicoriginal.software/grpc-testing/mocks/tracer"
@@ -161,6 +162,72 @@ func TestProcess_LeaseLost(t *testing.T) {
 		ctx, slog.Default(), mock.Tracer("test"), "tenant-a", 0,
 		succeedingAcquire, succeedingResolve, cloneFn,
 		lostVerify, succeedingStream,
+	)
+}
+
+func TestProcess_BaggageTenantError(t *testing.T) {
+	mock, ctx := mocktracer.New(t)
+	defer mock.Shutdown(t)
+
+	testTarget("").Process(
+		ctx, slog.Default(), mock.Tracer("test"), "\xff", 0,
+		nil, nil, nil, nil, nil,
+	)
+}
+
+func TestProcess_BaggageNameError(t *testing.T) {
+	mock, ctx := mocktracer.New(t)
+	defer mock.Shutdown(t)
+
+	target := &source.Target{Name: "\xff"}
+	target.Process(
+		ctx, slog.Default(), mock.Tracer("test"), "tenant-a", 0,
+		nil, nil, nil, nil, nil,
+	)
+}
+
+func TestProcess_BaggageRepoURLError(t *testing.T) {
+	mock, ctx := mocktracer.New(t)
+	defer mock.Shutdown(t)
+
+	target := &source.Target{Name: "valid", RepoURL: "\xff"}
+	target.Process(
+		ctx, slog.Default(), mock.Tracer("test"), "tenant-a", 0,
+		nil, nil, nil, nil, nil,
+	)
+}
+
+func TestProcess_BaggageRefError(t *testing.T) {
+	mock, ctx := mocktracer.New(t)
+	defer mock.Shutdown(t)
+
+	target := &source.Target{Name: "valid", RepoURL: "valid", Ref: "\xff"}
+	target.Process(
+		ctx, slog.Default(), mock.Tracer("test"), "tenant-a", 0,
+		nil, nil, nil, nil, nil,
+	)
+}
+
+func TestProcess_BaggagePathError(t *testing.T) {
+	mock, ctx := mocktracer.New(t)
+	defer mock.Shutdown(t)
+
+	target := &source.Target{Name: "valid", RepoURL: "valid", Ref: "valid", Path: "\xff"}
+	target.Process(
+		ctx, slog.Default(), mock.Tracer("test"), "tenant-a", 0,
+		nil, nil, nil, nil, nil,
+	)
+}
+
+func TestProcess_BaggageCreationError(t *testing.T) {
+	mock, ctx := mocktracer.New(t)
+	defer mock.Shutdown(t)
+
+	overflow := strings.Repeat("a", 9000)
+	target := &source.Target{Name: overflow, RepoURL: overflow}
+	target.Process(
+		ctx, slog.Default(), mock.Tracer("test"), "tenant-a", 0,
+		nil, nil, nil, nil, nil,
 	)
 }
 

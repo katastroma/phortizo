@@ -65,21 +65,26 @@ func New(
 func (r *Retriever) Retrieve(ctx context.Context, req *pb.RetrieveRequest) (*pb.RetrieveResponse, error) {
 	namespace := req.GetNamespace()
 	sourceTargetID := req.GetSourceTargetId()
+	log := r.log.With("tenant", namespace)
 
-	r.log.InfoContext(ctx, "retrieve requested", "namespace", namespace, "source_target", sourceTargetID)
+	log.InfoContext(ctx, "retrieve requested", "source_target", sourceTargetID)
 
+	log.DebugContext(ctx, "getting source target", "source_target", sourceTargetID)
 	store := configmap.NewStore(r.k8sClient, namespace)
 	target, err := source.Get(ctx, store, sourceTargetID)
 	if err != nil {
 		return nil, fmt.Errorf("reading source target %s/%s: %w", namespace, sourceTargetID, err)
 	}
+	log.DebugContext(ctx, "source target retrieved", "source_target", sourceTargetID)
 
+	log.DebugContext(ctx, "processing source target", "source_target", sourceTargetID)
 	ctx, tracer := tracing.StartEvent(ctx, tracing.EventTypeManual, namespace)
 	target.Process(
-		ctx, r.log, tracer, namespace, 0,
+		ctx, log, tracer, namespace, 0,
 		r.acquireLease, r.resolveAuth, r.clone,
 		r.verifyLease, r.stream,
 	)
+	log.DebugContext(ctx, "source target processed", "source_target", sourceTargetID)
 
 	return &pb.RetrieveResponse{}, nil
 }

@@ -113,7 +113,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	rendererConn, err := foundationclient.New(rendererAddr, log, nil, nil)
+	rendererConn, err := foundationclient.New(rendererAddr, nil, nil)
 	if err != nil {
 		log.Error("connecting to renderer", "address", rendererAddr, "error", err)
 		os.Exit(1)
@@ -184,7 +184,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	tempoConn, err := foundationclient.New(tempoAddr, log, nil, nil)
+	tempoConn, err := foundationclient.New(tempoAddr, nil, nil)
 	if err != nil {
 		log.Error("connecting to tempo", "address", tempoAddr, "error", err)
 		os.Exit(1)

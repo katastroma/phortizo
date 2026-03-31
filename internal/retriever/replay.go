@@ -4,6 +4,7 @@ package retriever
 import (
 	"context"
 	"fmt"
+	"log/slog"
 
 	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc/codes"
@@ -21,10 +22,12 @@ func (r *Retriever) Replay(ctx context.Context, req *pb.ReplayRequest) (*pb.Repl
 	eventID := req.GetEventId()
 	r.log.InfoContext(ctx, "replay requested", "event_id", eventID)
 
+	r.log.DebugContext(ctx, "querying trace", "event_id", eventID)
 	t, err := r.tracer.GetTrace(ctx, eventID)
 	if err != nil {
 		return nil, fmt.Errorf("querying trace %s: %w", eventID, err)
 	}
+	r.log.DebugContext(ctx, "trace retrieved", "event_id", eventID)
 
 	eventSpans := t[tracing.EventSpanName]
 	if len(eventSpans) == 0 {
@@ -36,15 +39,18 @@ func (r *Retriever) Replay(ctx context.Context, req *pb.ReplayRequest) (*pb.Repl
 		return nil, fmt.Errorf("missing tenant attribute on event span in trace %s", eventID)
 	}
 
+	log := r.log.With("tenant", namespace)
 	ctx, otelTracer := tracing.StartEvent(ctx, tracing.EventTypeReplay, namespace)
 
 	for _, attrs := range t[tracing.SourceTargetSpanName] {
+		log.DebugContext(ctx, "reconstructing source target from trace")
 		target, err := sourceTargetFromAttributes(attrs, eventID)
 		if err != nil {
 			return nil, err
 		}
+		log.DebugContext(ctx, "source target reconstructed", "source_target", target.Name)
 
-		if err := r.replayTarget(ctx, otelTracer, eventID, namespace, target); err != nil {
+		if err := r.replayTarget(ctx, log, otelTracer, eventID, namespace, target); err != nil {
 			return nil, err
 		}
 	}
@@ -54,18 +60,21 @@ func (r *Retriever) Replay(ctx context.Context, req *pb.ReplayRequest) (*pb.Repl
 
 func (r *Retriever) replayTarget(
 	ctx context.Context,
+	log *slog.Logger,
 	otelTracer trace.Tracer,
 	eventID, namespace string,
 	target *source.Target,
 ) error {
+	log.DebugContext(ctx, "reading lease state", "source_target", target.Name)
 	store := configmap.NewStore(r.k8sClient, namespace)
 	leaseState, err := lease.Read(ctx, store, target.Name)
 	if err != nil {
 		return fmt.Errorf("reading lease for %s/%s: %w", namespace, target.Name, err)
 	}
+	log.DebugContext(ctx, "lease state read", "source_target", target.Name)
 
 	if leaseState.IsLeaseActive(r.leaseStaleAfter) {
-		r.log.InfoContext(ctx, "active lease, skipping replay",
+		log.InfoContext(ctx, "active lease, skipping replay",
 			"event_id", eventID,
 			"source_target", target.Name,
 			"active_source_target_lease_id", leaseState.ID,
@@ -75,7 +84,7 @@ func (r *Retriever) replayTarget(
 
 	replayCount := leaseState.ReplayCount() + 1
 	if replayCount > r.maxReplayAttemps {
-		r.log.ErrorContext(ctx, "max replay attempts exceeded",
+		log.ErrorContext(ctx, "max replay attempts exceeded",
 			"event_id", eventID,
 			"source_target", target.Name,
 			"replay_count", replayCount,
@@ -86,11 +95,13 @@ func (r *Retriever) replayTarget(
 			r.maxReplayAttemps, target.Name, eventID)
 	}
 
+	log.DebugContext(ctx, "processing source target", "source_target", target.Name, "replay_count", replayCount)
 	target.Process(
-		ctx, r.log, otelTracer, namespace, replayCount,
+		ctx, log, otelTracer, namespace, replayCount,
 		r.acquireLease, r.resolveAuth, r.clone,
 		r.verifyLease, r.stream,
 	)
+	log.DebugContext(ctx, "source target processed", "source_target", target.Name)
 
 	return nil
 }
