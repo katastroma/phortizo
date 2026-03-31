@@ -209,6 +209,18 @@ func TestStream_RootPath(t *testing.T) {
 	}
 }
 
+func TestStream_RecvError(t *testing.T) {
+	fs := memfs.New()
+	createTestFile(t, fs, "deploy/values.yaml", "key: value")
+
+	ms := &tests.MockRenderStream{RecvErr: fmt.Errorf("server error")}
+	client := &tests.MockRendererClient{Stream: ms}
+
+	if err := stream(t.Context(), client, fs, "deploy"); err == nil {
+		t.Fatal("expected error when recv fails")
+	}
+}
+
 func TestWriteTar(t *testing.T) {
 	fs := memfs.New()
 	createTestFile(t, fs, "root/a.yaml", "hello")

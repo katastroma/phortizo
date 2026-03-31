@@ -47,7 +47,16 @@ func stream(ctx context.Context, client pb.RendererServiceClient, fs billy.Files
 		return sendErr
 	}
 
-	return s.CloseSend()
+	if err := s.CloseSend(); err != nil {
+		return fmt.Errorf("closing send: %w", err)
+	}
+
+	// Wait for the server to finish processing.
+	if _, err := s.Recv(); err != nil && err != io.EOF {
+		return fmt.Errorf("waiting for server: %w", err)
+	}
+
+	return nil
 }
 
 // archiveToPipe writes a tar archive of the filesystem to the pipe and
