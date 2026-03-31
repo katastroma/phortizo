@@ -42,7 +42,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log := h.log.With("tenant", namespace)
-	log.InfoContext(ctx, "push event received")
+	log.InfoContext(ctx, "push received", "delivery_id", r.Header.Get("X-GitHub-Delivery"))
 
 	secretStore := secret.NewStore(h.k8sClient, namespace)
 
@@ -86,10 +86,6 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		return
 	}
-
-	log.InfoContext(ctx, "push received",
-		"delivery_id", r.Header.Get("X-GitHub-Delivery"),
-	)
 
 	store := configmap.NewStore(h.k8sClient, namespace)
 

@@ -26,7 +26,9 @@ const chunkSize = 32 * 1024
 // from the filesystem at root as a tar archive. It closes the send side
 // when done.
 func stream(ctx context.Context, client pb.RendererServiceClient, fs billy.Filesystem, root string) error {
-	s, err := client.Render(ctx)
+	streamCtx := context.WithoutCancel(ctx)
+
+	s, err := client.Render(streamCtx)
 	if err != nil {
 		return fmt.Errorf("opening render stream: %w", err)
 	}
@@ -47,16 +49,7 @@ func stream(ctx context.Context, client pb.RendererServiceClient, fs billy.Files
 		return sendErr
 	}
 
-	if err := s.CloseSend(); err != nil {
-		return fmt.Errorf("closing send: %w", err)
-	}
-
-	// Wait for the server to finish processing.
-	if _, err := s.Recv(); err != nil && err != io.EOF {
-		return fmt.Errorf("waiting for server: %w", err)
-	}
-
-	return nil
+	return s.CloseSend()
 }
 
 // archiveToPipe writes a tar archive of the filesystem to the pipe and

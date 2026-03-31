@@ -34,8 +34,6 @@ type MockRenderStream struct {
 	SendErr error
 	// CloseSendErr is returned by CloseSend when set.
 	CloseSendErr error
-	// RecvErr is returned by Recv when set.
-	RecvErr error
 	grpc.ClientStream
 }
 
@@ -53,11 +51,8 @@ func (s *MockRenderStream) CloseSend() error {
 	return s.CloseSendErr
 }
 
-// Recv returns the configured error, or EOF.
+// Recv signals end of stream.
 func (s *MockRenderStream) Recv() (*pb.RenderResponse, error) {
-	if s.RecvErr != nil {
-		return nil, s.RecvErr
-	}
 	return nil, io.EOF
 }
 
