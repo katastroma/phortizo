@@ -1,17 +1,18 @@
-package key
+package key_test
 
 import (
 	"encoding/base64"
 	"encoding/pem"
 	"testing"
 
+	"github.com/katastroma/phortizo/internal/key"
 	"github.com/katastroma/phortizo/internal/tests"
 )
 
 func TestParsePrivateKey_Valid(t *testing.T) {
 	pemBytes := tests.GenerateRSAPEM(t)
 
-	key, err := ParsePrivateKey(pemBytes)
+	key, err := key.ParsePrivateKey(pemBytes)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -24,7 +25,7 @@ func TestParsePrivateKey_Base64EncodedPEM(t *testing.T) {
 	pemBytes := tests.GenerateRSAPEM(t)
 	encoded := []byte(base64.StdEncoding.EncodeToString(pemBytes))
 
-	key, err := ParsePrivateKey(encoded)
+	key, err := key.ParsePrivateKey(encoded)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -34,7 +35,7 @@ func TestParsePrivateKey_Base64EncodedPEM(t *testing.T) {
 }
 
 func TestParsePrivateKey_NoPEMBlock(t *testing.T) {
-	if _, err := ParsePrivateKey([]byte("not a pem block")); err == nil {
+	if _, err := key.ParsePrivateKey([]byte("not a pem block")); err == nil {
 		t.Fatal("expected error for non-PEM input")
 	}
 }
@@ -42,7 +43,7 @@ func TestParsePrivateKey_NoPEMBlock(t *testing.T) {
 func TestParsePrivateKey_ValidBase64ButNotPEM(t *testing.T) {
 	encoded := []byte(base64.StdEncoding.EncodeToString([]byte("just some text")))
 
-	if _, err := ParsePrivateKey(encoded); err == nil {
+	if _, err := key.ParsePrivateKey(encoded); err == nil {
 		t.Fatal("expected error for base64 that does not contain PEM")
 	}
 }
@@ -54,7 +55,7 @@ func TestParsePrivateKey_Base64EncodedPEM_InvalidDER(t *testing.T) {
 	})
 	encoded := []byte(base64.StdEncoding.EncodeToString(pemBytes))
 
-	if _, err := ParsePrivateKey(encoded); err == nil {
+	if _, err := key.ParsePrivateKey(encoded); err == nil {
 		t.Fatal("expected error for invalid DER data in base64-encoded PEM")
 	}
 }
@@ -65,7 +66,7 @@ func TestParsePrivateKey_InvalidDER(t *testing.T) {
 		Bytes: []byte("invalid der data"),
 	})
 
-	if _, err := ParsePrivateKey(pemBytes); err == nil {
+	if _, err := key.ParsePrivateKey(pemBytes); err == nil {
 		t.Fatal("expected error for invalid DER data")
 	}
 }
@@ -73,14 +74,14 @@ func TestParsePrivateKey_InvalidDER(t *testing.T) {
 func TestMarshalPrivateKey_RoundTrip(t *testing.T) {
 	pemBytes := tests.GenerateRSAPEM(t)
 
-	original, err := ParsePrivateKey(pemBytes)
+	original, err := key.ParsePrivateKey(pemBytes)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	marshaled := MarshalPrivateKey(original)
+	marshaled := key.MarshalPrivateKey(original)
 
-	restored, err := ParsePrivateKey(marshaled)
+	restored, err := key.ParsePrivateKey(marshaled)
 	if err != nil {
 		t.Fatalf("unexpected error parsing marshaled key: %v", err)
 	}

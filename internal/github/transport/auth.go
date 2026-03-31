@@ -37,7 +37,9 @@ type InstallationTokenAuth struct {
 // using the given App and installation ID. The base RoundTripper is used for
 // both token exchange and authenticated requests. If base is nil,
 // http.DefaultTransport is used.
-func NewInstallationTokenAuth(app *apps.App, installationID int64, base http.RoundTripper) *InstallationTokenAuth {
+func NewInstallationTokenAuth(
+	app *apps.App, installationID int64, base http.RoundTripper,
+) *InstallationTokenAuth {
 	if base == nil {
 		base = http.DefaultTransport
 	}

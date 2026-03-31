@@ -117,6 +117,12 @@ func newTestHandler(t *testing.T, k8s *fake.Clientset) *push.Handler {
 	return push.New(slog.Default(), k8s, acquire, resolve, clone, verify, stream)
 }
 
+type errorReader struct{}
+
+func (r *errorReader) Read(_ []byte) (int, error) {
+	return 0, io.ErrUnexpectedEOF
+}
+
 func TestServeHTTP_MissingNamespace(t *testing.T) {
 	handler := newTestHandler(t, fake.NewSimpleClientset())
 
@@ -295,10 +301,4 @@ func TestServeHTTP_Match(t *testing.T) {
 	if processed != 1 {
 		t.Errorf("expected 1 Process call, got %d", processed)
 	}
-}
-
-type errorReader struct{}
-
-func (r *errorReader) Read(_ []byte) (int, error) {
-	return 0, io.ErrUnexpectedEOF
 }

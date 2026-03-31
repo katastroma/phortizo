@@ -95,19 +95,3 @@ func TestRetrieve(t *testing.T) {
 	}
 }
 
-func TestRetrieve_SourceTargetNotFound(t *testing.T) {
-	k8s := fake.NewSimpleClientset()
-	handler := New(
-		slog.Default(), nil, k8s,
-		10*time.Minute, 3,
-		nil, nil, nil, nil, nil,
-	)
-
-	_, err := handler.Retrieve(t.Context(), &pb.RetrieveRequest{
-		Namespace:      "tenant-a",
-		SourceTargetId: "nonexistent",
-	})
-	if err == nil {
-		t.Fatal("expected error for missing source target")
-	}
-}

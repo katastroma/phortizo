@@ -1,4 +1,4 @@
-package jwt
+package jwt_test
 
 import (
 	"crypto/rand"
@@ -7,6 +7,7 @@ import (
 	"time"
 
 	gojwt "github.com/golang-jwt/jwt/v5"
+	"github.com/katastroma/phortizo/internal/jwt"
 )
 
 func TestSign_ProducesValidJWT(t *testing.T) {
@@ -19,7 +20,7 @@ func TestSign_ProducesValidJWT(t *testing.T) {
 	issuedAt := now.Add(-60 * time.Second)
 	expiresAt := now.Add(10 * time.Minute)
 
-	tokenString, err := Sign("test-app-id", issuedAt, expiresAt, priv)
+	tokenString, err := jwt.Sign("test-app-id", issuedAt, expiresAt, priv)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -48,5 +49,5 @@ func TestSign_NilKeyPanics(t *testing.T) {
 		}
 	}()
 
-	Sign("app-id", time.Now(), time.Now().Add(time.Minute), nil)
+	jwt.Sign("app-id", time.Now(), time.Now().Add(time.Minute), nil)
 }

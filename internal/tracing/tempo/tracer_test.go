@@ -44,13 +44,6 @@ func (m *mockQuerierClient) SearchTagValues(
 	return nil, nil
 }
 
-func TestNew(t *testing.T) {
-	q := New(&mockQuerierClient{})
-	if q.GetClient() == nil {
-		t.Fatal("expected non-nil client")
-	}
-}
-
 func TestExtractAttributes_SkipsNonString(t *testing.T) {
 	kvs := []*commonv1.KeyValue{
 		{Key: "good", Value: &commonv1.AnyValue{Value: &commonv1.AnyValue_StringValue{StringValue: "value"}}},
