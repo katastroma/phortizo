@@ -77,14 +77,16 @@ func (r *Retriever) Retrieve(ctx context.Context, req *pb.RetrieveRequest) (*pb.
 	}
 	log.DebugContext(ctx, "source target retrieved", "source_target", sourceTargetID)
 
-	log.DebugContext(ctx, "processing source target", "source_target", sourceTargetID)
+	log.InfoContext(ctx, "processing source target", "source_target", sourceTargetID)
 	ctx, tracer := tracing.StartEvent(ctx, tracing.EventTypeManual, namespace)
-	target.Process(
+	err = target.Process(
 		ctx, log, tracer, namespace, 0,
 		r.acquireLease, r.resolveAuth, r.clone,
 		r.verifyLease, r.stream,
 	)
-	log.DebugContext(ctx, "source target processed", "source_target", sourceTargetID)
+	if err != nil {
+		return nil, fmt.Errorf("processing source target failed: %w", err)
+	}
 
 	return &pb.RetrieveResponse{}, nil
 }

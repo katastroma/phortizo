@@ -42,7 +42,9 @@ func (t *Target) Process(
 	clone git.CloneFunc,
 	verifyLease lease.VerifyFunc,
 	stream renderer.StreamFunc,
-) {
+) error {
+	log = log.With("name", t.Name, "repo", t.RepoURL, "ref", t.Ref, "path", t.Path)
+	log.InfoContext(ctx, "processing source target")
 	ctx, span := tracer.Start(ctx, tracing.SourceTargetSpanName, trace.WithAttributes(
 		attribute.String(tracing.SourceTargetNameAttribute, t.Name),
 		attribute.String(tracing.SourceTargetRepoURLAttribute, t.RepoURL),
@@ -54,37 +56,37 @@ func (t *Target) Process(
 	tenantMember, err := baggage.NewMemberRaw(tracing.TenantAttribute, namespace)
 	if err != nil {
 		fail(ctx, log, span, "baggage member failed", err, tracing.TenantAttribute, namespace)
-		return
+		return err
 	}
 
 	nameMember, err := baggage.NewMemberRaw(tracing.SourceTargetNameAttribute, t.Name)
 	if err != nil {
 		fail(ctx, log, span, "baggage member failed", err, tracing.SourceTargetNameAttribute, t.Name)
-		return
+		return err
 	}
 
 	repoMember, err := baggage.NewMemberRaw(tracing.SourceTargetRepoURLAttribute, t.RepoURL)
 	if err != nil {
 		fail(ctx, log, span, "baggage member failed", err, tracing.SourceTargetRepoURLAttribute, t.RepoURL)
-		return
+		return err
 	}
 
 	refMember, err := baggage.NewMemberRaw(tracing.SourceTargetRefAttribute, t.Ref)
 	if err != nil {
 		fail(ctx, log, span, "baggage member failed", err, tracing.SourceTargetRefAttribute, t.Ref)
-		return
+		return err
 	}
 
 	pathMember, err := baggage.NewMemberRaw(tracing.SourceTargetPathAttribute, t.Path)
 	if err != nil {
 		fail(ctx, log, span, "baggage member failed", err, tracing.SourceTargetPathAttribute, t.Path)
-		return
+		return err
 	}
 
 	bag, err := baggage.New(tenantMember, nameMember, repoMember, refMember, pathMember)
 	if err != nil {
 		fail(ctx, log, span, "baggage creation failed", err)
-		return
+		return err
 	}
 
 	ctx = baggage.ContextWithBaggage(ctx, bag)
@@ -94,7 +96,7 @@ func (t *Target) Process(
 	log.DebugContext(ctx, "acquiring lease")
 	if err = acquireLease(ctx, namespace, t.Name, leaseID, replayCount); err != nil {
 		fail(ctx, log, span, "lease acquisition failed", err)
-		return
+		return err
 	}
 	log.DebugContext(ctx, "lease acquired")
 
@@ -102,7 +104,7 @@ func (t *Target) Process(
 	authMethod, err := resolveAuth(ctx, namespace, t.CredentialSecret)
 	if err != nil {
 		fail(ctx, log, span, "authentication failed", err)
-		return
+		return err
 	}
 	log.DebugContext(ctx, "credentials resolved")
 
@@ -110,32 +112,34 @@ func (t *Target) Process(
 	fs, err := clone(ctx, t.RepoURL, t.Ref, authMethod)
 	if err != nil {
 		fail(ctx, log, span, "clone failed", err)
-		return
+		return err
 	}
 	log.DebugContext(ctx, "source cloned")
 
+	log.DebugContext(ctx, "detecting renderer")
 	rendererType := renderer.Detect(fs, t.Path)
-	log.InfoContext(ctx, "renderer detected", "renderer", rendererType.String())
+	log = log.With("renderer", rendererType.String())
+	log.DebugContext(ctx, "renderer detected")
 
 	log.DebugContext(ctx, "verifying lease")
 	holds, err := verifyLease(ctx, namespace, t.Name, leaseID)
 	if err != nil {
 		fail(ctx, log, span, "lease check failed", err)
-		return
+		return err
 	}
 	log.DebugContext(ctx, "lease verified")
 
 	if !holds {
-		log.InfoContext(ctx, "lease lost, abandoning processing",
-			"source_target_lease_id", leaseID,
-		)
-		return
+		log.InfoContext(ctx, "lease lost, abandoning processing", "source_target_lease_id", leaseID)
+		return err
 	}
 
 	log.DebugContext(ctx, "streaming to renderer")
 	if err = stream(ctx, fs, t.Path, rendererType); err != nil {
 		fail(ctx, log, span, "streaming to renderer failed", err)
-		return
+		return err
 	}
+
 	log.InfoContext(ctx, "source streamed to renderer")
+	return nil
 }

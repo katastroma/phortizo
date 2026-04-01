@@ -17,7 +17,7 @@ import (
 	"github.com/katastroma/phortizo/internal/tracing"
 )
 
-func (h *Handler) fail(
+func fail(
 	ctx context.Context,
 	log *slog.Logger,
 	w http.ResponseWriter,
@@ -41,15 +41,15 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log := h.log.With("tenant", namespace)
-	log.InfoContext(ctx, "push received", "delivery_id", r.Header.Get("X-GitHub-Delivery"))
+	log := h.log.With("tenant", namespace, "delivery_id", r.Header.Get("X-GitHub-Delivery"))
+	log.InfoContext(ctx, "push received")
 
 	secretStore := secret.NewStore(h.k8sClient, namespace)
 
 	log.DebugContext(ctx, "getting secret", "secret", SecretName)
 	resource, err := secretStore.Get(ctx, SecretName)
 	if err != nil {
-		h.fail(ctx, log, w, "failed to retrieve secret", http.StatusNotFound, err)
+		fail(ctx, log, w, "failed to retrieve secret", http.StatusNotFound, err)
 		return
 	}
 	log.DebugContext(ctx, "secret retrieved")
@@ -59,7 +59,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if !found {
 		msg := "secret key not found"
 		err = fmt.Errorf("missing key %q in secret %s/%s", SecretKey, namespace, SecretName)
-		h.fail(ctx, log, w, msg, http.StatusNotFound, err)
+		fail(ctx, log, w, msg, http.StatusNotFound, err)
 		return
 	}
 	log.DebugContext(ctx, "secret data retrieved")
@@ -67,7 +67,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	log.DebugContext(ctx, "validating payload")
 	payload, err := github.ValidatePayload(r, webhookSecret)
 	if err != nil {
-		h.fail(ctx, log, w, "payload validation failed", http.StatusUnauthorized, err)
+		fail(ctx, log, w, "payload validation failed", http.StatusUnauthorized, err)
 		return
 	}
 	log.DebugContext(ctx, "payload validated")
@@ -75,7 +75,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	log.DebugContext(ctx, "parsing event")
 	parsed, err := github.ParseWebHook(github.WebHookType(r), payload)
 	if err != nil {
-		h.fail(ctx, log, w, "failed to parse webhook", http.StatusBadRequest, err)
+		fail(ctx, log, w, "failed to parse webhook", http.StatusBadRequest, err)
 		return
 	}
 	log.DebugContext(ctx, "event parsed")
@@ -92,7 +92,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	log.DebugContext(ctx, "getting source targets")
 	sourceTargets, err := source.List(ctx, store)
 	if err != nil {
-		h.fail(ctx, log, w, "failed to retrieve source targets", http.StatusNotFound, err)
+		fail(ctx, log, w, "failed to retrieve source targets", http.StatusNotFound, err)
 		return
 	}
 	log.DebugContext(ctx, "source targets retrieved")
@@ -117,11 +117,15 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer span.End()
 
 	for _, target := range matched {
-		target.Process(
+		err = target.Process(
 			ctx, log, tracer, namespace, 0,
 			h.acquireLease, h.resolveAuth, h.clone,
 			h.verifyLease, h.stream,
 		)
+		if err != nil {
+			fail(ctx, log, w, "processing source target failed", http.StatusInternalServerError, err)
+			return
+		}
 	}
 
 	w.WriteHeader(http.StatusAccepted)

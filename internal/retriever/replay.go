@@ -95,13 +95,15 @@ func (r *Retriever) replayTarget(
 			r.maxReplayAttemps, target.Name, eventID)
 	}
 
-	log.DebugContext(ctx, "processing source target", "source_target", target.Name, "replay_count", replayCount)
-	target.Process(
+	log.InfoContext(ctx, "replaying source target", "replay_count", replayCount)
+	err = target.Process(
 		ctx, log, otelTracer, namespace, replayCount,
 		r.acquireLease, r.resolveAuth, r.clone,
 		r.verifyLease, r.stream,
 	)
-	log.DebugContext(ctx, "source target processed", "source_target", target.Name)
+	if err != nil {
+		return fmt.Errorf("replaying source target failed: %w", err)
+	}
 
 	return nil
 }
