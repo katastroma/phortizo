@@ -18,8 +18,6 @@ import (
 	pb "github.com/katastroma/keleustes"
 )
 
-// MetadataKey is the gRPC metadata key for the renderer type.
-const MetadataKey = "renderer-type"
 
 // chunkSize is the byte size of each RenderRequest message. This is a
 // practical choice — large enough to amortize per-message overhead, small
@@ -38,7 +36,7 @@ func send(
 	root string,
 	rendererType pb.RendererType,
 ) error {
-	ctx = metadata.AppendToOutgoingContext(ctx, MetadataKey, rendererType.String())
+	ctx = metadata.AppendToOutgoingContext(ctx, pb.RendererTypeMetadataKey, rendererType.String())
 	s, err := client.Render(ctx)
 	if err != nil {
 		return fmt.Errorf("opening render stream: %w", err)

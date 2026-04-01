@@ -115,6 +115,8 @@ github.com/json-iterator/go v1.1.12 h1:PV8peI4a0ysnczrg+LtxykD8LfKY9ML6u2jnxaEnr
 github.com/json-iterator/go v1.1.12/go.mod h1:e30LSqwooZae/UwlEbR2852Gd8hjQvJoHmT4TnhNGBo=
 github.com/katastroma/keleustes v0.4.5 h1:GoY0x0J8loQzRY7A93s0FXVETg3/RE2OuDIpIe1jLJA=
 github.com/katastroma/keleustes v0.4.5/go.mod h1:DjGpxvWQ80+2/Xzwqc//IEsyrwTvCk9RN+a0S6C/e2A=
+github.com/katastroma/keleustes v0.4.6 h1:beEl3ynTLBTuq12RybIfkIpALxA2ZSpoQZ42iUkz218=
+github.com/katastroma/keleustes v0.4.6/go.mod h1:DjGpxvWQ80+2/Xzwqc//IEsyrwTvCk9RN+a0S6C/e2A=
 github.com/katastroma/naukleros v0.4.4 h1:/BQSLm5u4PaehXZKfWKCqUAKAKX1TRRGBZQJYyMLOlU=
 github.com/katastroma/naukleros v0.4.4/go.mod h1:QiUNQks3UmAcxcwYIHzbrJ6JT/TltlEuT0KZr0wO5Rk=
 github.com/kevinburke/ssh_config v1.6.0 h1:J1FBfmuVosPHf5GRdltRLhPJtJpTlMdKTBjRgTaQBFY=
