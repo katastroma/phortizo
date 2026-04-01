@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## 0.6.4 - 2026-04-01
+#### Bug Fixes
+- use rendertype metadata key from keleustes - (088e7b5) - Nathan Blair
+
+- - -
+
 ## 0.6.3 - 2026-04-01
 #### Bug Fixes
 - deduplicate tenant attribute - (0d69d21) - Nathan Blair
