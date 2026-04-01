@@ -2,6 +2,16 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## 0.6.3 - 2026-04-01
+#### Bug Fixes
+- deduplicate tenant attribute - (0d69d21) - Nathan Blair
+#### Tests
+- better test hygiene - (fb6d867) - Nathan Blair
+#### Refactoring
+- do detection in source handler - (fde68e9) - Nathan Blair
+
+- - -
+
 ## 0.6.2 - 2026-03-31
 #### Bug Fixes
 - use client-streaming - (8f0cb7b) - Nathan Blair
