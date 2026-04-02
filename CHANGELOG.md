@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## 0.6.7 - 2026-04-02
+#### Bug Fixes
+- grammar in log - (59dc0a7) - Nathan Blair
+
+- - -
+
 ## 0.6.6 - 2026-04-02
 #### Bug Fixes
 - correct span retrieval and ending - (4b0a9e3) - Nathan Blair
