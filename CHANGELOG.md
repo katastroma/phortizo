@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## 0.6.6 - 2026-04-02
+#### Bug Fixes
+- correct span retrieval and ending - (4b0a9e3) - Nathan Blair
+
+- - -
+
 ## 0.6.5 - 2026-04-01
 #### Bug Fixes
 - better logging - (9031ec7) - Nathan Blair
