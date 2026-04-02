@@ -99,7 +99,7 @@ func (r *Retriever) replayTarget(
 		)
 		return nil
 	}
-	log.DebugContext(ctx, "state state verified")
+	log.DebugContext(ctx, "lease state verified")
 
 	replayCount := leaseState.ReplayCount() + 1
 	log = log.With("replay_count", replayCount)
