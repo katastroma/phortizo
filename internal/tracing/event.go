@@ -50,14 +50,14 @@ const (
 )
 
 // StartEvent creates a tracer, starts a root event span with the given type
-// and namespace, and returns the context and tracer. The tracer is used by
-// downstream source target processors to create child spans.
-func StartEvent(ctx context.Context, eventType EventType, namespace string) (context.Context, trace.Tracer) {
+// and namespace, and returns the context, tracer, and span. The caller must
+// end the span when the event is complete.
+func StartEvent(ctx context.Context, eventType EventType, namespace string) (context.Context, trace.Tracer, trace.Span) {
 	tracer := otel.Tracer("phortizo")
-	ctx, _ = tracer.Start(ctx, EventSpanName, trace.WithAttributes(
+	ctx, span := tracer.Start(ctx, EventSpanName, trace.WithAttributes(
 		attribute.String(EventTypeAttribute, string(eventType)),
 		attribute.String(TenantAttribute, namespace),
 	))
 
-	return ctx, tracer
+	return ctx, tracer, span
 }

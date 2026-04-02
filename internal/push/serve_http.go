@@ -8,7 +8,6 @@ import (
 	"net/http"
 
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/trace"
 
 	"github.com/google/go-github/v84/github"
 	"github.com/katastroma/phortizo/internal/k8s/configmap"
@@ -106,15 +105,14 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	log.DebugContext(ctx, "source targets matched", "count", len(matched))
 
-	ctx, tracer := tracing.StartEvent(ctx, tracing.EventTypeWebhook, namespace)
+	ctx, tracer, eventSpan := tracing.StartEvent(ctx, tracing.EventTypeWebhook, namespace)
+	defer eventSpan.End()
 
-	span := trace.SpanFromContext(ctx)
 	deliveryID := r.Header.Get("X-GitHub-Delivery")
-	span.SetAttributes(
+	eventSpan.SetAttributes(
 		attribute.String("github.delivery_id", deliveryID),
 		attribute.String("github.head_commit", pushEvent.GetAfter()),
 	)
-	defer span.End()
 
 	for _, target := range matched {
 		err = target.Process(

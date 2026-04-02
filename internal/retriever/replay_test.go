@@ -348,3 +348,21 @@ func TestReplay_LeaseReadError(t *testing.T) {
 		t.Fatal("expected error when configmap not found")
 	}
 }
+
+func TestReplay_ProcessError(t *testing.T) {
+	k8s := fake.NewSimpleClientset(sourceTargetCM())
+
+	failingAcquire := func(_ context.Context, _, _, _ string, _ int) error {
+		return fmt.Errorf("lease failed")
+	}
+
+	handler := New(
+		slog.Default(), &stubTracer{trace: replayTrace()}, k8s,
+		10*time.Minute, 3,
+		failingAcquire, nil, nil, nil, nil,
+	)
+
+	if _, err := handler.Replay(t.Context(), &pb.ReplayRequest{EventId: "trace-123"}); err == nil {
+		t.Fatal("expected error when process fails during replay")
+	}
+}

@@ -20,37 +20,55 @@ import (
 // Replay a source retrieval from a previous event
 func (r *Retriever) Replay(ctx context.Context, req *pb.ReplayRequest) (*pb.ReplayResponse, error) {
 	eventID := req.GetEventId()
-	r.log.InfoContext(ctx, "replay requested", "event_id", eventID)
+	log := r.log.With("event_id", eventID)
+	log.InfoContext(ctx, "replay requested")
 
-	r.log.DebugContext(ctx, "querying trace", "event_id", eventID)
+	log.DebugContext(ctx, "querying trace")
 	t, err := r.tracer.GetTrace(ctx, eventID)
 	if err != nil {
+		log.ErrorContext(ctx, "querying trace failed", "error", err)
 		return nil, fmt.Errorf("querying trace %s: %w", eventID, err)
 	}
-	r.log.DebugContext(ctx, "trace retrieved", "event_id", eventID)
+	log.DebugContext(ctx, "trace retrieved")
 
+	log.DebugContext(ctx, "retrieving spans")
 	eventSpans := t[tracing.EventSpanName]
 	if len(eventSpans) == 0 {
+		log.ErrorContext(ctx, "no event span found in trace")
 		return nil, fmt.Errorf("no event span found in trace %s", eventID)
 	}
+	log.DebugContext(ctx, "spans retrieved")
 
+	log.DebugContext(ctx, "retrieving namespace")
 	namespace, ok := eventSpans[0][tracing.TenantAttribute]
 	if !ok {
+		log.ErrorContext(ctx, "missing tenant attribute on event span")
 		return nil, fmt.Errorf("missing tenant attribute on event span in trace %s", eventID)
 	}
+	log = log.With("tenant", namespace)
+	log.DebugContext(ctx, "namespace retrieved")
 
-	log := r.log.With("tenant", namespace)
-	ctx, otelTracer := tracing.StartEvent(ctx, tracing.EventTypeReplay, namespace)
+	ctx, otelTracer, eventSpan := tracing.StartEvent(ctx, tracing.EventTypeReplay, namespace)
+	defer eventSpan.End()
 
 	for _, attrs := range t[tracing.SourceTargetSpanName] {
 		log.DebugContext(ctx, "reconstructing source target from trace")
 		target, err := sourceTargetFromAttributes(attrs, eventID)
 		if err != nil {
+			log.ErrorContext(ctx, "reconstructing source target failed", "error", err)
 			return nil, err
 		}
-		log.DebugContext(ctx, "source target reconstructed", "source_target", target.Name)
+		log = log.With(
+			"source_target", target.Name,
+			"repo", target.RepoURL,
+			"ref", target.Ref,
+			"path", target.Path,
+		)
+		log.DebugContext(ctx, "source target reconstructed")
 
-		if err := r.replayTarget(ctx, log, otelTracer, eventID, namespace, target); err != nil {
+		err = r.replayTarget(ctx, log, otelTracer, eventID, namespace, target)
+		if err != nil {
+			log.ErrorContext(ctx, "replay target failed", "error", err)
 			return nil, err
 		}
 	}
@@ -65,29 +83,30 @@ func (r *Retriever) replayTarget(
 	eventID, namespace string,
 	target *source.Target,
 ) error {
-	log.DebugContext(ctx, "reading lease state", "source_target", target.Name)
+	log.DebugContext(ctx, "check lease")
 	store := configmap.NewStore(r.k8sClient, namespace)
 	leaseState, err := lease.Read(ctx, store, target.Name)
 	if err != nil {
+		log.ErrorContext(ctx, "reading lease failed", "error", err)
 		return fmt.Errorf("reading lease for %s/%s: %w", namespace, target.Name, err)
 	}
-	log.DebugContext(ctx, "lease state read", "source_target", target.Name)
+	log.DebugContext(ctx, "lease checked")
 
+	log.DebugContext(ctx, "reading lease state")
 	if leaseState.IsLeaseActive(r.leaseStaleAfter) {
 		log.InfoContext(ctx, "active lease, skipping replay",
-			"event_id", eventID,
-			"source_target", target.Name,
 			"active_source_target_lease_id", leaseState.ID,
 		)
 		return nil
 	}
+	log.DebugContext(ctx, "state state verified")
 
 	replayCount := leaseState.ReplayCount() + 1
+	log = log.With("replay_count", replayCount)
+
 	if replayCount > r.maxReplayAttemps {
 		log.ErrorContext(ctx, "max replay attempts exceeded",
-			"event_id", eventID,
 			"source_target", target.Name,
-			"replay_count", replayCount,
 			"max", r.maxReplayAttemps,
 		)
 		return status.Errorf(codes.FailedPrecondition,
@@ -95,13 +114,14 @@ func (r *Retriever) replayTarget(
 			r.maxReplayAttemps, target.Name, eventID)
 	}
 
-	log.InfoContext(ctx, "replaying source target", "replay_count", replayCount)
+	log.InfoContext(ctx, "replaying source target")
 	err = target.Process(
 		ctx, log, otelTracer, namespace, replayCount,
 		r.acquireLease, r.resolveAuth, r.clone,
 		r.verifyLease, r.stream,
 	)
 	if err != nil {
+		log.ErrorContext(ctx, "replaying source target failed", "error", err)
 		return fmt.Errorf("replaying source target failed: %w", err)
 	}
 

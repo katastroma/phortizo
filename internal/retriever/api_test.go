@@ -1,3 +1,4 @@
+//revive:disable:package-comments
 package retriever_test
 
 import (

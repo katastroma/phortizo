@@ -75,10 +75,17 @@ func (r *Retriever) Retrieve(ctx context.Context, req *pb.RetrieveRequest) (*pb.
 	if err != nil {
 		return nil, fmt.Errorf("reading source target %s/%s: %w", namespace, sourceTargetID, err)
 	}
+	log = log.With(
+		"source_target", target.Name,
+		"repo", target.RepoURL,
+		"ref", target.Ref,
+		"path", target.Path,
+	)
 	log.DebugContext(ctx, "source target retrieved", "source_target", sourceTargetID)
 
-	log.InfoContext(ctx, "processing source target", "source_target", sourceTargetID)
-	ctx, tracer := tracing.StartEvent(ctx, tracing.EventTypeManual, namespace)
+	ctx, tracer, eventSpan := tracing.StartEvent(ctx, tracing.EventTypeManual, namespace)
+	defer eventSpan.End()
+
 	err = target.Process(
 		ctx, log, tracer, namespace, 0,
 		r.acquireLease, r.resolveAuth, r.clone,

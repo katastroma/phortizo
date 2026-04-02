@@ -304,3 +304,25 @@ func TestServeHTTP_Match(t *testing.T) {
 		t.Errorf("expected 1 Process call, got %d", processed)
 	}
 }
+
+func TestServeHTTP_ProcessError(t *testing.T) {
+	k8s := fake.NewSimpleClientset(webhookSecret(), sourceTargetConfigMap())
+
+	acquire, resolve, clone, verify, _ := noopHandler(t)
+	failingStream := func(_ context.Context, _ billy.Filesystem, _ string, _ keleustes.RendererType) error {
+		return fmt.Errorf("stream failed")
+	}
+
+	handler := push.New(slog.Default(), k8s, acquire, resolve, clone, verify, failingStream)
+
+	body := validPayload()
+	req := pushRequest(body)
+	req.Header.Set("X-GitHub-Delivery", "delivery-123")
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusInternalServerError {
+		t.Errorf("status = %d, want %d", rec.Code, http.StatusInternalServerError)
+	}
+}

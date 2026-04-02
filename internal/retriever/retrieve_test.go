@@ -3,6 +3,7 @@ package retriever
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"testing"
 	"time"
@@ -93,6 +94,27 @@ func TestRetrieve(t *testing.T) {
 
 	if processedReplayCount != 0 {
 		t.Errorf("replayCount = %d, want %d", processedReplayCount, 0)
+	}
+}
+
+func TestRetrieve_ProcessError(t *testing.T) {
+	k8s := fake.NewSimpleClientset(retrieveSourceTargetCM())
+
+	acquireFn := func(_ context.Context, _, _, _ string, _ int) error {
+		return fmt.Errorf("lease failed")
+	}
+	handler := New(
+		slog.Default(), nil, k8s,
+		10*time.Minute, 3,
+		acquireFn, nil, nil, nil, nil,
+	)
+
+	_, err := handler.Retrieve(t.Context(), &pb.RetrieveRequest{
+		Namespace:      "tenant-a",
+		SourceTargetId: "st-1",
+	})
+	if err == nil {
+		t.Fatal("expected error when process fails")
 	}
 }
 
