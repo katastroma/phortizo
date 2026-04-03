@@ -2,6 +2,14 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## 0.6.8 - 2026-04-03
+#### Bug Fixes
+- semaphores for push handling - (29b40db) - Nathan Blair
+#### Miscellaneous Chores
+- adopt config package - (d76a343) - Nathan Blair
+
+- - -
+
 ## 0.6.7 - 2026-04-02
 #### Bug Fixes
 - grammar in log - (59dc0a7) - Nathan Blair
