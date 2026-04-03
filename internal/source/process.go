@@ -3,6 +3,8 @@ package source
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"log/slog"
 
 	"go.opentelemetry.io/otel/attribute"
@@ -16,18 +18,20 @@ import (
 	"github.com/katastroma/phortizo/internal/tracing"
 )
 
-func fail(
-	ctx context.Context,
-	log *slog.Logger,
-	span trace.Span,
-	msg string,
-	err error,
-	attrs ...any,
-) {
-	args := []any{"error", err}
-	args = append(args, attrs...)
-	log.ErrorContext(ctx, msg, args...)
-	span.RecordError(err)
+type baggageMemberBuilder struct {
+	members []baggage.Member
+	errs    []error
+	span    trace.Span
+}
+
+func (b *baggageMemberBuilder) add(key, value string) {
+	m, err := baggage.NewMemberRaw(key, value)
+	if err != nil {
+		b.span.RecordError(err)
+		b.errs = append(b.errs, fmt.Errorf("baggage failed for %v [%v]: %w", key, value, err))
+		return
+	}
+	b.members = append(b.members, m)
 }
 
 // Process executes the source target pipeline steps in order.
@@ -53,66 +57,45 @@ func (t *Target) Process(
 	))
 	defer span.End()
 
-	tenantMember, err := baggage.NewMemberRaw(tracing.TenantAttribute, namespace)
-	if err != nil {
-		fail(ctx, log, span, "baggage member failed", err, tracing.TenantAttribute, namespace)
-		return err
+	b := &baggageMemberBuilder{span: span}
+	b.add(tracing.TenantAttribute, namespace)
+	b.add(tracing.SourceTargetNameAttribute, t.Name)
+	b.add(tracing.SourceTargetRepoURLAttribute, t.RepoURL)
+	b.add(tracing.SourceTargetRefAttribute, t.Ref)
+	b.add(tracing.SourceTargetPathAttribute, t.Path)
+
+	if len(b.errs) > 0 {
+		return errors.Join(b.errs...)
 	}
 
-	nameMember, err := baggage.NewMemberRaw(tracing.SourceTargetNameAttribute, t.Name)
+	bag, err := baggage.New(b.members...)
 	if err != nil {
-		fail(ctx, log, span, "baggage member failed", err, tracing.SourceTargetNameAttribute, t.Name)
-		return err
+		span.RecordError(err)
+		return fmt.Errorf("baggage creation failed: %w", err)
 	}
-
-	repoMember, err := baggage.NewMemberRaw(tracing.SourceTargetRepoURLAttribute, t.RepoURL)
-	if err != nil {
-		fail(ctx, log, span, "baggage member failed", err, tracing.SourceTargetRepoURLAttribute, t.RepoURL)
-		return err
-	}
-
-	refMember, err := baggage.NewMemberRaw(tracing.SourceTargetRefAttribute, t.Ref)
-	if err != nil {
-		fail(ctx, log, span, "baggage member failed", err, tracing.SourceTargetRefAttribute, t.Ref)
-		return err
-	}
-
-	pathMember, err := baggage.NewMemberRaw(tracing.SourceTargetPathAttribute, t.Path)
-	if err != nil {
-		fail(ctx, log, span, "baggage member failed", err, tracing.SourceTargetPathAttribute, t.Path)
-		return err
-	}
-
-	bag, err := baggage.New(tenantMember, nameMember, repoMember, refMember, pathMember)
-	if err != nil {
-		fail(ctx, log, span, "baggage creation failed", err)
-		return err
-	}
-
 	ctx = baggage.ContextWithBaggage(ctx, bag)
 
-	leaseID := span.SpanContext().SpanID().String()
-
 	log.DebugContext(ctx, "acquiring lease")
+	leaseID := span.SpanContext().SpanID().String()
 	if err = acquireLease(ctx, namespace, t.Name, leaseID, replayCount); err != nil {
-		fail(ctx, log, span, "lease acquisition failed", err)
-		return err
+		span.RecordError(err)
+		return fmt.Errorf("lease acquisition failed: %w", err)
 	}
 	log.DebugContext(ctx, "lease acquired")
 
 	log.DebugContext(ctx, "resolving credentials")
 	authMethod, err := resolveAuth(ctx, namespace, t.CredentialSecret)
 	if err != nil {
-		fail(ctx, log, span, "authentication failed", err)
-		return err
+		span.RecordError(err)
+		return fmt.Errorf("authentication failed: %w", err)
 	}
 	log.DebugContext(ctx, "credentials resolved")
 
 	log.DebugContext(ctx, "cloning source")
 	fs, err := clone(ctx, t.RepoURL, t.Ref, authMethod)
 	if err != nil {
-		fail(ctx, log, span, "clone failed", err)
-		return err
+		span.RecordError(err)
+		return fmt.Errorf("clone failed: %w", err)
 	}
 	log.DebugContext(ctx, "source cloned")
 
@@ -124,20 +107,19 @@ func (t *Target) Process(
 	log.DebugContext(ctx, "verifying lease")
 	holds, err := verifyLease(ctx, namespace, t.Name, leaseID)
 	if err != nil {
-		fail(ctx, log, span, "lease check failed", err)
+		span.RecordError(err)
+		return fmt.Errorf("lease check failed: %w", err)
+	} else if !holds {
+		err = fmt.Errorf("lease lost: %v", leaseID)
+		span.RecordError(err)
 		return err
 	}
 	log.DebugContext(ctx, "lease verified")
 
-	if !holds {
-		log.InfoContext(ctx, "lease lost, abandoning processing", "source_target_lease_id", leaseID)
-		return err
-	}
-
 	log.DebugContext(ctx, "streaming to renderer")
 	if err = stream(ctx, fs, t.Path, rendererType); err != nil {
-		fail(ctx, log, span, "streaming to renderer failed", err)
-		return err
+		span.RecordError(err)
+		return fmt.Errorf("streaming to renderer failed: %w", err)
 	}
 
 	log.InfoContext(ctx, "source streamed to renderer")

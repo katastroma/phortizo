@@ -87,7 +87,6 @@ func (r *Retriever) replayTarget(
 	store := configmap.NewStore(r.k8sClient, namespace)
 	leaseState, err := lease.Read(ctx, store, target.Name)
 	if err != nil {
-		log.ErrorContext(ctx, "reading lease failed", "error", err)
 		return fmt.Errorf("reading lease for %s/%s: %w", namespace, target.Name, err)
 	}
 	log.DebugContext(ctx, "lease checked")
@@ -105,10 +104,6 @@ func (r *Retriever) replayTarget(
 	log = log.With("replay_count", replayCount)
 
 	if replayCount > r.maxReplayAttemps {
-		log.ErrorContext(ctx, "max replay attempts exceeded",
-			"source_target", target.Name,
-			"max", r.maxReplayAttemps,
-		)
 		return status.Errorf(codes.FailedPrecondition,
 			"max replay attempts (%d) exceeded for source target %s in event %s",
 			r.maxReplayAttemps, target.Name, eventID)
@@ -121,7 +116,6 @@ func (r *Retriever) replayTarget(
 		r.verifyLease, r.stream,
 	)
 	if err != nil {
-		log.ErrorContext(ctx, "replaying source target failed", "error", err)
 		return fmt.Errorf("replaying source target failed: %w", err)
 	}
 

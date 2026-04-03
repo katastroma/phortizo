@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"sync"
 
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/google/go-github/v84/github"
 	"github.com/katastroma/phortizo/internal/k8s/configmap"
@@ -105,8 +107,11 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	log.DebugContext(ctx, "source targets matched", "count", len(matched))
 
-	ctx, tracer, eventSpan := tracing.StartEvent(ctx, tracing.EventTypeWebhook, namespace)
-	defer eventSpan.End()
+	w.WriteHeader(http.StatusAccepted)
+
+	ctx, tracer, eventSpan := tracing.StartEvent(
+		context.WithoutCancel(ctx), tracing.EventTypeWebhook, namespace,
+	)
 
 	deliveryID := r.Header.Get("X-GitHub-Delivery")
 	eventSpan.SetAttributes(
@@ -114,17 +119,36 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		attribute.String("github.head_commit", pushEvent.GetAfter()),
 	)
 
-	for _, target := range matched {
-		err = target.Process(
-			ctx, log, tracer, namespace, 0,
-			h.acquireLease, h.resolveAuth, h.clone,
-			h.verifyLease, h.stream,
-		)
-		if err != nil {
-			fail(ctx, log, w, "processing source target failed", http.StatusInternalServerError, err)
-			return
-		}
-	}
+	go h.processTargets(ctx, log, tracer, namespace, matched, eventSpan)
+}
 
-	w.WriteHeader(http.StatusAccepted)
+func (h *Handler) processTargets(
+	ctx context.Context,
+	log *slog.Logger,
+	tracer trace.Tracer,
+	namespace string,
+	targets []*source.Target,
+	eventSpan trace.Span,
+) {
+	defer eventSpan.End()
+
+	var wg sync.WaitGroup
+	for _, target := range targets {
+		h.sem <- struct{}{}
+		wg.Add(1)
+		go func(t *source.Target) {
+			defer wg.Done()
+			defer func() { <-h.sem }()
+
+			err := t.Process(
+				ctx, log, tracer, namespace, 0,
+				h.acquireLease, h.resolveAuth, h.clone,
+				h.verifyLease, h.stream,
+			)
+			if err != nil {
+				log.ErrorContext(ctx, "processing source target failed", "error", err)
+			}
+		}(target)
+	}
+	wg.Wait()
 }

@@ -17,6 +17,7 @@ import (
 type Handler struct {
 	log          *slog.Logger
 	k8sClient    kubernetes.Interface
+	sem          chan struct{}
 	acquireLease lease.AcquireFunc
 	resolveAuth  credential.ResolveFunc
 	clone        git.CloneFunc
@@ -28,6 +29,7 @@ type Handler struct {
 func New(
 	log *slog.Logger,
 	k8sClient kubernetes.Interface,
+	maxConcurrent int,
 	acquireLease lease.AcquireFunc,
 	resolveAuth credential.ResolveFunc,
 	clone git.CloneFunc,
@@ -37,6 +39,7 @@ func New(
 	return &Handler{
 		log:          log,
 		k8sClient:    k8sClient,
+		sem:          make(chan struct{}, maxConcurrent),
 		acquireLease: acquireLease,
 		resolveAuth:  resolveAuth,
 		clone:        clone,

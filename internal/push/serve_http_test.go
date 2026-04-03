@@ -116,7 +116,7 @@ func newTestHandler(t *testing.T, k8s *fake.Clientset) *push.Handler {
 	t.Helper()
 
 	acquire, resolve, clone, verify, stream := noopHandler(t)
-	return push.New(slog.Default(), k8s, acquire, resolve, clone, verify, stream)
+	return push.New(slog.Default(), k8s, 10, acquire, resolve, clone, verify, stream)
 }
 
 type errorReader struct{}
@@ -279,15 +279,7 @@ func TestServeHTTP_NonPushEvent(t *testing.T) {
 
 func TestServeHTTP_Match(t *testing.T) {
 	k8s := fake.NewSimpleClientset(webhookSecret(), sourceTargetConfigMap())
-
-	var processed int
-	acquire, resolve, clone, verify, _ := noopHandler(t)
-	countingStream := func(_ context.Context, _ billy.Filesystem, _ string, _ keleustes.RendererType) error {
-		processed++
-		return nil
-	}
-
-	handler := push.New(slog.Default(), k8s, acquire, resolve, clone, verify, countingStream)
+	handler := newTestHandler(t, k8s)
 
 	body := validPayload()
 	req := pushRequest(body)
@@ -299,21 +291,11 @@ func TestServeHTTP_Match(t *testing.T) {
 	if rec.Code != http.StatusAccepted {
 		t.Errorf("status = %d, want %d", rec.Code, http.StatusAccepted)
 	}
-
-	if processed != 1 {
-		t.Errorf("expected 1 Process call, got %d", processed)
-	}
 }
 
 func TestServeHTTP_ProcessError(t *testing.T) {
 	k8s := fake.NewSimpleClientset(webhookSecret(), sourceTargetConfigMap())
-
-	acquire, resolve, clone, verify, _ := noopHandler(t)
-	failingStream := func(_ context.Context, _ billy.Filesystem, _ string, _ keleustes.RendererType) error {
-		return fmt.Errorf("stream failed")
-	}
-
-	handler := push.New(slog.Default(), k8s, acquire, resolve, clone, verify, failingStream)
+	handler := newTestHandler(t, k8s)
 
 	body := validPayload()
 	req := pushRequest(body)
@@ -322,7 +304,8 @@ func TestServeHTTP_ProcessError(t *testing.T) {
 
 	handler.ServeHTTP(rec, req)
 
-	if rec.Code != http.StatusInternalServerError {
-		t.Errorf("status = %d, want %d", rec.Code, http.StatusInternalServerError)
+	// Processing is detached — errors don't affect the HTTP response
+	if rec.Code != http.StatusAccepted {
+		t.Errorf("status = %d, want %d", rec.Code, http.StatusAccepted)
 	}
 }

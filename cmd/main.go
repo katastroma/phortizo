@@ -153,9 +153,18 @@ func main() {
 	verifyLease := lease.NewVerifyFunc(newConfigMapStore)
 	streamToRenderer := renderer.NewStreamFunc(log, rendererConn)
 
+	maxConcurrentTargets := 10
+	if raw := os.Getenv("MAX_CONCURRENT_TARGETS"); raw != "" {
+		maxConcurrentTargets, err = strconv.Atoi(raw)
+		if err != nil {
+			log.Error("MAX_CONCURRENT_TARGETS must be an integer", "error", err)
+			os.Exit(1)
+		}
+	}
+
 	// HTTP server
 	pushHandler := push.New(
-		log, k8sClient,
+		log, k8sClient, maxConcurrentTargets,
 		acquireLease, resolveAuth, gitClient.Clone,
 		verifyLease, streamToRenderer,
 	)
