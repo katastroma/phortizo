@@ -27,6 +27,7 @@ import (
 
 	"github.com/google/go-github/v84/github"
 
+	"github.com/katastroma/phortizo/internal/config"
 	"github.com/katastroma/phortizo/internal/credential"
 	"github.com/katastroma/phortizo/internal/credential/provider"
 	"github.com/katastroma/phortizo/internal/git"
@@ -56,21 +57,26 @@ func main() {
 	defer shutdown(mainCtx)
 
 	// GitHub App
-	clientID := os.Getenv("GITHUB_APP_CLIENT_ID")
-	if clientID == "" {
-		log.Error("GITHUB_APP_CLIENT_ID is required")
-		os.Exit(1)
-	}
-
-	installationID, err := strconv.ParseInt(os.Getenv("GITHUB_APP_INSTALLATION_ID"), 10, 64)
+	clientID, err := config.RequireEnv("GITHUB_APP_CLIENT_ID")
 	if err != nil {
-		log.Error("GITHUB_APP_INSTALLATION_ID is required and must be an integer", "error", err)
+		log.Error(err.Error())
 		os.Exit(1)
 	}
 
-	privateKeyPEM := os.Getenv("GITHUB_APP_PRIVATE_KEY")
-	if privateKeyPEM == "" {
-		log.Error("GITHUB_APP_PRIVATE_KEY is required")
+	installationIDRaw, err := config.RequireEnv("GITHUB_APP_INSTALLATION_ID")
+	if err != nil {
+		log.Error(err.Error())
+		os.Exit(1)
+	}
+	installationID, err := strconv.ParseInt(installationIDRaw, 10, 64)
+	if err != nil {
+		log.Error("GITHUB_APP_INSTALLATION_ID must be an integer", "error", err)
+		os.Exit(1)
+	}
+
+	privateKeyPEM, err := config.RequireEnv("GITHUB_APP_PRIVATE_KEY")
+	if err != nil {
+		log.Error(err.Error())
 		os.Exit(1)
 	}
 
@@ -107,9 +113,9 @@ func main() {
 	credentialReader := provider.NewReader(gha)
 
 	// Renderer connection
-	rendererAddr := os.Getenv("RENDERER_ADDR")
-	if rendererAddr == "" {
-		log.Error("RENDERER_ADDR is required")
+	rendererAddr, err := config.RequireEnv("RENDERER_ADDR")
+	if err != nil {
+		log.Error(err.Error())
 		os.Exit(1)
 	}
 
@@ -121,22 +127,16 @@ func main() {
 	defer rendererConn.Close()
 
 	// Lease configuration
-	leaseStaleAfter := 10 * time.Minute
-	if raw := os.Getenv("LEASE_STALE_AFTER"); raw != "" {
-		leaseStaleAfter, err = time.ParseDuration(raw)
-		if err != nil {
-			log.Error("LEASE_STALE_AFTER must be a valid duration", "error", err)
-			os.Exit(1)
-		}
+	leaseStaleAfter, err := config.DurationEnv("LEASE_STALE_AFTER", 10*time.Minute)
+	if err != nil {
+		log.Error(err.Error())
+		os.Exit(1)
 	}
 
-	maxReplayAttempts := 3
-	if raw := os.Getenv("MAX_REPLAY_ATTEMPTS"); raw != "" {
-		maxReplayAttempts, err = strconv.Atoi(raw)
-		if err != nil {
-			log.Error("MAX_REPLAY_ATTEMPTS must be an integer", "error", err)
-			os.Exit(1)
-		}
+	maxReplayAttempts, err := config.IntEnv("MAX_REPLAY_ATTEMPTS", 3)
+	if err != nil {
+		log.Error(err.Error())
+		os.Exit(1)
 	}
 
 	// Pipeline step closures
@@ -153,13 +153,10 @@ func main() {
 	verifyLease := lease.NewVerifyFunc(newConfigMapStore)
 	streamToRenderer := renderer.NewStreamFunc(log, rendererConn)
 
-	maxConcurrentTargets := 10
-	if raw := os.Getenv("MAX_CONCURRENT_TARGETS"); raw != "" {
-		maxConcurrentTargets, err = strconv.Atoi(raw)
-		if err != nil {
-			log.Error("MAX_CONCURRENT_TARGETS must be an integer", "error", err)
-			os.Exit(1)
-		}
+	maxConcurrentTargets, err := config.IntEnv("MAX_CONCURRENT_TARGETS", 10)
+	if err != nil {
+		log.Error(err.Error())
+		os.Exit(1)
 	}
 
 	// HTTP server
@@ -173,10 +170,7 @@ func main() {
 	mux.Handle("GET /healthz", http_health.New(log, ghService))
 	mux.Handle("POST /push/{namespace}", pushHandler)
 
-	httpPort := os.Getenv("PORT")
-	if httpPort == "" {
-		httpPort = "8080"
-	}
+	httpPort := config.StringEnv("PORT", "8080")
 
 	httpServer := &http.Server{Addr: fmt.Sprintf(":%s", httpPort), Handler: mux}
 
@@ -187,9 +181,9 @@ func main() {
 	healthpb.RegisterHealthServer(grpcServer, healthServer)
 
 	// Tracer — connects to Tempo for replay support
-	tempoAddr := os.Getenv("TEMPO_ADDRESS")
-	if tempoAddr == "" {
-		log.Error("TEMPO_ADDRESS is required")
+	tempoAddr, err := config.RequireEnv("TEMPO_ADDRESS")
+	if err != nil {
+		log.Error(err.Error())
 		os.Exit(1)
 	}
 
