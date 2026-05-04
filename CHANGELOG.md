@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## 0.7.0 - 2026-05-04
+#### Features
+- use bidi streaming - (e048b6f) - Nathan Blair
+
+- - -
+
 ## 0.6.8 - 2026-04-03
 #### Bug Fixes
 - semaphores for push handling - (29b40db) - Nathan Blair
