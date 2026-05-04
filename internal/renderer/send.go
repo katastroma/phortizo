@@ -19,15 +19,8 @@ import (
 )
 
 
-// chunkSize is the byte size of each RenderRequest message. This is a
-// practical choice — large enough to amortize per-message overhead, small
-// enough to keep memory pressure low. gRPC's default max message size is
-// 4 MiB; this value is well under that limit.
-const chunkSize = 32 * 1024
-
-// send opens a Render send on the client and sends the source content
-// from the filesystem at root as a tar archive. It closes the send side
-// when done.
+// send opens a Render stream on the client and sends the source content
+// from the filesystem at root as a tar archive, then receives the server response.
 func send(
 	ctx context.Context,
 	log *slog.Logger,
@@ -35,6 +28,7 @@ func send(
 	fs billy.Filesystem,
 	root string,
 	rendererType pb.RendererType,
+	chunkSize int,
 ) error {
 	ctx = metadata.AppendToOutgoingContext(ctx, pb.RendererTypeMetadataKey, rendererType.String())
 	s, err := client.Render(ctx)
@@ -47,7 +41,7 @@ func send(
 	writeErr := make(chan error, 1)
 	go archiveToPipe(writeErr, pw, fs, root)
 
-	sendErr := sendChunks(s, pr)
+	sendErr := sendChunks(s, pr, chunkSize)
 	pr.Close()
 	archiveErr := <-writeErr
 
@@ -59,8 +53,8 @@ func send(
 	}
 
 	if _, err = s.CloseAndRecv(); err != nil {
-		log.ErrorContext(ctx, "renderer failed", "error", err)
-		return fmt.Errorf("renderer: %w", err)
+		log.ErrorContext(ctx, "closing renderer stream failed", "error", err)
+		return fmt.Errorf("closing renderer stream: %w", err)
 	}
 
 	return nil
@@ -133,7 +127,7 @@ func (a *archiver) add(path string, info os.FileInfo, err error) error {
 
 // sendChunks reads from r in chunkSize pieces and sends each as a
 // RenderRequest on the stream.
-func sendChunks(s pb.RendererService_RenderClient, r io.Reader) error {
+func sendChunks(s pb.RendererService_RenderClient, r io.Reader, chunkSize int) error {
 	buf := make([]byte, chunkSize)
 
 	for {

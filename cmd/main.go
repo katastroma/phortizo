@@ -147,17 +147,23 @@ func main() {
 		return secret.NewStore(k8sClient, ns)
 	}
 
-	acquireLease := lease.NewAcquireFunc(newConfigMapStore)
-	resolveAuth := credential.NewResolveFunc(credentialReader, http.DefaultClient, newSecretStore)
-	gitClient := git.Client{}
-	verifyLease := lease.NewVerifyFunc(newConfigMapStore)
-	streamToRenderer := renderer.NewStreamFunc(log, rendererConn)
-
 	maxConcurrentTargets, err := config.IntEnv("MAX_CONCURRENT_TARGETS", 10)
 	if err != nil {
 		log.Error(err.Error())
 		os.Exit(1)
 	}
+
+	chunkSize, err := config.IntEnv("CHUNK_SIZE", 32*1024)
+	if err != nil {
+		log.Error(err.Error())
+		os.Exit(1)
+	}
+
+	acquireLease := lease.NewAcquireFunc(newConfigMapStore)
+	resolveAuth := credential.NewResolveFunc(credentialReader, http.DefaultClient, newSecretStore)
+	gitClient := git.Client{}
+	verifyLease := lease.NewVerifyFunc(newConfigMapStore)
+	streamToRenderer := renderer.NewStreamFunc(log, rendererConn, chunkSize)
 
 	// HTTP server
 	pushHandler := push.New(

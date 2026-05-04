@@ -15,11 +15,11 @@ import (
 )
 
 func TestNewStreamFunc(t *testing.T) {
-	cs := &tests.MockClientStream{}
+	cs := &tests.MockClientStream{Ctx: t.Context()}
 	conn := &tests.MockClientConn{
 		NewStreamFn: func() (grpc.ClientStream, error) { return cs, nil },
 	}
-	streamFn := renderer.NewStreamFunc(slog.Default(), conn)
+	streamFn := renderer.NewStreamFunc(slog.Default(), conn, 32*1024)
 
 	if err := streamFn(t.Context(), memfs.New(), ".", keleustes.RendererType_RENDERER_TYPE_PLAIN); err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -32,7 +32,7 @@ func TestNewStreamFunc_StreamError(t *testing.T) {
 			return nil, fmt.Errorf("connection refused")
 		},
 	}
-	streamFn := renderer.NewStreamFunc(slog.Default(), conn)
+	streamFn := renderer.NewStreamFunc(slog.Default(), conn, 32*1024)
 
 	if err := streamFn(t.Context(), memfs.New(), ".", keleustes.RendererType_RENDERER_TYPE_PLAIN); err == nil {
 		t.Fatal("expected error when stream fails")

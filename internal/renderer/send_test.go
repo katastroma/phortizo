@@ -64,10 +64,10 @@ func TestStream(t *testing.T) {
 	fs := memfs.New()
 	createTestFile(t, fs, "deploy/values.yaml", "key: value")
 
-	ms := &tests.MockRenderStream{}
+	ms := &tests.MockRenderStream{Ctx: t.Context()}
 	client := &tests.MockRendererClient{Stream: ms}
 
-	if err := send(t.Context(), slog.Default(), client, fs, "deploy", pb.RendererType_RENDERER_TYPE_PLAIN); err != nil {
+	if err := send(t.Context(), slog.Default(), client, fs, "deploy", pb.RendererType_RENDERER_TYPE_PLAIN, 32*1024); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
@@ -86,10 +86,10 @@ func TestStream_MultipleFiles(t *testing.T) {
 	createTestFile(t, fs, "deploy/a.yaml", "a")
 	createTestFile(t, fs, "deploy/b.yaml", "b")
 
-	ms := &tests.MockRenderStream{}
+	ms := &tests.MockRenderStream{Ctx: t.Context()}
 	client := &tests.MockRendererClient{Stream: ms}
 
-	if err := send(t.Context(), slog.Default(), client, fs, "deploy", pb.RendererType_RENDERER_TYPE_PLAIN); err != nil {
+	if err := send(t.Context(), slog.Default(), client, fs, "deploy", pb.RendererType_RENDERER_TYPE_PLAIN, 32*1024); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
@@ -109,7 +109,7 @@ func TestStream_RenderOpenError(t *testing.T) {
 	fs := memfs.New()
 	client := &tests.MockRendererClient{Err: fmt.Errorf("connection refused")}
 
-	if err := send(t.Context(), slog.Default(), client, fs, "deploy", pb.RendererType_RENDERER_TYPE_PLAIN); err == nil {
+	if err := send(t.Context(), slog.Default(), client, fs, "deploy", pb.RendererType_RENDERER_TYPE_PLAIN, 32*1024); err == nil {
 		t.Fatal("expected error when render stream fails to open")
 	}
 }
@@ -118,10 +118,10 @@ func TestStream_SendError(t *testing.T) {
 	fs := memfs.New()
 	createTestFile(t, fs, "deploy/values.yaml", "key: value")
 
-	ms := &tests.MockRenderStream{SendErr: fmt.Errorf("send failed")}
+	ms := &tests.MockRenderStream{SendErr: fmt.Errorf("send failed"), Ctx: t.Context()}
 	client := &tests.MockRendererClient{Stream: ms}
 
-	if err := send(t.Context(), slog.Default(), client, fs, "deploy", pb.RendererType_RENDERER_TYPE_PLAIN); err == nil {
+	if err := send(t.Context(), slog.Default(), client, fs, "deploy", pb.RendererType_RENDERER_TYPE_PLAIN, 32*1024); err == nil {
 		t.Fatal("expected error when send fails")
 	}
 }
@@ -130,11 +130,11 @@ func TestStream_CloseAndRecvError(t *testing.T) {
 	fs := memfs.New()
 	createTestFile(t, fs, "deploy/values.yaml", "key: value")
 
-	ms := &tests.MockRenderStream{CloseAndRecvErr: fmt.Errorf("renderer failed")}
+	ms := &tests.MockRenderStream{CloseAndRecvErr: fmt.Errorf("close and recv failed"), Ctx: t.Context()}
 	client := &tests.MockRendererClient{Stream: ms}
 
-	if err := send(t.Context(), slog.Default(), client, fs, "deploy", pb.RendererType_RENDERER_TYPE_PLAIN); err == nil {
-		t.Fatal("expected error when renderer fails")
+	if err := send(t.Context(), slog.Default(), client, fs, "deploy", pb.RendererType_RENDERER_TYPE_PLAIN, 32*1024); err == nil {
+		t.Fatal("expected error when CloseAndRecv fails")
 	}
 }
 
@@ -143,10 +143,10 @@ func TestStream_FileOpenError(t *testing.T) {
 	createTestFile(t, backing, "deploy/values.yaml", "key: value")
 	fs := &tests.OpenErrorFS{Filesystem: backing}
 
-	ms := &tests.MockRenderStream{}
+	ms := &tests.MockRenderStream{Ctx: t.Context()}
 	client := &tests.MockRendererClient{Stream: ms}
 
-	if err := send(t.Context(), slog.Default(), client, fs, "deploy", pb.RendererType_RENDERER_TYPE_PLAIN); err == nil {
+	if err := send(t.Context(), slog.Default(), client, fs, "deploy", pb.RendererType_RENDERER_TYPE_PLAIN, 32*1024); err == nil {
 		t.Fatal("expected error when file open fails")
 	}
 }
@@ -156,10 +156,10 @@ func TestStream_FileReadError(t *testing.T) {
 	createTestFile(t, backing, "deploy/values.yaml", "key: value")
 	fs := &tests.ErrorFS{Filesystem: backing}
 
-	ms := &tests.MockRenderStream{}
+	ms := &tests.MockRenderStream{Ctx: t.Context()}
 	client := &tests.MockRendererClient{Stream: ms}
 
-	if err := send(t.Context(), slog.Default(), client, fs, "deploy", pb.RendererType_RENDERER_TYPE_PLAIN); err == nil {
+	if err := send(t.Context(), slog.Default(), client, fs, "deploy", pb.RendererType_RENDERER_TYPE_PLAIN, 32*1024); err == nil {
 		t.Fatal("expected error when file read fails")
 	}
 }
@@ -167,10 +167,10 @@ func TestStream_FileReadError(t *testing.T) {
 func TestStream_WalkError(t *testing.T) {
 	fs := memfs.New()
 
-	ms := &tests.MockRenderStream{}
+	ms := &tests.MockRenderStream{Ctx: t.Context()}
 	client := &tests.MockRendererClient{Stream: ms}
 
-	if err := send(t.Context(), slog.Default(), client, fs, "nonexistent", pb.RendererType_RENDERER_TYPE_PLAIN); err == nil {
+	if err := send(t.Context(), slog.Default(), client, fs, "nonexistent", pb.RendererType_RENDERER_TYPE_PLAIN, 32*1024); err == nil {
 		t.Fatal("expected error for nonexistent path")
 	}
 }
@@ -179,10 +179,10 @@ func TestStream_EmptyDirectory(t *testing.T) {
 	fs := memfs.New()
 	fs.MkdirAll("empty", 0o755)
 
-	ms := &tests.MockRenderStream{}
+	ms := &tests.MockRenderStream{Ctx: t.Context()}
 	client := &tests.MockRendererClient{Stream: ms}
 
-	if err := send(t.Context(), slog.Default(), client, fs, "empty", pb.RendererType_RENDERER_TYPE_PLAIN); err != nil {
+	if err := send(t.Context(), slog.Default(), client, fs, "empty", pb.RendererType_RENDERER_TYPE_PLAIN, 32*1024); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
@@ -196,10 +196,10 @@ func TestStream_RootPath(t *testing.T) {
 	fs := memfs.New()
 	createTestFile(t, fs, "values.yaml", "key: value")
 
-	ms := &tests.MockRenderStream{}
+	ms := &tests.MockRenderStream{Ctx: t.Context()}
 	client := &tests.MockRendererClient{Stream: ms}
 
-	if err := send(t.Context(), slog.Default(), client, fs, ".", pb.RendererType_RENDERER_TYPE_PLAIN); err != nil {
+	if err := send(t.Context(), slog.Default(), client, fs, ".", pb.RendererType_RENDERER_TYPE_PLAIN, 32*1024); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 

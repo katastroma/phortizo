@@ -15,8 +15,8 @@ import (
 type StreamFunc func(ctx context.Context, fs billy.Filesystem, path string, rendererType pb.RendererType) error
 
 // NewStreamFunc returns a StreamFunc that streams via the given connection.
-func NewStreamFunc(log *slog.Logger, conn grpc.ClientConnInterface) StreamFunc {
+func NewStreamFunc(log *slog.Logger, conn grpc.ClientConnInterface, chunkSize int) StreamFunc {
 	return func(ctx context.Context, fs billy.Filesystem, path string, rendererType pb.RendererType) error {
-		return send(ctx, log, pb.NewRendererServiceClient(conn), fs, path, rendererType)
+		return send(ctx, log, pb.NewRendererServiceClient(conn), fs, path, rendererType, chunkSize)
 	}
 }
